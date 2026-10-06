@@ -14,7 +14,7 @@ jobs:
         os: [windows-latest, macos-latest, ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       # Pinned, and moved on purpose: a new stable's lints must not turn a green tree red
       # overnight under `-D warnings`. The floor the crates declare is checked separately (MSRV).
       - uses: dtolnay/rust-toolchain@master

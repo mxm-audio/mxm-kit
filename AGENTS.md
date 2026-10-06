@@ -198,7 +198,8 @@ fixes in its `PATCHES.md` — which every repository that builds a plugin patche
   [`crates/mxm-measure/AGENTS.md`](crates/mxm-measure/AGENTS.md) and
   [`crates/mxm-listening/AGENTS.md`](https://github.com/mxm-audio/mxm-tools/blob/main/crates/mxm-listening/AGENTS.md).
 - `crates/mxm-xtask` is **the build tooling every repository's `xtask` shares** — `nice_plug_xtask`'s
-  bundler and the control-map staging — so each product repository bundles the same way. The root
+  bundler, the control-map staging, and `fetch`, which builds other repositories' plugins at pinned
+  tags for this repository's tests — so each product repository bundles and tests the same way. The root
   `xtask` passes its workspace root and keeps only `fixtures`. See
   [`crates/mxm-xtask/AGENTS.md`](crates/mxm-xtask/AGENTS.md).
 - `crates/mxm-plugin-test` is **the checks every plugin's tests share** — keyboard coverage, paging,

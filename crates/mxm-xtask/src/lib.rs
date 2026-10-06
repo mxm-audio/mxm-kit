@@ -3,19 +3,29 @@
 //! map beside its bundle — an instrument owns its mapping, so the two must ship together. See
 //! [`control_maps`].
 //!
+//! `cargo xtask fetch` builds the plugins of other MXM repositories that this repository's tests
+//! load, at the tags `test-bundles.txt` pins. See [`fetch`].
+//!
 //! A repository's own `xtask` is a few lines that pass its workspace root to [`main`], plus any
 //! command only that repository needs (MXM Player's `fixtures`).
 
 pub mod control_maps;
+pub mod fetch;
 
 use std::path::Path;
 
-/// Runs `nice_plug_xtask` on the command line it was given and, after a `bundle`, stages the
-/// control maps of the plugins in `workspace_root`'s `bundler.toml`.
+/// Runs `fetch`, or `nice_plug_xtask` on the command line it was given and, after a `bundle`,
+/// stages the control maps of the plugins in `workspace_root`'s `bundler.toml`.
 ///
 /// `workspace_root` is the caller's own: the parent of its `env!("CARGO_MANIFEST_DIR")`. This crate
 /// cannot know it, because its own manifest directory is wherever the dependency was fetched to.
 pub fn main(workspace_root: &Path) -> nice_plug_xtask::Result<()> {
+    if std::env::args().nth(1).as_deref() == Some("fetch") {
+        for path in fetch::fetch(workspace_root)? {
+            println!("Placed {}", path.display());
+        }
+        return Ok(());
+    }
     let bundling = std::env::args().nth(1).as_deref() == Some("bundle");
     nice_plug_xtask::main()?;
 
