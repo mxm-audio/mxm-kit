@@ -84,7 +84,7 @@ The full wording: [NOTES.md § The DOX framework in full](NOTES.md#the-dox-frame
 - **Every meaningful change gets a DOX pass.** Update the closest owning AGENTS.md when purpose,
   scope, ownership, structure, contracts, workflows, inputs, outputs, permissions, constraints, side
   effects, artifacts, the owner's preferences, or AGENTS.md files and indexes change, and the parents
-  and children it affects; remove stale or contradictory text at once. A small edit that changes no
+  and children it affects; correct stale or contradictory text at once, moving its history to `NOTES.md` rather than deleting it. A small edit that changes no
   behaviour may leave docs unchanged, but the pass still happens.
 - **Hierarchy**: the root is the rail; a child owns its domain and its own Child DOX Index; a parent
   says what its children cover and what it keeps; the closer to the work, the more concrete.
@@ -159,7 +159,7 @@ implemented. A dependency that does not support all three cannot be taken.
   its number. Two exceptions: the design system's own tokens and rules, and a plan's dated revision
   history.
 - **Closeout**: re-check changed paths against the DOX chain; update the nearest owning docs and any
-  affected parents or children; refresh every affected Child DOX Index; remove stale or contradictory
+  affected parents or children; refresh every affected Child DOX Index; correct (never just delete) stale or contradictory
   text; run existing verification when relevant; report any docs intentionally left unchanged and why.
 
 # Verification

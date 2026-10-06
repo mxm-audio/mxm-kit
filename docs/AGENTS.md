@@ -135,7 +135,7 @@ to compile and to have been run.
   `research:<path>` and takes facts, numbers and our own measurements only — never a third-party
   file, an image or verbatim text (root *Research citations*; in full,
   [`collection-rules.md`](collection-rules.md#research-boundary)).
-- Delete stale text rather than explaining its history.
+- Keep AGENTS.md current: correct stale text and move its history to `NOTES.md` instead of explaining it here.
 - Cross-link instead of restating. The design system is the single source for interface rules; DSP
   conventions live in the code's own AGENTS.md chain.
 
