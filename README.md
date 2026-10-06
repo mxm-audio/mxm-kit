@@ -31,8 +31,8 @@ builds with:
 
 ```toml
 [dependencies]
-mxm-ui = { git = "https://github.com/mxm-audio/mxm-kit", tag = "v0.4.0" }
-mxm-preset = { git = "https://github.com/mxm-audio/mxm-kit", tag = "v0.4.0" }
+mxm-ui = { git = "https://github.com/mxm-audio/mxm-kit", tag = "v0.4.1" }
+mxm-preset = { git = "https://github.com/mxm-audio/mxm-kit", tag = "v0.4.1" }
 
 [patch.crates-io]
 nice-plug = { git = "https://github.com/mxm-audio/nice-plug", tag = "0.4.2-mxm.1" }
