@@ -173,9 +173,10 @@ if ($leaked) { Write-Error "a test-only crate leaked into: $($leaked -join ', ')
 
 The pattern also names [`mxm-plugin-test`](../mxm-plugin-test/AGENTS.md), the plugins' shared
 checks, and `mxm-listening`, the listener in `mxm-tools`: dev-dependencies on the same terms, one
-check. The collection-wide run over every product — the twenty plugins and MXM Player — is the
-workspace repository's, which enumerates them rather than globbing, so a product that forgets the
-check shows up as a missing name.
+check. A collection-wide run over every product — the twenty plugins and MXM Player — that
+enumerates them rather than globbing, so a product that forgets the check shows up as a missing
+name, is meant for the maintainer's collection tests but does not exist yet (checked 2026-10-06);
+until it does, each product repository's own run is the check.
 
 # Child DOX Index
 
