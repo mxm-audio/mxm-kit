@@ -342,7 +342,7 @@ cheap to get right at intake and a re-release of ids to fix afterwards.
 
 A new instrument starts on it. An existing one converts under
 `plans/plan-modulation-routing.md` (`plans/plan-modulation-routing.md` in the private archive) M5, which names the
-conversions still owed. Read [`docs/code-review-notes.md`](https://github.com/mxm-audio/newdawn-workspace/blob/main/docs/code-review-notes.md) §7 before
+conversions still owed. Read [`docs/code-review-notes.md`](code-review-notes.md) §7 before
 converting: five of its lessons were found twice, on two conversions.
 
 ## Smooth signals, not coefficients
@@ -960,7 +960,7 @@ release validator run does not prove absence of allocation.
 - **A column test keeps passing on a layout with no columns.** Every editor here had one, and each
   went on holding "the columns end level" while nothing lined up across the panel. Assert **rows**,
   read off the drawn rectangles, which is what a person sees.
-- A §14 design brief in [`docs/briefs/`](https://github.com/mxm-audio/newdawn-workspace/blob/main/docs/AGENTS.md) is written **before** the editor.
+- A §14 design brief in [`docs/briefs/`](AGENTS.md) is written **before** the editor.
 
 ### Private editor surfaces are tested in process
 
@@ -1083,7 +1083,7 @@ licence at its root, and the kit is MIT; the line above describes the monorepo.
 ## Adding a new plugin
 
 The ordered walkthrough — with the traps that belong to no single scope, and a copy-paste checklist
-— is [`docs/adding-an-instrument.md`](https://github.com/mxm-audio/newdawn-workspace/blob/main/docs/adding-an-instrument.md). It owns no rules; the
+— is [`docs/adding-an-instrument.md`](adding-an-instrument.md). It owns no rules; the
 contracts stay here. The short form:
 
 1. Write the §14 design brief in `docs/briefs/<plugin>.md` first.
@@ -1192,7 +1192,7 @@ result, and close the player first.
 
 **A clean validator run has zero failures in debug and release.** Instruments and effects exercise
 different subsets, so their passed counts need not match. If any test fails, first confirm that the
-`[patch.crates-io]` redirect to [`vendor/nice-plug`](https://github.com/mxm-audio/newdawn-workspace/blob/main/vendor/AGENTS.md) is still active; its
+`[patch.crates-io]` redirect to [`vendor/nice-plug`](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) is still active; its
 regressions protect fixes that remain unfixed upstream. Wrapper defects 6 and 7 — the first sample-accurate parameter event's timestamp, and an out-of-range timestamp used as an audio split point — have their bundled-host regressions in `plugins/mxm-para-07/host-tests/tests/behaviour.rs`. Wrapper defects 8 and 9 — GUI state restoration with complete rollback, and a rejected persistent field — have theirs in `plugins/mxm-fx-convolution/host-tests/tests/behaviour.rs`.
 
 

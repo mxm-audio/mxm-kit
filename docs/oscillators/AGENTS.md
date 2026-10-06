@@ -169,7 +169,7 @@ cargo run -p dsp-lab --release --example osc_spike
 Internal links, after moving or renaming a document:
 
 ```bash
-cd docs && grep -roh "](https://github.com/mxm-audio/newdawn-workspace/blob/main/../../../../../../([0-9A-Za-z._/-]*/.md)" . | sed 's/](//' | sort -u
+cd docs && grep -roh "](\([0-9A-Za-z._/-]*\.md\)" . | sed 's/](//' | sort -u
 ```
 
 and confirm each path exists relative to its referring file.

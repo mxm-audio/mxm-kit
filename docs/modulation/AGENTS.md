@@ -115,7 +115,7 @@ cargo test -p mxm-mono-01-dsp
 Internal links, after moving or renaming a document:
 
 ```bash
-cd docs && grep -roh "](https://github.com/mxm-audio/newdawn-workspace/blob/main/../../../../../../([0-9A-Za-z._/-]*/.md)" . | sed 's/](//' | sort -u
+cd docs && grep -roh "](\([0-9A-Za-z._/-]*\.md\)" . | sed 's/](//' | sort -u
 ```
 
 Last full run: the spike's four sections, recorded verbatim in `measurements-run.txt`. Update this
