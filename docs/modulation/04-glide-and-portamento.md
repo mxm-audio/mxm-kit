@@ -192,7 +192,7 @@ Four properties worth having written down, because none of them is visible from 
    emitting the same legato joint, which this collection's instruments sound as a hold and a
    third-party CLAP is free to treat audibly.
 
-2. **`todo.txt`'s "glide as part of the synth not the sequencer" is the right call, and §4.4 is
+2. **The owner's "glide as part of the synth not the sequencer" is the right call, and §4.4 is
    why.** The pitch lag is a property of the voice — an RC in the CV path, which is downstream of
    whatever is generating notes. What belongs to the sequencer is only the per-transition *decision*
    to engage it. Putting the lag itself in the sequencer would make it unavailable to a player using
