@@ -15,8 +15,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      # Pinned, and moved on purpose: a new stable's lints must not turn a green tree red
+      # overnight under `-D warnings`. The floor the crates declare is checked separately (MSRV).
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: "1.98.0"
           components: clippy, rustfmt
       - uses: Swatinem/rust-cache@v2
       - name: Linux system libraries

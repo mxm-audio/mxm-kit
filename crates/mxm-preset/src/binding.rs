@@ -998,6 +998,9 @@ mod tests {
                 applies,
             }
         }
+        // `fetch_update` is renamed `try_update` in Rust after 1.98; the new name does not exist at
+        // this crate's 1.95 floor, so the old one stays until the floor moves past the rename.
+        #[allow(deprecated)]
         fn push(&self, event: u32) {
             let _ = self
                 .record
