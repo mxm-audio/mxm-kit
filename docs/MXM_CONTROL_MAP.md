@@ -53,7 +53,8 @@ bank below - a stock M32 reaches the whole collection standard from its factory 
 never changes these roles, slots, CLAP remote-control pages or CC 110/111. The opt-in developer
 CC 119 instead addresses 0 Performance, 1 Modulators, 2 Sequencers, 3 Generators, 4 Tone,
 5 Effects, or 127 Parameters; other values are ignored. It selects the category's first card,
-not a visual page number. See `plugins/AGENTS.md` for the developer-channel gate.
+not a visual page number. See `plugins/AGENTS.md` (the rule is
+[`plugin-conventions.md`](plugin-conventions.md#a-developer-channel-in-every-editor)'s) for the developer-channel gate.
 
 Slots on **CC 102–109**, page down **110**, page up **111** — from the block the MIDI spec leaves
 explicitly undefined, so nothing collides with GM, GM2, or the channel-mode messages.
@@ -104,7 +105,7 @@ passing — it is recorded here as debt for a page-naming policy. `mxm-mono-00` 
 or `lfo2.delay` (its second LFO has no depths of its own and no delay), and it deliberately **does
 not fill `filter.hpf`** — see §5. **No instrument fills `lfo1.sync` or `lfo2.sync` yet**, although
 since 2026-09-25 every LFO rate in the collection has its own tempo sync
-(`plans/plan-tempo-sync-controls.md`); mapping them is a control-map change of its own, not made in
+(`plans/plan-tempo-sync-controls.md`, in the private archive); mapping them is a control-map change of its own, not made in
 passing.
 
 **`amp_env.trigger` was appended into the Amp page's first free slot for `mxm-mono-02`** — the
@@ -114,7 +115,7 @@ trigger modes are the same control on other machines. It also settles a role tha
 meanings: `mxm-mono-01`'s map fills `voice.note_priority` with its `retrigger` parameter, while
 `mxm-poly-06` fills it with a real key-assign mode. **`voice.note_priority` is key assign; trigger
 mode lives on `amp_env.trigger`.** mono-01's map is out of step until its own plan moves the row
-(`plans/plan-mxm-mono-02.md` §8); no instrument's behaviour changes until then. `mxm-mono-02` leaves
+(`plans/plan-mxm-mono-02.md` §8, in the private archive); no instrument's behaviour changes until then. `mxm-mono-02` leaves
 `filter_env.polarity` unfilled: since its routing conversion the envelope's polarity is the sign of
 its (Cutoff ← Envelope) route's amount, and the follower is a source of its own. It leaves
 `osc1.pwm_source` and `osc2.pwm_source` unfilled too, the source switch having become two routes,
@@ -305,7 +306,8 @@ seen. If it ever needs a code change, the design has failed.
 ## 6. Resolution, and the surprise in it
 
 **nice-plug reports parameters to the host as normalised `0.0..=1.0`** — `min_value = 0.0`,
-`max_value = step_count.unwrap_or(1)` (`vendor/nice-plug/src/wrapper/clap/wrapper.rs:3455-3459`) —
+`max_value = step_count.unwrap_or(1)` (`vendor/nice-plug/src/wrapper/clap/wrapper.rs:3455-3459`;
+since the split, [`src/wrapper/clap/wrapper.rs:3760-3764`](https://github.com/mxm-audio/nice-plug/blob/main/src/wrapper/clap/wrapper.rs#L3760-L3764) in the nice-plug fork) —
 with the plugin's own skew applied inside.
 
 So for every MXM plugin, mapping a controller linearly across that range **inherits the plugin's own
@@ -324,7 +326,8 @@ Controllers; NRPN is out of scope.
 
 ## 8. Verification
 
-`apps/mxm-player/tests/t5_control_map.rs`, plus unit tests in `control_map::{curve, takeover,
+[`apps/mxm-player/tests/t5_control_map.rs`](https://github.com/mxm-audio/mxm-player/blob/main/apps/mxm-player/tests/t5_control_map.rs)
+in mxm-player, plus unit tests in its `control_map::{curve, takeover,
 schema}`. What is actually proven:
 
 - a new instrument gets the layout by adding a file only;
@@ -356,7 +359,7 @@ Accent stays reachable from the panel, from host automation, and from per-step m
 chorus is the one control a player of that instrument would want on a knob, which is what this
 defect now costs. **Two instruments ship restricted maps, and `mxm-mono-00` will be the third** — losing its
 second LFO and all three effects on a controller until the fix lands. **The loader fix is overdue**,
-and `plans/plan-mxm-poly-06.md` §8 proposes it as a plan of its own.
+and `plans/plan-mxm-poly-06.md` §8 (in the private archive) proposes it as a plan of its own.
 
 **`mxm-mono-02` claims `amp_env.trigger`, the role added with it, and that is not the exception it
 looks like.** The restriction above protects players built before a role existed. `amp_env.trigger`
@@ -385,6 +388,7 @@ Deliberately, and none of it blocking:
   `-02`, `-pr1`, `mxm-poly-06`, `mxm-para-07`) bind them to route amounts whose zero is the
   **centre** of their 0–1 travel, so the bottom half of the knob inverts the depth. The player
   cannot tell: nice-plug reports every continuous parameter as 0–1 with its own skew inside
-  (`vendor/nice-plug/src/wrapper/clap/wrapper.rs:3455-3459`). The fix is either a binding option
+  (`vendor/nice-plug/src/wrapper/clap/wrapper.rs:3455-3459`; since the split, lines 3760–3764 of
+  the nice-plug fork's). The fix is either a binding option
   that maps from the centre — which an old player's `ParamRef` cannot parse, so it would refuse the
   instrument's whole map — or unfilling the roles. The owner left it as it is, 2026-09-22.

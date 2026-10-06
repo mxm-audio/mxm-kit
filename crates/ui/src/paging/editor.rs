@@ -1,8 +1,9 @@
 //! Editor-thread integration of the pure planner, for an editor whose card bodies are
-//! `crate::tree`s (plans/plan-layout-tree.md). A card's height at any candidate width is what its
-//! tree states, so nothing is drawn to learn a size: there is no measuring context, no measuring
-//! pass for a control to guard against, and no revision to keep a cache honest. Callers still
-//! snapshot destructive telemetry reads before `show`, because painting reads them.
+//! `crate::tree`s (plans/plan-layout-tree.md, in the private archive). A card's height at any
+//! candidate width is what its tree states, so nothing is drawn to learn a size: there is no
+//! measuring context, no measuring pass for a control to guard against, and no revision to keep a
+//! cache honest. Callers still snapshot destructive telemetry reads before `show`, because painting
+//! reads them.
 
 use super::*;
 use crate::{
@@ -356,7 +357,7 @@ fn current_fits(
 /// Heights come from the trees, so nothing is drawn to learn one, and there is no parameter
 /// revision to pass: the trees are rebuilt every frame and the planner's heights with them, so a
 /// disclosure opening, a selected slot or a warning line re-plans at once, which a cache keyed on
-/// parameter values would miss (plans/plan-layout-tree.md §2.5).
+/// parameter values would miss (plans/plan-layout-tree.md §2.5, in the private archive).
 pub fn show<K: std::hash::Hash + std::fmt::Debug>(
     ui: &mut Ui,
     tokens: &Tokens,

@@ -105,7 +105,8 @@ priming, left in.
 ## Why the fixtures are a sweep
 
 One synthesised stereo sweep, rendered by ffmpeg 8.1.1 with the commands in `fixtures/README.md`. No
-recording or third-party audio. The root release checklist's media check finds these files; this
+recording or third-party audio. The root release checklist's media check (since the split, in
+[`docs/collection-rules.md`](../../docs/collection-rules.md#research-boundary)) finds these files; this
 section and that README are its declaration. **A sweep, not a tone**: a steady sine matches itself a
 period late, and the first fixture set reported a false 2,205-frame lag at a correlation of 1.000000.
 
@@ -132,3 +133,5 @@ platforms, Rust 1.89, and outside the panic containment.
 is silent.
 The mutation sweeps ran 1,470 decodes of mutated WAV, AIFF and FLAC and 992 of mutated MP3, AAC, ALAC
 and Vorbis, with **no panic** in either. Linux and macOS are not verified here.
+*Since the split (2026-10-06):* CI runs this crate's tests on Windows, macOS and Linux on every `v*`
+release tag; before a push, Linux is checked in WSL.

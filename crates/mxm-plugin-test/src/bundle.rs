@@ -4,7 +4,7 @@
 //!
 //! The file is found by walking up from the plugin's manifest rather than at a fixed `../..`, so the
 //! check holds in the collection's workspace and in a repository of the plugin's own, where the
-//! plugin sits at a different depth (`plans/plan-repo-split.md`).
+//! plugin sits at a different depth (`plans/plan-repo-split.md`, in the private archive).
 
 use std::path::Path;
 

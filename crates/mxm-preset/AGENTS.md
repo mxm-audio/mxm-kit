@@ -9,7 +9,8 @@ favourites, three-state loaded identity and app-bar controls. It serves every in
 effect that qualifies under the parent preset rule.
 
 The rules — what a preset is, how it is applied, where it lives, what a favourite is — are stated in
-[`plugins/AGENTS.md`](https://github.com/mxm-audio/mxm-mono-01/blob/main/plugins/AGENTS.md), *A preset is parameter values*, and implemented here.
+each plugin repository's `plugins/AGENTS.md`, *A preset is parameter values* (in full,
+[`docs/plugin-conventions.md`](../../docs/plugin-conventions.md#a-preset-is-parameter-values-and-every-instrument-stores-them-the-same-way)), and implemented here.
 This doc holds what is specific to the crate: its one trait, what stays with a plugin, and the
 crate-specific contracts. The full text behind each rule is in [NOTES.md](NOTES.md).
 
@@ -185,6 +186,9 @@ cargo test -p mxm-preset
 cargo clippy -p mxm-preset --all-targets
 cargo test -p mxm-mono-00 -p mxm-mono-01 -p mxm-mono-02 -p mxm-mono-03 -p mxm-mono-08 -p mxm-mono-pr1 -p mxm-poly-06 -p mxm-para-07 -p mxm-chorus-06 -p mxm-folded-spring -p mxm-bucket-delay -p mxm-shimmer -p mxm-classic-verb -p mxm-grain-fx -p mxm-fx-convolution -p mxm-creative-sampler -p mxm-drum-machine
 ```
+
+*Since the split (2026-10-06):* the last line was the monorepo's; each of those packages is in its
+own repository now, so run `cargo test -p <plugin>` in each, against this change.
 
 # Child DOX Index
 

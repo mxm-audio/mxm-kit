@@ -1,5 +1,6 @@
 //! Regression tests for the pager review at e644c96.
-//! The first three assertions failed before the repairs; see plans/plan-dynamic-view-paging.md §11.
+//! The first three assertions failed before the repairs; see plans/plan-dynamic-view-paging.md §11
+//! (in the private archive).
 use egui::{Context, Event, Pos2, RawInput, Rect, vec2};
 use mxm_ui::{
     flow::Card,

@@ -9,8 +9,18 @@ disagree the owning `AGENTS.md` wins. The table in [§10](#10-where-each-rule-ac
 which document owns what. What this file adds is the *order* and the *gotchas*, which live nowhere
 as a unit.
 
-Read [`AGENTS.md`](../AGENTS.md) and [`plugins/AGENTS.md`](plugin-conventions.md) before starting.
-This document assumes both.
+*Since the split (2026-10-06):* this guide was written for the monorepo, where every instrument was
+a folder. An instrument is now a repository of its own under
+[github.com/mxm-audio](https://github.com/mxm-audio), laid out like the existing ones
+([mxm-mono-01](https://github.com/mxm-audio/mxm-mono-01) is the usual model): `plugins/<plugin>/`
+with its `host-tests/`, `crates/<plugin>-dsp/`, `xtask/`, `bundler.toml`, and the kit's crates as
+git dependencies at a tag. A path below is inside that new repository unless it says otherwise;
+`apps/mxm-player/…` is in [mxm-player](https://github.com/mxm-audio/mxm-player), `crates/mxm-…`
+shared crates and these docs are in this kit, and `plans/…` is in the private archive.
+
+Read the new repository's root `AGENTS.md` and its `plugins/AGENTS.md` (in the monorepo, the root
+`AGENTS.md` and `plugins/AGENTS.md`), with the [plugin conventions](plugin-conventions.md) and
+[collection rules](collection-rules.md) they link to, before starting. This document assumes them.
 
 ---
 
@@ -20,18 +30,20 @@ Five places, and no more:
 
 | Path | What goes there | Owned by |
 |---|---|---|
-| `docs/briefs/<plugin>.md` | The §14 design brief — **written first** | [`docs/AGENTS.md`](AGENTS.md) |
+| `docs/briefs/<plugin>.md` | The §14 design brief — **written first** | [Design system](MXM_DESIGN_SYSTEM.md) §14 (in the monorepo, [`docs/AGENTS.md`](AGENTS.md)) |
 | `crates/<plugin>-dsp/` | The whole voice as plain Rust. No framework types, and no runtime dependency but the shared routing, `crates/mxm-modulation` | [`crates/mxm-mono-01-dsp/AGENTS.md`](https://github.com/mxm-audio/mxm-mono-01/blob/main/crates/mxm-mono-01-dsp/AGENTS.md) |
-| `plugins/<plugin>/` | The nice-plug shell: identity, params, MIDI, presets, editor | [`plugins/AGENTS.md`](plugin-conventions.md) |
+| `plugins/<plugin>/` | The nice-plug shell: identity, params, MIDI, presets, editor | The repository's `plugins/AGENTS.md`, contracting [`plugin-conventions.md`](plugin-conventions.md) |
 | `plugins/<plugin>/control-map.json` | Which parameters fill the collection's controller roles | [`MXM_CONTROL_MAP.md`](MXM_CONTROL_MAP.md) |
-| `bundler.toml` + workspace `members` | One row each | root [`AGENTS.md`](../AGENTS.md) |
+| `bundler.toml` + workspace `members` | One row each | The repository's root `AGENTS.md` |
 
-Nothing goes into `apps/mxm-player`. **The player must never need to have heard of your
+Nothing goes into `apps/mxm-player` (in [mxm-player](https://github.com/mxm-audio/mxm-player)).
+**The player must never need to have heard of your
 instrument** — if adding one requires a player change, the design has failed, and
 `t5_control_map.rs::a_new_instrument_gets_the_collection_layout_by_adding_a_file_and_nothing_else`
-is the assertion that says so.
+(in mxm-player's `apps/mxm-player/tests/`) is the assertion that says so.
 
-`apps/mxm-mono-01-standalone` is the one exception worth knowing about: it is a per-plugin harness,
+[`apps/mxm-mono-01-standalone`](https://github.com/mxm-audio/mxm-mono-01/blob/main/apps/mxm-mono-01-standalone/AGENTS.md)
+in mxm-mono-01 is the one exception worth knowing about: it is a per-plugin harness,
 so a second instrument that wants the same convenience gets its own `apps/<plugin>-standalone`.
 It is optional. The player opens your editor as a floating window without it.
 
@@ -45,11 +57,13 @@ Each of these is expensive to change later, and two of them are permanent.
 normalisation of the inspiring hardware's model, not a sequence and no longer necessarily its last
 two digits. Existing numeric names stay permanent; the first name under the revised rule is
 `mxm-mono-pr1`. Intake sends an ambiguous token or collision to the owner instead of inventing a
-normalisation. The rail's *Naming* section owns the record.
+normalisation. The rail's *Naming* section owns the record (since the split,
+[`collection-rules.md`](collection-rules.md#naming)).
 
 **`CLAP_ID` — permanent.** `dk.mxm.<plugin>`, assembled with `concat!` from the `plugin_name!`
 macro, never from `CARGO_PKG_NAME`. **It cannot collide with anyone else's** — the namespace is a
-domain the project owns and every plugin here lives in this repository — so the only thing to get
+domain the project owns and every plugin here lives in this repository (since the split, in one of
+the project's own repositories) — so the only thing to get
 right is that it is permanent. It has been changed exactly once in this project, while pre-alpha and
 undistributed, and that change orphaned the user preset directory, its `favourites.json`, parked
 locks in the player's settings, and locks inside saved sequences. There is no second time.
@@ -58,14 +72,19 @@ locks in the player's settings, and locks inside saved sequences. There is no se
 breaks every saved project and every `control-map.json` entry pointing at it.
 
 **Which effects, if any, are inside it.** The rule is *no effect that was not on the original
-instrument* — [`../AGENTS.md`](../AGENTS.md) for the principle,
-[`../plugins/AGENTS.md`](plugin-conventions.md) for what it binds you to. Answer it in the brief
+instrument* — the root `AGENTS.md` for the principle (since the split,
+[`collection-rules.md`](collection-rules.md#the-goal-and-how-much-licence-a-copy-has)), `plugins/AGENTS.md`
+for what it binds you to ([`plugin-conventions.md`](plugin-conventions.md#an-instrument-ships-the-effects-its-original-had-and-no-others)). Answer it in the brief
 (Phase 0) with the evidence about the hardware, because it decides the DSP crate's shape before you
 write any of it.
 
-**Licence.** MIT if all the code is original. Decide *before* copying anything from a GPL project
-(VCV Rack is GPL-3.0), because after is too late. Each plugin folder carries its own `LICENSE`, which
-is what lets a GPL-derived instrument sit beside MIT ones without relicensing the workspace.
+**Licence.** GPL-3.0-or-later, the new repository's root `LICENSE`: since the split (2026-10-06)
+every product is, and a plugin folder carries no `LICENSE` of its own
+([`plugin-conventions.md`](plugin-conventions.md#licensing)). Still decide *before* copying anything
+from another project, because after is too late. *In the monorepo:* MIT if all the code was
+original, decided before copying anything from a GPL project (VCV Rack is GPL-3.0), and each plugin
+folder carried its own `LICENSE`, which is what let a GPL-derived instrument sit beside MIT ones
+without relicensing the workspace.
 
 **MSRV.** The DSP crate's one runtime dependency is `mxm-modulation`, which is dependency-free at
 **1.87**, so the DSP crate stays there too (1.88 if it uses `let` chains) and states it explicitly. The
@@ -96,8 +115,9 @@ appearance, geometry, control style, colour arrangement, typography, trade dress
 `mxm-mono-01`'s answer and a good template.
 
 **Catalogue the machine's warts here too**, with evidence — the drift, the noise floor, the range
-that stops short, the coupling nobody would design on purpose. A copy reproduces them (see
-[`../AGENTS.md`](../AGENTS.md)), and the brief is where they stop being folklore and become
+that stops short, the coupling nobody would design on purpose. A copy reproduces them (see the
+root `AGENTS.md`; since the split, [`collection-rules.md`](collection-rules.md#the-goal-and-how-much-licence-a-copy-has),
+*A copy is warts and all*), and the brief is where they stop being folklore and become
 something a test can pin. A wart discovered in Phase 1 and left unwritten is a wart somebody
 removes in Phase 2 while tidying.
 
@@ -106,10 +126,13 @@ removes in Phase 2 while tidying.
 `crates/<plugin>-dsp`, framework-free, with `mxm-modulation` as its only `[dependencies]` entry.
 Plain values and a sample rate in, samples out. **Modulation is the collection's routing from the
 first line** — declare the instrument's sources and targets against `mxm-modulation` rather than
-wiring a depth per path (`plugins/AGENTS.md`, *Every instrument's modulation is the shared routing*;
-`crates/mxm-mono-pr1-dsp/src/routing.rs` is a worked example). Read `docs/code-review-notes.md` §7
+wiring a depth per path ([`plugin-conventions.md`](plugin-conventions.md#every-instruments-modulation-is-the-shared-routing),
+*Every instrument's modulation is the shared routing*; `crates/mxm-mono-pr1-dsp/src/routing.rs` in
+[mxm-mono-pr1](https://github.com/mxm-audio/mxm-mono-pr1/blob/main/crates/mxm-mono-pr1-dsp/src/routing.rs)
+is a worked example). Read [`code-review-notes.md`](code-review-notes.md) §7
 first: an absent route still owes a cleared source and a snapped smoother. **Declare the target list
-by `plugins/AGENTS.md`'s *Declaring the target list*** before the first id is written: one target
+by [`plugin-conventions.md`](plugin-conventions.md#declaring-the-target-list--what-mxm-mono-00-had-to-discover-twice)'s
+*Declaring the target list*** before the first id is written: one target
 per thing that moves, named for it, and no destination switch anywhere — `mxm-mono-00` found each of
 those after its ids had shipped.
 
@@ -132,7 +155,7 @@ additive and trivial aliasing controls, a WAV encoder for the demo, and the exac
 never-NaN observations the list above asks for. Every one is scored against a closed form there.
 
 **What you still write is the argument.** The crate carries no thresholds and never will, so the
-bound, its headroom and the reason for it belong in your test — `docs/oscillators/06-testing.md` §6.4
+bound, its headroom and the reason for it belong in your test — [`oscillators/06-testing.md`](oscillators/06-testing.md) §6.4
 says where a threshold comes from. Two crates once asserted one-cent tuning while measuring with a
 ±9-cent ruler, which is the failure this split exists to prevent: a shared ruler you can trust, and a
 threshold you had to justify. If you need a measurement the crate lacks, check its **declined
@@ -148,7 +171,8 @@ example that writes a WAV, because the question *does it sound like a synthesize
 **Name it for the crate or the machine — `examples/<token>_render_demo.rs`, or `sh2_demo.rs` —
 never a bare `render_demo.rs`.** Every example in the workspace links into one flat directory, so a
 shared name means a shared output file: cargo runs whichever won the race and a parallel build dies
-on a linker error. Root [`AGENTS.md`](../AGENTS.md) *Naming* has the rule.
+on a linker error. Root `AGENTS.md` *Naming* has the rule (since the split,
+[`collection-rules.md`](collection-rules.md#naming)).
 
 ### Phase 2 — the plugin shell and parameters
 
@@ -163,7 +187,8 @@ on a linker error. Root [`AGENTS.md`](../AGENTS.md) *Naming* has the rule.
   feature here
 
 Parameters: one `#[derive(Params)]` struct behind an `Arc`. Smooth signals, not coefficients. The
-routes are `mxm-modulation-params` pairs beside it — `plugins/mxm-mono-pr1/src/routes.rs` is the
+routes are `mxm-modulation-params` pairs beside it — `plugins/mxm-mono-pr1/src/routes.rs` in
+[mxm-mono-pr1](https://github.com/mxm-audio/mxm-mono-pr1/blob/main/plugins/mxm-mono-pr1/src/routes.rs) is the
 shape — and the paths the machine itself wires are present in the init patch.
 Store gain as linear gain and format as dB. Sentence-case, non-cryptic names, identical in the
 editor and in host automation.
@@ -255,7 +280,8 @@ Read [`crates/ui/AGENTS.md`](../crates/ui/AGENTS.md) first. Then:
   [§5](#5-what-the-player-expects-of-your-instrument) — this is the whole of your integration with
   the sequencer, and it needs no protocol.
 
-- **The developer channel** — `plugins/AGENTS.md`, *A developer channel in every editor*. Copy
+- **The developer channel** — `plugins/AGENTS.md`, *A developer channel in every editor*
+  ([`plugin-conventions.md`](plugin-conventions.md#a-developer-channel-in-every-editor)). Copy
   the four constants, the `dev_cc` field, the four `MidiCC` arms, the four telemetry request slots
   and the hook at the top of `panel` from any sibling, and the gate test with them. It is how you
   will look at your own views without a mouse: start the player from a shell with `MXM_DEV_CC`
@@ -268,11 +294,12 @@ Read [`crates/ui/AGENTS.md`](../crates/ui/AGENTS.md) first. Then:
   is as tall as its tallest card. Hold the opening size with
   `mxm_plugin_test::opening_size::is_the_budget_hugged`, and read painted shapes rather than `globally_used_rect`,
   which reads as full for any window taller than its content. `plugins/AGENTS.md`'s editor contract
-  has all of it, and the two editors that shipped clipped without the measurement.
+  ([`plugin-conventions.md`](plugin-conventions.md#editor-contract)) has all of it, and the two editors that shipped clipped without the measurement.
 - **The keyboard cursor runs in every editor.** `panel` takes a `navigation::State`, calls
   `navigation::paged` before the cards, and wraps every parameter control in `navigation::at`;
   `mxm_plugin_test::keyboard_checks`'s coverage check proves none was missed (`plugins/AGENTS.md`,
-  *The keyboard cursor runs in every editor*).
+  *The keyboard cursor runs in every editor*;
+  [`plugin-conventions.md`](plugin-conventions.md#the-keyboard-cursor-runs-in-every-editor-and-each-one-owes-it-three-things)).
 
 Run design system §15's QA gate before calling the editor done. It is manual and it is real.
 
@@ -365,7 +392,8 @@ number. Any failure is a regression, not a known issue.
 
 Then, in order:
 
-1. `cargo run -p mxm-player --release`, load the plugin, play it. *Show editor* opens your own
+1. `cargo run -p mxm-player --release` in a checkout of
+   [mxm-player](https://github.com/mxm-audio/mxm-player), load the plugin, play it. *Show editor* opens your own
    interface in a floating window; this is the only place the hosting path — `create`, ownership,
    `destroy`, reopen — is exercised at all.
 2. A standalone run if you built one, for working on the editor without a host in the picture.
@@ -374,7 +402,7 @@ Then, in order:
    typically break. This gate is currently **recorded-unmet** for `mxm-mono-01`; be honest about
    whether you actually ran it. Getting the bundle where the host will find it is its own trap on
    Windows — see *Installing a bundle in a DAW* in
-   [`plugins/AGENTS.md`](plugin-conventions.md) before assuming a copy was enough.
+   [`plugin-conventions.md`](plugin-conventions.md#installing-a-bundle-in-a-daw) before assuming a copy was enough.
 
 ### Phase 8 — closeout
 
@@ -386,8 +414,16 @@ Then, in order:
 - No CI is used (root *Windows, Linux and macOS*): the verification commands in the crate's own
   AGENTS.md are what runs, by hand, on the development machine. If you add a standalone harness,
   run the `cargo tree` boundary check on your plugin too.
+  *Since the split (2026-10-06):* CI runs the root `AGENTS.md`'s verification on Windows, macOS
+  and Linux, but only on a `v*` release tag or when started by hand (the owner, 2026-10-06). Copy
+  `.github/workflows/ci.yml` from an existing product repository with your plugin's name, and
+  before a push run the verification yourself on Windows and on Linux (WSL); only CI reaches macOS.
 - **The DOX pass.** Update `plugins/AGENTS.md`, the root Child DOX Index if a new AGENTS.md
   appeared, `docs/AGENTS.md` if a brief was added, and delete anything that has gone stale.
+  *Since the split:* a product repository has no `docs/AGENTS.md`; add the plugin to
+  [`plugin-conventions.md`](plugin-conventions.md)'s *The plugins* table and *Each plugin's own
+  contract* index here, and its editor to the collection's `editor_resize` inventory
+  (`collection-tests/` in the owner's workspace).
 
 ---
 
@@ -395,18 +431,21 @@ Then, in order:
 
 ```bash
 cargo build                                     # default-members: no eframe, cpal or midir
-cargo build --workspace                         # everything, including the player
+cargo build --workspace                         # everything, including the player the host tests link
 cargo test --workspace
-cargo clippy --workspace --all-targets
-cargo fmt --all
+cargo clippy --workspace --all-targets -- -D warnings
+cargo fmt --all -- --check
 
 cargo test -p <plugin>-dsp
 cargo test -p <plugin>
 cargo xtask bundle <plugin> --release
 clap-validator validate "target/bundled/<plugin>.clap"
+cargo test -p <plugin>-host-tests               # the slow tier: the release bundle through MXM Player
 ```
 
-Report which of these actually ran. `cargo build` alone does **not** produce a loadable plugin, and
+*Since the split (2026-10-06):* the block is the new repository's own; `clippy` and `fmt` take the
+flags CI uses, and the host tests are a package of their own. Run it on Windows and on Linux (WSL)
+before a push. Report which of these actually ran. `cargo build` alone does **not** produce a loadable plugin, and
 a clean build is not a working synth: audio bugs are not compile errors.
 
 ---
@@ -419,7 +458,7 @@ nothing to register.
 
 ### It must fit the v1 compatibility envelope
 
-`src/envelope.rs` refuses, **with the reason shown**:
+`src/envelope.rs` (mxm-player's [`apps/mxm-player/src/envelope.rs`](https://github.com/mxm-audio/mxm-player/blob/main/apps/mxm-player/src/envelope.rs)) refuses, **with the reason shown**:
 
 | Refused | Because |
 |---|---|
@@ -475,14 +514,18 @@ existing; know that it is load-bearing before you consider suppressing it.
 ### The floating editor comes from the vendored nice-plug
 
 Upstream nice-plug refuses every floating window configuration outright. The patch in
-[`vendor/nice-plug`](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) lifts that, and without it the player cannot show *any*
+[the nice-plug fork](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) (the monorepo's
+`vendor/nice-plug`) lifts that, and without it the player cannot show *any*
 plugin's interface on any platform. Your plugin inherits this by depending on the workspace's
-`nice-plug`. If a refresh drops the patch, `t7_editor.rs` fails — but only for a plugin that has a
-test there, so add one.
+`nice-plug` — since the split, by the root `[patch.crates-io]` entry that points `nice-plug` at the
+fork, as every product repository does. If a refresh drops the patch, `t7_editor.rs` fails — but only for a plugin that has a
+test there, so add one. *Since the split:* `t7_editor.rs` is in mxm-player and opens mxm-mono-01's
+editor; every product's floating editor is opened by the collection's `editor_resize`
+(`collection-tests/` in the owner's workspace), so add yours to its inventory instead.
 
 ### Everything a person can do, a machine can do
 
-The player's CLI (`src/cli.rs`, one JSON line in, one out) is how an instrument gets tested without
+The player's CLI (`src/cli.rs` — mxm-player's `apps/mxm-player/src/cli.rs` — one JSON line in, one out) is how an instrument gets tested without
 screenshots:
 
 ```
@@ -497,7 +540,8 @@ export <name> | save <name>
 instrument sounds wrong under the sequencer and the window looks right.
 
 For an automated behaviour suite against your instrument, copy
-`plugins/mxm-mono-01/host-tests/tests/behaviour.rs`. Every assertion in it is a property of **rendered
+`plugins/mxm-mono-01/host-tests/tests/behaviour.rs` from
+[mxm-mono-01](https://github.com/mxm-audio/mxm-mono-01/blob/main/plugins/mxm-mono-01/host-tests/tests/behaviour.rs). Every assertion in it is a property of **rendered
 audio** — a frequency, an amplitude, a tail length — measured through the real player rather than by
 reading the DSP and agreeing with it.
 
@@ -602,7 +646,7 @@ Separate crate under `apps/`, outside `default-members`, plus a `cargo tree` che
 `crates/<plugin>-dsp` stays per-plugin until a **second** instrument demonstrates a genuinely
 shared API — and your instrument is that second one, which makes this the moment the rule is
 actually tested. Extract from two honest implementations; do not extract a filter from one because
-it seems reusable. `crates/dsp-lab` is not the loophole: it ships nothing and holds measurement
+it seems reusable. `crates/dsp-lab` (in [mxm-tools](https://github.com/mxm-audio/mxm-tools) since the split) is not the loophole: it ships nothing and holds measurement
 harnesses for `docs/`, and no shipped DSP may move there.
 
 ### 12. Do not guess at nice-plug APIs
@@ -610,7 +654,8 @@ harnesses for `docs/`, and no shipped DSP may move there.
 Experimental, thinly documented, no migration guide from nih-plug — and most of what is written
 online is about nih-plug. Read the **pinned version's source** under `vendor/nice-plug/` (this
 workspace redirects through `[patch.crates-io]`), not a git branch head that will not match what you
-build. The differences that bite: `activate` rather than `initialize`, an associated `type Editor`
+build. *Since the split:* that is [the nice-plug fork](https://github.com/mxm-audio/nice-plug) at the
+tag your root `[patch.crates-io]` names, which cargo checks out under `$CARGO_HOME/git/checkouts/`. The differences that bite: `activate` rather than `initialize`, an associated `type Editor`
 rather than a boxed trait object, `nice_export_clap!`, `nice_plug::prelude`.
 
 ### 13. A parameter's smoother reads zero until something activates it
@@ -631,7 +676,8 @@ and the runs-by-default comparison test then holds them honest. `mxm-poly-06` wa
 
 A behaviour suite or golden score in `apps/mxm-player/tests` **skips** when its bundle is missing,
 and skipping is not failing. Bundle yours (`cargo xtask bundle`) before running the player's suite,
-or your tests never run while reporting green.
+or your tests never run while reporting green. *Since the split:* those suites are your plugin's
+own `plugins/<plugin>/host-tests` (`cargo test -p <plugin>-host-tests`), and they skip the same way.
 
 ### 16. Everything runs on Windows, Linux and macOS — all three, always
 
@@ -639,6 +685,9 @@ Not "ought to". Anything platform-specific is `cfg`-gated with **every arm imple
 arm and a silent nothing elsewhere. A dependency that does not support all three cannot be taken,
 whatever else it offers. There is no CI: the development machine is Windows, and Linux and macOS
 are unverified — say so rather than implying a change was tried on three platforms.
+*Since the split (2026-10-06):* CI tests on all three, but only on a `v*` release tag or when started
+by hand. Before that, check Windows and Linux (WSL) yourself; macOS is reached only by CI. Say which
+ran rather than implying a change was tried on three platforms.
 
 ---
 
@@ -648,14 +697,14 @@ Not bugs, but they shape what an instrument can do inside the player today.
 
 | Limit | Value | What happens at the edge |
 |---|---|---|
-| Sequenceable parameters per pattern | 32 distinct | The 33rd is refused with a reason. Why the cap is what it is, and whether it should move, is `apps/mxm-player/AGENTS.md`'s and `sequencer/locks.rs`'s module doc's to say — read them before designing around it, and do not repeat their reasoning here |
+| Sequenceable parameters per pattern | 32 distinct | The 33rd is refused with a reason. Why the cap is what it is, and whether it should move, is `apps/mxm-player/AGENTS.md`'s (with its `NOTES.md`, *No maximum length: budgets and storage*) and `sequencer/locks.rs`'s module doc's, in [mxm-player](https://github.com/mxm-audio/mxm-player), to say — read them before designing around it, and do not repeat their reasoning here |
 | Total locks per pattern | 32 × 16 | A memory budget, refused separately from the above |
-| Steps per bar | 16 at most | Bars are unbounded; `apps/mxm-player/AGENTS.md`'s *Bars* section is the current contract |
+| Steps per bar | 16 at most | Bars are unbounded; `apps/mxm-player/AGENTS.md`'s *Bars* section is the current contract (since the split, mxm-player's [`apps/mxm-player/NOTES.md`](https://github.com/mxm-audio/mxm-player/blob/main/apps/mxm-player/NOTES.md#bars-steps--bar--pattern--sequence)) |
 | Control map page | 8 slots | nice-plug silently splits a longer page into `"{name} {n}"`, renaming the page the map keys on |
 | Control map pages | Append only | nice-plug numbers pages positionally, so inserting a section renumbers every later one |
 | Controller resolution | 7-bit | 128 steps; smoothing does the rest |
 
-The parameter cap is worth reading `apps/mxm-player/src/sequencer/locks.rs`'s module doc about
+The parameter cap is worth reading `apps/mxm-player/src/sequencer/locks.rs`'s module doc (in mxm-player) about
 before you design around it.
 
 ---
@@ -690,7 +739,7 @@ Two warnings that come from this project's own history:
 [ ] docs/briefs/<plugin>.md          — all ten §14 questions answered, before any editor code
 [ ] the block order                  — audio path first, then modulation; §14 records any break
 [ ] crates/<plugin>-dsp/             — mxm-modulation only, MSRV stated, silence/NaN/bound/reset tests
-[ ] plugins/<plugin>/                — Cargo.toml, LICENSE, README.md
+[ ] plugins/<plugin>/                — Cargo.toml, README.md (LICENSE: the repository root's since the split)
 [ ]   plugin_name! macro             — the only literal; NAME and CLAP_ID derive from it
 [ ]   CLAP_ID                        — dk.mxm.<plugin>, permanent from the first release
 [ ]   crate-type                     — ["cdylib", "lib"], standalone feature NOT enabled
@@ -712,11 +761,13 @@ Two warnings that come from this project's own history:
 [ ] Cargo.toml workspace members     — added; default-members considered
 [ ] Root AGENTS.md MSRV table        — both crates
 [ ] cargo xtask bundle --release + debug, both validated, 0 failed in each
-[ ] apps/mxm-player/tests/<plugin>_behaviour.rs and a golden score — bundled before the suite runs, or it skips
-[ ] cargo run -p mxm-player          — loads, plays, sequences, editor opens and reopens
+[ ] plugins/<plugin>/host-tests       — behaviour and a golden score, bundled before the suite runs, or it skips
+                                       (in the monorepo, apps/mxm-player/tests/<plugin>_behaviour.rs)
+[ ] cargo run -p mxm-player          — in mxm-player: loads, plays, sequences, editor opens and reopens
 [ ] A real DAW at a small buffer     — or say plainly that this gate is unmet
 [ ] Design system §15 QA gate        — manual, and real
-[ ] DOX pass                         — plugins/AGENTS.md, docs/AGENTS.md, every affected index
+[ ] .github/workflows/ci.yml         — copied from a product repository, with this plugin's name
+[ ] DOX pass                         — plugins/AGENTS.md, plugin-conventions.md's plugin list (docs/AGENTS.md in the monorepo), every affected index
 ```
 
 ---
@@ -725,13 +776,13 @@ Two warnings that come from this project's own history:
 
 | Looking for | Read |
 |---|---|
-| Naming, licensing, MSRV policy, cross-platform requirement, dependency pinning | [`AGENTS.md`](../AGENTS.md) |
-| nice-plug conventions, permanent ids, parameters, init patch, presets, `process()` rules, editor contract, the add-a-plugin steps | [`plugins/AGENTS.md`](plugin-conventions.md) |
+| Naming, licensing, MSRV policy, cross-platform requirement, dependency pinning | The monorepo's root `AGENTS.md`; since the split, [`collection-rules.md`](collection-rules.md) for naming and licensing, and the repository's root `AGENTS.md` for the rest |
+| nice-plug conventions, permanent ids, parameters, init patch, presets, `process()` rules, editor contract, the add-a-plugin steps | [`plugin-conventions.md`](plugin-conventions.md), contracted by each repository's `plugins/AGENTS.md` |
 | DSP rules, numeric contracts, denormals, what the tests must keep asserting | [`crates/mxm-mono-01-dsp/AGENTS.md`](https://github.com/mxm-audio/mxm-mono-01/blob/main/crates/mxm-mono-01-dsp/AGENTS.md) |
 | Widgets, tokens, typography, control idioms, layout traps | [`crates/ui/AGENTS.md`](../crates/ui/AGENTS.md) · [`MXM_DESIGN_SYSTEM.md`](MXM_DESIGN_SYSTEM.md) |
 | Roles, fixed knobs, pages, reserved CCs | [`MXM_CONTROL_MAP.md`](MXM_CONTROL_MAP.md) |
 | The host: envelope, threading, sequencer, locks, CLI, export, editor hosting | [`apps/mxm-player/AGENTS.md`](https://github.com/mxm-audio/mxm-player/blob/main/apps/mxm-player/AGENTS.md) |
-| Bundling and control-map staging | [`xtask/AGENTS.md`](../xtask/AGENTS.md) |
-| Why nice-plug is vendored and what the patches do | [`vendor/AGENTS.md`](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) |
+| Bundling and control-map staging | [`crates/mxm-xtask/AGENTS.md`](../crates/mxm-xtask/AGENTS.md), which each repository's `xtask/` calls (in the monorepo, the root `xtask/AGENTS.md`) |
+| Why nice-plug is vendored (since the split, forked) and what the patches do | [The fork's `PATCHES.md`](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) (in the monorepo, `vendor/AGENTS.md`) |
 | Upstream bugs already diagnosed, with verdicts | [`known-issues.md`](known-issues.md) |
 | Filter theory · oscillators · modulation | [`filters/`](filters/README.md) · [`oscillators/`](oscillators/README.md) · [`modulation/`](modulation/README.md) |

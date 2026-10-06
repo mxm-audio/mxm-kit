@@ -19,9 +19,10 @@ pub const BUDGET: egui::Vec2 = egui::vec2(1920.0, 1080.0);
 /// The hugged window is `size` less the slack every page leaves between its content and the
 /// viewport edges, so everything above and left of the cards — app bar, view bar, gutters — is
 /// carried along untouched. **Every page, not the opening one** (the owner, 2026-09-24,
-/// `plans/plan-layout-tree.md` §10): a window hugged to its first page is as small as that page
-/// happens to be, and mxm-para-07 opened at a third of the budget with seven tabs because its
-/// first page was one short category. `None` when nothing was planned at that size.
+/// `plans/plan-layout-tree.md` §10, in the private archive): a window hugged to its first page is
+/// as small as that page happens to be, and mxm-para-07 opened at a third of the budget with seven
+/// tabs because its first page was one short category. `None` when nothing was planned at that
+/// size.
 ///
 /// `reveal` opens whatever the editor keeps behind a disclosure, because §4.2 asks for the
 /// opening size to be judged with disclosures open: a window sized to a closed expander throws

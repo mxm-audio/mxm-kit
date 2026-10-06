@@ -24,7 +24,7 @@ durable documentation, and because smoothing is folklore in an AGENTS.md with no
 | `measurements-run.txt` | Verbatim output of the run the documents quote |
 
 The 208/218 control-source appendix moved to `research:modulation/buchla-208-control-sources.md`
-on 2026-09-04 (root *Research boundary*).
+on 2026-09-04 (root *Research citations*; in full, [`collection-rules.md`](../collection-rules.md#research-boundary)).
 
 `README.md` is the index and **must** be refreshed whenever a chapter is added, moved or renamed.
 
@@ -36,13 +36,16 @@ Measured figures come from `crates/dsp-lab/examples/mod_spike.rs` — a crate th
 so that the evidence behind this reference is reproducible from a clone:
 
 ```bash
-cargo run -p dsp-lab --release --example mod_spike
+cargo run -p dsp-lab --release --example mod_spike    # in mxm-tools, since the split
 ```
+
+*Since the split (2026-10-06):* `crates/dsp-lab/…` is in [mxm-tools](https://github.com/mxm-audio/mxm-tools) and `crates/mxm-mono-01-dsp/…` (like any `crates/<plugin>-dsp/…`) in that product's repository, [mxm-mono-01](https://github.com/mxm-audio/mxm-mono-01); the commands that build them run there.
 
 **Sections 1–3 measure the shipped code** — `lfo.rs` and `envelope.rs` — through their public API,
 never a copy.
 
-**Section 4 does not, and cannot.** Smoothing belongs to the plugin: `../../plugins/AGENTS.md` owns
+**Section 4 does not, and cannot.** Smoothing belongs to the plugin: `../../plugins/AGENTS.md` (since
+the split, [`plugin-conventions.md`](../plugin-conventions.md#smooth-signals-not-coefficients)) owns
 parameters, ranges and smoothing, and `../../crates/mxm-mono-01-dsp/AGENTS.md` disclaims them. The DSP
 crate has no dependencies and the plugin depends on it, so an example inside the DSP crate cannot
 reach `plugins/mxm-mono-01/src/params.rs`. §4 measures a **generic one-pole model**.
@@ -53,7 +56,8 @@ it.** Not in a footnote, not in a preamble — in the sentence. `03-smoothing-an
 with the warning and repeats it as a numbered gap in §3.4.
 
 Closing that properly means measuring through `apps/mxm-player`, which hosts the CLAP and captures
-audio in its tests. Until someone does, no number from §4 may be quoted as mxm-mono-01's behaviour.
+audio in its tests (since the split, from mxm-mono-01's `plugins/mxm-mono-01/host-tests`, which load
+the bundle through MXM Player). Until someone does, no number from §4 may be quoted as mxm-mono-01's behaviour.
 
 ## Chapter 4 is derived and published, not measured, and says so in every claim
 
@@ -72,8 +76,10 @@ items: one is undone, the other is out of reach.
 When something here becomes a convention rather than a finding:
 
 - LFO and envelope *generator* behaviour → `../../crates/mxm-mono-01-dsp/AGENTS.md`
-- Smoothing, parameter ranges, event and block handling → `../../plugins/AGENTS.md`
-- What a per-step slide flag means for the step model → `../../apps/mxm-player/AGENTS.md`, where
+- Smoothing, parameter ranges, event and block handling → `../../plugins/AGENTS.md` (since the
+  split, [`plugin-conventions.md`](../plugin-conventions.md))
+- What a per-step slide flag means for the step model → `../../apps/mxm-player/AGENTS.md` (in
+  mxm-player since the split), where
   it now lives: **slide is built.** A tied step carrying notes is a slide — chapter 4's §4.7.1
   lead held up, both halves were already there, and no third step flag was added. The chapter
   records the decision; the player's doc carries the contract.
@@ -108,8 +114,8 @@ confirms it with a measurement or records that it could not.
 # Verification
 
 ```bash
-cargo run -p dsp-lab --release --example mod_spike
-cargo test -p mxm-mono-01-dsp
+cargo run -p dsp-lab --release --example mod_spike    # in mxm-tools, since the split
+cargo test -p mxm-mono-01-dsp                         # in mxm-mono-01
 ```
 
 Internal links, after moving or renaming a document:

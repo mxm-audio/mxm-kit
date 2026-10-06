@@ -1,9 +1,9 @@
 //! A target's routes, drawn as the owner asked: the live ones stacked, and `‹ modulate ›` beneath.
 //!
-//! `plans/plan-modulation-routing.md` §8a. The rows are derived from **parameter values alone** —
-//! a present pair is a row, and the sources not yet present are what the menu offers — so a preset
-//! fully determines what the panel shows and there is no editor-only routing state to invalidate a
-//! layout cache on.
+//! `plans/plan-modulation-routing.md` §8a, in the private archive. The rows are derived from
+//! **parameter values alone** — a present pair is a row, and the sources not yet present are what
+//! the menu offers — so a preset fully determines what the panel shows and there is no editor-only
+//! routing state to invalidate a layout cache on.
 //!
 //! # Why the source is a label and not a menu
 //!

@@ -11,8 +11,8 @@
 //! machine itself had** (the copy is of the machine, so its own wiring keeps its own depth), its
 //! frame unit and Key unit, and its machine laws — gates, sync, narrowing, CV-summing amplifiers.
 //!
-//! `plans/plan-modulation-routing.md` §5 promised that "the source declares its polarity"; this is
-//! where it does.
+//! `plans/plan-modulation-routing.md` §5 (in the private archive) promised that "the source
+//! declares its polarity"; this is where it does.
 
 /// The performance sources every instrument carries (`plan-modulation-routing.md` decision 1.7).
 ///
@@ -164,9 +164,9 @@ pub const fn key_scale(per_octave: f32, semitones_per_unit: f32) -> f32 {
 
 /// How far the Amplitude routes may take a note, either way: **silence to double** (+6 dB).
 ///
-/// The owner's ruling of 2026-09-26, which closes `plans/plan-collection-sync.md` D8. It keeps
-/// mono-03's accent at the ×2 its circuit reaches and makes Velocity at `+100 %` a gain equal to
-/// velocity. Amplitude is therefore a trim around the patch's level, not a VCA: a swell from
+/// The owner's ruling of 2026-09-26, which closes `plans/plan-collection-sync.md` D8 (in the
+/// private archive). It keeps mono-03's accent at the ×2 its circuit reaches and makes Velocity at
+/// `+100 %` a gain equal to velocity. Amplitude is therefore a trim around the patch's level, not a VCA: a swell from
 /// silence belongs to a machine's own amplifier input where it has one.
 pub const AMPLITUDE_SUM_BOUND: f32 = 1.0;
 

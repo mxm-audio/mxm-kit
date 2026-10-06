@@ -1,5 +1,6 @@
 //! Shared checks that a plugin's route parameters say what its DSP does — the plugin half of the
-//! modulation standard's conformance (`plans/plan-modulation-standard.md`, Layer 2).
+//! modulation standard's conformance (`plans/plan-modulation-standard.md` in the private archive,
+//! Layer 2).
 //!
 //! Layer 1 — `mxm_modulation::conformance`, run by each `*-dsp` crate over its own graph — proves the
 //! DSP means what the standard says. This proves the parameters a player and a host see say the same

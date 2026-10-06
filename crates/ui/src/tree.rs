@@ -1,12 +1,12 @@
 //! A card body as data: one description, measured and drawn from the same tree.
 //!
-//! `plans/plan-layout-tree.md`. The owner, 2026-09-24: *"all these cards have easily calculatable
-//! minimum and maximum sizes. Because we know all the components on them. And the ones that are
-//! not visible have simple rules for their sizes."* A body written as drawing code has no structure
-//! until it runs, so the only way to learn its size was to run it — typed floors policed by
-//! squeezing, and a hidden egui context for heights. Here the body is a [`Node`] tree built each
-//! frame from parameters and editor state, and the one tree is walked twice, the way a browser walks
-//! its DOM: once to add sizes up, once to draw. The two cannot disagree.
+//! `plans/plan-layout-tree.md`, in the private archive. The owner, 2026-09-24: *"all these cards
+//! have easily calculatable minimum and maximum sizes. Because we know all the components on them.
+//! And the ones that are not visible have simple rules for their sizes."* A body written as drawing
+//! code has no structure until it runs, so the only way to learn its size was to run it — typed
+//! floors policed by squeezing, and a hidden egui context for heights. Here the body is a [`Node`]
+//! tree built each frame from parameters and editor state, and the one tree is walked twice, the
+//! way a browser walks its DOM: once to add sizes up, once to draw. The two cannot disagree.
 //!
 //! # The rules, each written once
 //!
@@ -387,9 +387,9 @@ pub fn beside_knob<K>(size: Size, child: Node<K>) -> Node<K> {
 
 /// **A switch beside a knob**, the one geometry for it: on the knob's circle line, [`switch_gap`]
 /// from the circle — a tempo sync's quarter note beside its Rate or Time
-/// (`plans/plan-tempo-sync-controls.md`). It is the next child of a row after its knob (or the knob
-/// row ending in it): the row measures from the circle, never into the knob's own room, and anywhere
-/// else it stands `switch_gap` from whatever precedes it.
+/// (`plans/plan-tempo-sync-controls.md`, in the private archive). It is the next child of a row
+/// after its knob (or the knob row ending in it): the row measures from the circle, never into the
+/// knob's own room, and anywhere else it stands `switch_gap` from whatever precedes it.
 pub fn switch_beside_knob<K>(size: Size, child: Node<K>) -> Node<K> {
     Node::Beside(Anchor::KnobSwitch(size), Box::new(child))
 }

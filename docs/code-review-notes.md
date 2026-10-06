@@ -2,8 +2,10 @@
 
 Use these notes when reviewing a new instrument, repairing a plugin, or preparing a release.
 They are review prompts, not a shared DSP design or proof that every instrument is defective.
-The root contracts, [plugin conventions](plugin-conventions.md),
-[design system](MXM_DESIGN_SYSTEM.md), and [vendor contract](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) remain authoritative.
+The root contracts (since the split, each repository's root `AGENTS.md` and the
+[collection rules](collection-rules.md)), [plugin conventions](plugin-conventions.md),
+[design system](MXM_DESIGN_SYSTEM.md), and vendor contract (since the split, the nice-plug fork's
+[`PATCHES.md`](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md)) remain authoritative.
 
 ## Evidence and applicability
 
@@ -14,6 +16,12 @@ baseline is `d258d47cb9987f2945b1b4c4ce426fcc8ab29110`. The mxm-mono-pr1 review 
 actual-discontinuity sync, normalized bend, all-layout host, broad golden, complete editor-paint,
 shared visual-token and delivery-drift prompts below. A branch fix does not fix an installed bundle.
 Inspect the revision actually being reviewed; do not assume later integration from these notes.
+
+*Since the split (2026-10-06):* these notes were written in the monorepo. A `crates/<product>-…` or
+`plugins/<product>/…` path below is in that product's repository
+(`https://github.com/mxm-audio/<product>`), an `apps/mxm-player/…` path is in
+[mxm-player](https://github.com/mxm-audio/mxm-player), `crates/mxm-measure` and `crates/ui` are in
+this repository, and `plans/…` is in the private archive.
 
 - **Shared dependency risks:** sample-offset automation, input/output queue saturation, malformed
   state loading. Audit every plugin using the affected nice-plug wrapper, including effects where
@@ -77,8 +85,12 @@ release, and an unverified case must not be reported as passed.
 | User-controlled response dimensions reach `vec!`, `with_capacity`, `collect` or unchecked FFT-history growth after a nominal size cap | Carry `try_reserve` failure through decode, transforms, resampling, coefficient spectra, runtime history and delay construction; reject atomically and preserve the old engine/state. The oracle supplies malformed and arithmetically impossible dimensions and verifies no partial publication; a maximum byte count alone does not prove allocation failure is recoverable. |
 
 Evidence anchors on the reference branch: `apps/mxm-player/tests/plugin_robustness.rs`,
-`plugins/mxm-para-07/host-tests/tests/behaviour.rs`, and `vendor/nice-plug/PATCHES.md`.
-Dependency edits belong under the existing [vendor ownership](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md), never new DOX
+`plugins/mxm-para-07/host-tests/tests/behaviour.rs`, and `vendor/nice-plug/PATCHES.md` — since the
+split, in [mxm-player](https://github.com/mxm-audio/mxm-player/blob/main/apps/mxm-player/tests/plugin_robustness.rs),
+[mxm-para-07](https://github.com/mxm-audio/mxm-para-07/blob/main/plugins/mxm-para-07/host-tests/tests/behaviour.rs)
+and [the nice-plug fork](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md).
+Dependency edits belong under the existing vendor ownership (since the split, the nice-plug fork and
+its [`PATCHES.md`](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md)), never new DOX
 inside dependency source. Update every affected file's patch marker and refresh instructions.
 
 ## 2. Note identity, termination and wake transitions
@@ -529,7 +541,9 @@ Use the current [design system](MXM_DESIGN_SYSTEM.md) §§3.3–4.3, 6–7 and 1
   host callbacks on the real window. A floating editor must not request a host parent's resize:
   there is no parent, and waking/redrawing the host per drag event defeats idle throttling. Check
   accepted native sizes, zero unnecessary host round-trips, and close/reopen; preserve embedded
-  host negotiation. `apps/mxm-player/tests/editor_resize.rs` is the Windows bundle-level oracle.
+  host negotiation. `apps/mxm-player/tests/editor_resize.rs` is the Windows bundle-level oracle
+  (since the split, `collection-tests/editor_resize.rs` in the owner's local workspace, not on
+  GitHub yet, because it needs every product's bundle).
   Callback counts and headless milliseconds do not establish displayed FPS or smoothness.
 - **Native-editor inventories and mutable bundle profiles drift independently of plugin tests.** A
   new floating editor can pass its own open/reopen proof while remaining absent from the collection
@@ -552,7 +566,8 @@ Use the current [design system](MXM_DESIGN_SYSTEM.md) §§3.3–4.3, 6–7 and 1
   that paging should remove. `crates/ui/tests/paging.rs` and `crates/ui/tests/view_bar.rs` cover the shared
   foundation; `tests/paged_editor.rs` adds integrated ownership/cache tests and the plugin suites
   test their real panels. Neither establishes the physical fit gate. The rollout's baseline and
-  repair evidence is in `plans/plan-dynamic-view-paging.md` §9, not inferred from these lessons.
+  repair evidence is in `plans/plan-dynamic-view-paging.md` §9 (in the private archive), not
+  inferred from these lessons.
 - **A scroll flag is not reachability.** Drive wheel/scrollbar input until an over-wide card's
   far-edge control enters the clip rectangle. Manually positioned `new_child` Uis do not allocate
   their extent in the parent; allocating only viewport width leaves `ScrollArea::both` with no
@@ -893,7 +908,9 @@ the next one rather than after.
   *Modulator 2* on a filter) and a target named for its jack rather than what it moves survived
   `mxm-mono-00`'s conversion, its review and a six-round design review, and the owner found both at
   first sight of the panel. Check every painted target name against `plugins/AGENTS.md`'s
-  *Declaring the target list*; tests pass either way.
+  *Declaring the target list* (since the split,
+  [`plugin-conventions.md`](plugin-conventions.md#declaring-the-target-list--what-mxm-mono-00-had-to-discover-twice));
+  tests pass either way.
 - **An editor test that picks from a routing menu must scroll to the option.** Twenty-five sources
   is a menu that scrolls, and on a card low on the page its last options open below the window,
   where a click lands on nothing. `mxm-mono-00`'s sweep failed on the twentieth source of its first
@@ -920,7 +937,9 @@ These came out of `crates/mxm-audio-file` and `crates/mxm-audio-file-decode` (20
   reader, not through the writer's intent.
 - **A compiled-in notice has to be checked in the built binary.** A `const` nothing references can be
   stripped at link time, so a licence notice that "is compiled in" proves nothing until the release
-  artefact is searched for its text (root *Before this repository is made public*, item 7).
+  artefact is searched for its text (root *Before this repository is made public*, item 7 — the MPL
+  item, which that list numbers 6; since the split it is in
+  [`collection-rules.md`](collection-rules.md#research-boundary)).
 - **A reader that skips damage returns success, and a fixture too small to lose a piece cannot show
   it.** symphonia's Ogg and FLAC readers step over a page or frame whose checksum fails without an
   error. The decoder's byte-mutation sweep asserted only "no panic", on a 0.5 s Ogg with one audio

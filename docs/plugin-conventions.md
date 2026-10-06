@@ -8,6 +8,12 @@ Moved here on 2026-10-06 from the `plugins/AGENTS.md` every plugin repository ca
 since the split (this is mxm-mono-01's copy, with its links made to work from here). Nothing was
 dropped; the few lines that described the monorepo are kept and marked *Since the split*.
 
+Paths are as in a plugin repository: `plugins/<plugin>/…` and `crates/<plugin>-dsp/…` are in that
+plugin's own repository (`https://github.com/mxm-audio/<plugin>`), `apps/mxm-player/…` is in
+[mxm-player](https://github.com/mxm-audio/mxm-player), the shared `crates/…` (`ui`, `mxm-preset`,
+`mxm-modulation`, `mxm-tempo`, `mxm-plugin-test` and the rest) and `docs/…` are in this kit, and
+`plans/…` and `scripts/…` are in the private archive.
+
 # The plugins
 The CLAP plugins the collection ships. Each is a thin nice-plug shell over a framework-free DSP
 crate: parameter definitions, host contract, event handling, and an editor.
@@ -43,7 +49,8 @@ product gates live in each plugin’s own `AGENTS.md` or active plan.
 
 # Ownership
 
-Owns each `plugins/<plugin>/` directory: `Cargo.toml`, its own `LICENSE`, `README.md`,
+Owns each `plugins/<plugin>/` directory: `Cargo.toml`, its own `LICENSE` (*since the split*, none:
+the repository's root `LICENSE` covers it), `README.md`,
 `control-map.json`, `presets/`, `src/`, and `host-tests/`. Instruments normally split `lib.rs`,
 `params.rs`, `preset.rs`, `telemetry.rs` and `editor.rs`; a built editor may add an `editor/` subtree.
 
@@ -52,7 +59,9 @@ Owns each `plugins/<plugin>/` directory: `Cargo.toml`, its own `LICENSE`, `READM
 host with [`mxm_player_harness`](https://github.com/mxm-audio/mxm-player/blob/main/apps/mxm-player-harness/AGENTS.md). It is a separate package
 (`<plugin>-host-tests`) so the plugin's own `cargo test -p <plugin>` — the fast tier — never builds
 the player; `cargo xtask bundle <plugin> --release` and then `cargo test -p <plugin>-host-tests` is
-the slow tier, which the merge gate runs once, after the bundle.
+the slow tier, which the merge gate runs once, after the bundle. *Since the split* there is no merge
+gate: run the slow tier once, after the bundle, before a push, and CI runs it the same way on a `v*`
+release tag.
 
 The checks every plugin's tests share live in **`crates/mxm-plugin-test`**, a `[dev-dependencies]`
 entry of each plugin and compiled into no bundle: `mxm_plugin_test::paging_checks` for the dynamic
@@ -63,7 +72,7 @@ and the review pictures, and `mxm_plugin_test::routing_checks` for the modulatio
 half — a route parameter held to its DSP's `mxm_modulation::conformance::Declaration`. They are
 shared because a check copied once per consumer is many chances to weaken it; keep them whole rather
 than trimming one to what one consumer happens to call. The crate's own contract is
-[`crates/mxm-plugin-test/AGENTS.md`](https://github.com/mxm-audio/mxm-mono-01/blob/main/crates/mxm-plugin-test/AGENTS.md).
+[`crates/mxm-plugin-test/AGENTS.md`](../crates/mxm-plugin-test/AGENTS.md).
 
 **`crate-type = ["cdylib", "lib"]`.** The `cdylib` is the shipped artifact; the `lib` exists so
 [`apps/mxm-mono-01-standalone`](https://github.com/mxm-audio/mxm-mono-01/blob/main/apps/mxm-mono-01-standalone/AGENTS.md) can link the plugin and run its
@@ -73,7 +82,7 @@ they would end up in the `.clap`.
 
 Owns **permanent identifiers** — see below. Does not own DSP (that is
 [`crates/<plugin>-dsp`](https://github.com/mxm-audio/mxm-mono-01/blob/main/crates/mxm-mono-01-dsp/AGENTS.md)) or styling (that is
-[`crates/ui`](https://github.com/mxm-audio/mxm-mono-01/blob/main/crates/ui/AGENTS.md)).
+[`crates/ui`](../crates/ui/AGENTS.md)).
 
 # Local Contracts
 
@@ -155,7 +164,7 @@ instruments' floor of fifty sounds is theirs: an effect's factory set is what it
 and `mxm-chorus-06` ships ten chorus sounds (the owner, 2026-09-28), its circuit's three positions
 being buttons on its panel rather than presets.
 
-**The system is [`crates/mxm-preset`](https://github.com/mxm-audio/mxm-mono-01/blob/main/crates/mxm-preset/AGENTS.md)**, one crate for every
+**The system is [`crates/mxm-preset`](../crates/mxm-preset/AGENTS.md)**, one crate for every
 instrument and qualifying effect. A plugin implements `mxm_preset::Instrument` on its `Params` —
 its `CLAP_ID`, parameters in declaration order, `#[persist]`ed identity slot and factory files. Its
 `preset.rs` owns that implementation, factory sounds and product-specific tests; its editor calls
@@ -166,7 +175,9 @@ behavior changes once in the crate and is tested against every consumer. The rul
 authoritative; `text` is the plugin's own formatting, kept so the file can be read and diffed, and
 never loaded. That is what lets one `set_parameter_normalized` serve a float, an enum, a stepped
 parameter and a boolean with no per-type conversion — and the conversions belong to nice-plug, which
-this repository's rule about not guessing at its APIs already says to leave alone. There is
+this repository's rule about not guessing at its APIs already says to leave alone (the monorepo
+root's *Don't guess at nice-plug APIs*; since the split,
+[`adding-an-instrument.md`](adding-an-instrument.md#12-do-not-guess-at-nice-plug-apis)). There is
 deliberately **no mismatch detection**: checking would mean formatting `v` back through one of those
 APIs, which is the conversion the format exists to avoid.
 
@@ -267,8 +278,8 @@ pinned by the instrument's own defaults test, not by that one.
 ## Every instrument's modulation is the shared routing
 
 **The owner's ruling, 2026-09-15: every instrument uses
-[`crates/mxm-modulation`](https://github.com/mxm-audio/mxm-mono-01/blob/main/crates/mxm-modulation/AGENTS.md) and
-[`crates/mxm-modulation-params`](https://github.com/mxm-audio/mxm-mono-01/blob/main/crates/mxm-modulation-params/AGENTS.md)** — *it is why it was
+[`crates/mxm-modulation`](../crates/mxm-modulation/AGENTS.md) and
+[`crates/mxm-modulation-params`](../crates/mxm-modulation-params/AGENTS.md)** — *it is why it was
 made*. A modulation path is a *(target, source)* route with a presence and an amount, not an
 instrument-local matrix, bus or depth knob. The machine's own wiring is the init patch's present
 routes, at the depths it always had (`mxm-mono-01/AGENTS.md`, *The machine's own modulation is
@@ -315,7 +326,7 @@ cheap to get right at intake and a re-release of ids to fix afterwards.
   **Only a machine pitch column wider than ±24 semitones** takes one
   (`mxm_modulation_params::reading::Fader`); every other amount is linear.
 - **Every modulation means the same on every instrument** (the owner, 2026-09-26;
-  `plans/plan-modulation-standard.md` (`plans/plan-modulation-standard.md` in the private archive)). Publish the
+  `plans/plan-modulation-standard.md`, in the private archive). Publish the
   performance sources through `mxm_modulation::standard` — Key the glided note, **Velocity `v − 1`**,
   Wheel and Pressure 0…1, Bend the lever, Random `2u − 1` — so every route does nothing at its
   source's rest. A path the machine had keeps the machine's reach; **an added path from a
@@ -341,7 +352,7 @@ cheap to get right at intake and a re-release of ids to fix afterwards.
   `mxm_plugin_test::routing_checks`'s `amounts` in the plugin, each falsified once.
 
 A new instrument starts on it. An existing one converts under
-`plans/plan-modulation-routing.md` (`plans/plan-modulation-routing.md` in the private archive) M5, which names the
+`plans/plan-modulation-routing.md` (in the private archive) M5, which names the
 conversions still owed. Read [`docs/code-review-notes.md`](code-review-notes.md) §7 before
 converting: five of its lessons were found twice, on two conversions.
 
@@ -357,9 +368,10 @@ Measured: an unsmoothed continuous parameter stepping under automation puts broa
 with the knee around 1 ms. Useful range is **5–20 ms**; past about 20 ms the control feels
 disconnected and fast automation is smeared.
 
-Those figures come from a generic one-pole model in `crates/dsp-lab/examples/mod_spike.rs` §4,
+Those figures come from a generic one-pole model in `crates/dsp-lab/examples/mod_spike.rs` §4
+(in [mxm-tools](https://github.com/mxm-audio/mxm-tools/blob/main/crates/dsp-lab/examples/mod_spike.rs) since the split),
 **not** from this crate's shipped `SmoothingStyle` path, which has never been measured. See
-[`docs/modulation/03-smoothing-and-events.md`](https://github.com/mxm-audio/mxm-mono-01/blob/main/docs/modulation/03-smoothing-and-events.md) for
+[`docs/modulation/03-smoothing-and-events.md`](modulation/03-smoothing-and-events.md) for
 the argument and the open gap.
 
 ## Permanent identifiers — never change these
@@ -374,7 +386,8 @@ Treat both as public interface.
 **A `CLAP_ID` cannot collide, and an earlier version of this rule said otherwise** (the owner's
 ruling, 2026-09-05). It asked a new plugin to confirm its name was not taken on the CLAP plugin
 lists before the id was fixed. That conflated two different things: the id is reverse-DNS under
-`mxm.dk`, a domain the project owns, and every plugin in the collection lives in this repository —
+`mxm.dk`, a domain the project owns, and every plugin in the collection lives in this repository
+(since the split, in one of the project's own repositories under `mxm-audio`) —
 so the namespace is ours alone and a check against other vendors can never find anything. Hosts key
 on the id, not the name. What the id needs is care that it is **permanent**, which the paragraph
 below covers.
@@ -457,7 +470,8 @@ One `#[derive(Params)]` struct behind `Arc<…>`.
   way round on technique**: `CLAP_DESCRIPTION` is what a plugin browser shows, so it says what the
   plugin is *and what sets it apart* — *bucket-brigade (BBD) chorus*, *drums modelled from their
   circuits*, *diode-ladder filter* are its selling points (the owner, 2026-09-27, after a pass that
-  removed them) — but never a maker's or model's name (root *Naming*) or the code's own words
+  removed them) — but never a maker's or model's name (root *Naming*, in
+  [`collection-rules.md`](collection-rules.md#naming)) or the code's own words
   (checked by the same test).
 - **A syncable rate or time shows its reading** (the owner, 2026-09-27; design system §7.1): hertz
   or seconds free, the note when synced, always — Standard at least, never Compact. mxm-mono-00's
@@ -487,7 +501,7 @@ assumes 120 BPM.
 all plugins"*, and *"1 common way it works. If they have different ranges of time we keep to that"*.
 Every synced control follows one contract:
 
-- **The ladder is `mxm-tempo`'s** ([`../crates/mxm-tempo/AGENTS.md`](https://github.com/mxm-audio/mxm-mono-01/blob/main/crates/mxm-tempo/AGENTS.md)):
+- **The ladder is `mxm-tempo`'s** ([`crates/mxm-tempo/AGENTS.md`](../crates/mxm-tempo/AGENTS.md)):
   a `const <CONTROL>_SYNC: Ladder` beside the parameter in `params.rs` — its span of the one
   sixteen-step table (the control's own range at 120 BPM; every LFO `Span::LFO`) and its direction
   (`Time`: the longest division at the top; `Rate`: the fastest), so a synced control moves the way
@@ -524,7 +538,7 @@ Every synced control follows one contract:
   reads a position every sample with no ramp of its own, it goes through the control's own smoother
   (mxm-shimmer's `follow_tempo`), never at once. A rate or a per-grain draw needs neither.
 
-`../plans/plan-tempo-sync-controls.md` (`plans/plan-tempo-sync-controls.md` in the private archive) owns the rollout
+`plans/plan-tempo-sync-controls.md` (in the private archive) owns the rollout
 inventory.
 
 ### Editable models: what is a parameter and what is state
@@ -573,7 +587,7 @@ control roles. `cargo xtask bundle` stages it beside the `.clap` as
 collection: someone who downloads one plugin must still get a working controller layout, and the
 player must not need to have heard of a plugin released after it.
 
-- Roles come from [`docs/MXM_CONTROL_MAP.md`](https://github.com/mxm-audio/mxm-mono-01/blob/main/docs/MXM_CONTROL_MAP.md), which is normative. Do
+- Roles come from [`docs/MXM_CONTROL_MAP.md`](MXM_CONTROL_MAP.md), which is normative. Do
   not invent a role name; add one there first, in a pass that also updates the standard's
   `roles` table.
 - Reference parameters by their **permanent string `#[id]`**, never by display name.
@@ -585,7 +599,7 @@ player must not need to have heard of a plugin released after it.
 ## An instrument ships the effects its original had, and no others
 
 The binding form of the root's *no effect that was not on the original instrument*
-([`../AGENTS.md`](https://github.com/mxm-audio/mxm-mono-01/blob/main/AGENTS.md)). Two principles meet here and the order between them is settled:
+(since the split, [`collection-rules.md`](collection-rules.md#the-goal-and-how-much-licence-a-copy-has)). Two principles meet here and the order between them is settled:
 
 1. **Effects are their own collection.** A distortion, a delay, a reverb is a separate box, so it is
    a separate plugin (the owner's decision).
@@ -595,7 +609,8 @@ The binding form of the root's *no effect that was not on the original instrumen
 
 **One instrument is exempt by the owner's ruling (2026-09-02): `mxm-mono-00`**, whose feature set
 is Roland's SYSTEM-100 plug-out and which therefore takes the plug-out's phaser and delay although
-no System-100 module had them. The root's effects bullet holds the exemption; it is specific to that
+no System-100 module had them. The root's effects bullet (now in
+[`collection-rules.md`](collection-rules.md#the-goal-and-how-much-licence-a-copy-has)) holds the exemption; it is specific to that
 instrument, and `mxm-mono-00/AGENTS.md` carries the record below.
 
 **A standalone effect may be granted a path its original did not have, by the owner's ruling and
@@ -615,7 +630,8 @@ both true of the 303 and neither is about the TB-303.
 **A built-in effect does not need the player to host audio inputs.** Worth stating, because the two
 are easy to conflate: an instrument with an internal chorus is still MIDI in, audio out. The player
 now hosts *standalone* effects — a plugin with exactly one audio input — in a serial chain after
-the source (`apps/mxm-player/AGENTS.md`, *The effect chain*); that is the host's business and
+the source (`apps/mxm-player/AGENTS.md`, *The effect chain*; since the split, mxm-player's
+[`apps/mxm-player/NOTES.md`](https://github.com/mxm-audio/mxm-player/blob/main/apps/mxm-player/NOTES.md#the-effect-chain-serial-reorderable-and-off-means-uncalled)); that is the host's business and
 changes nothing about a built-in one.
 
 ## Every effect built into an instrument is also promoted to a standalone effect
@@ -647,7 +663,7 @@ before it: extract it as this collection extracts anything, on the strength of t
 
 **Promoted so far**: `mxm-poly-06`'s chorus (`mxm-chorus-06`) and `mxm-mono-00`'s spring reverb
 (`mxm-folded-spring`). **Waiting**: `mxm-mono-00`'s phaser and delay, which
-`plans/plan-mxm-fx-collection.md` §1 holds back until each has a researched reference box and a
+`plans/plan-mxm-fx-collection.md` §1 (in the private archive) holds back until each has a researched reference box and a
 creative identity — not a doubt about promoting them, a doubt about what to call them.
 
 **`mxm-bucket-delay` is not that promotion**, and the names are close enough to be worth separating
@@ -691,7 +707,8 @@ audio thread to the editor; the DSP reads nothing), and the editor honouring the
 `panel`. A plugin with no expander answers CC 118 with nothing, and says so. Each plugin's
 `the_developer_channel_is_off_unless_the_environment_asked_for_it` holds the gate.
 
-`scripts/capture_editor.ps1` is the screenshot run that channel exists for: it opens an editor
+`scripts/capture_editor.ps1` (in the private archive since the split; no product repository has
+it) is the screenshot run that channel exists for: it opens an editor
 through the player, chooses a category (`-Category`, or its permanent CC address via `-View`),
 theme (`-Theme`, via `MXM_EDITOR_THEME`), zoom and size, and captures the editor window rather than
 the screen. It selects the first card of a category, not every page in a split category. With
@@ -927,7 +944,8 @@ release validator run does not prove absence of allocation.
 - **A plugin can be auditioned through the player with no window and no sound card**, so do it
   before calling an editor or an effect done: `mxm_player_harness::harness::Harness::with_fx`
   builds the real chain and renders it, from the plugin's own `host-tests` package. See
-  `apps/mxm-player/AGENTS.md`'s *Auditioning a plugin here*.
+  `apps/mxm-player/AGENTS.md`'s *Auditioning a plugin here* (since the split, mxm-player's
+  [`apps/mxm-player/NOTES.md`](https://github.com/mxm-audio/mxm-player/blob/main/apps/mxm-player/NOTES.md#auditioning-a-plugin-here-with-no-window-and-no-sound-card)).
 - **Cards in a row start and end on one line, and a row is as tall as its tallest card** (§3.3).
   The paging renderer enforces that floor before painting; a plugin owes honest measurements.
   `shell::level_columns` remains for non-paged consumers, not plugin musician pages.
@@ -960,7 +978,8 @@ release validator run does not prove absence of allocation.
 - **A column test keeps passing on a layout with no columns.** Every editor here had one, and each
   went on holding "the columns end level" while nothing lined up across the panel. Assert **rows**,
   read off the drawn rectangles, which is what a person sees.
-- A §14 design brief in [`docs/briefs/`](AGENTS.md) is written **before** the editor.
+- A §14 design brief in the repository's `docs/briefs/` (owned, in the monorepo, by
+  [`docs/AGENTS.md`](AGENTS.md)) is written **before** the editor.
 
 ### Private editor surfaces are tested in process
 
@@ -1087,7 +1106,8 @@ The ordered walkthrough — with the traps that belong to no single scope, and a
 contracts stay here. The short form:
 
 1. Write the §14 design brief in `docs/briefs/<plugin>.md` first.
-2. Create `plugins/<plugin>/` with a `Cargo.toml` joining the workspace, plus its own `LICENSE`.
+2. Create `plugins/<plugin>/` with a `Cargo.toml` joining the workspace, plus its own `LICENSE`
+   (*since the split*, none: the plugin is a repository of its own, under its root `LICENSE`).
 3. Pick a permanent `CLAP_ID` (`dk.mxm.<plugin>`). It cannot collide — the namespace is a domain the
    project owns — so the only thing to get right is that it is **permanent**.
 4. DSP first, in `crates/<plugin>-dsp`, with unit tests — silence in gives silence out, no NaN/inf
@@ -1131,7 +1151,8 @@ suites do not run for it. Anything that touches parameters, `process()` or state
 Then, in order, before calling a change done:
 
 1. A **debug** build run — `assert_process_allocs` only fires in debug.
-2. `cargo run -p mxm-player --release` and actually play it. **"Show editor" opens the plugin's own
+2. `cargo run -p mxm-player --release` (in a checkout of
+   [mxm-player](https://github.com/mxm-audio/mxm-player)) and actually play it. **"Show editor" opens the plugin's own
    interface in a floating window**, so an editor change is visible here now — and this is the only
    place the *hosting* path is exercised: `create`, ownership, `destroy`, and reopening afterwards.
 3. `cargo run -p mxm-mono-01-standalone` and actually use the editor. The editor with no host at all,
@@ -1192,7 +1213,7 @@ result, and close the player first.
 
 **A clean validator run has zero failures in debug and release.** Instruments and effects exercise
 different subsets, so their passed counts need not match. If any test fails, first confirm that the
-`[patch.crates-io]` redirect to [`vendor/nice-plug`](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) is still active; its
+`[patch.crates-io]` redirect to `vendor/nice-plug` (since the split, [the nice-plug fork](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md)) is still active; its
 regressions protect fixes that remain unfixed upstream. Wrapper defects 6 and 7 — the first sample-accurate parameter event's timestamp, and an out-of-range timestamp used as an audio split point — have their bundled-host regressions in `plugins/mxm-para-07/host-tests/tests/behaviour.rs`. Wrapper defects 8 and 9 — GUI state restoration with complete rollback, and a rejected persistent field — have theirs in `plugins/mxm-fx-convolution/host-tests/tests/behaviour.rs`.
 
 

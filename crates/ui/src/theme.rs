@@ -531,8 +531,9 @@ mod tests {
 
     #[test]
     fn the_developer_channel_spells_the_themes_by_index() {
-        // CC 116 carries these numbers, and `plugins/AGENTS.md` publishes them. The order is the
-        // control's own: Light, Dark, System.
+        // CC 116 carries these numbers, and `plugins/AGENTS.md` publishes them (in full, this
+        // repository's `docs/plugin-conventions.md`). The order is the control's own: Light, Dark,
+        // System.
         assert_eq!(from_index(0), Some(egui::ThemePreference::Light));
         assert_eq!(from_index(1), Some(egui::ThemePreference::Dark));
         assert_eq!(from_index(2), Some(egui::ThemePreference::System));

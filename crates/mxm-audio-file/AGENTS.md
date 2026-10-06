@@ -6,7 +6,7 @@ Parent: [`../../AGENTS.md`](../../AGENTS.md)
 
 Writes audio files — WAV, AIFF and FLAC — for every plugin, app, offline tool and listening harness
 in the collection. Its sibling [`../mxm-audio-file-decode`](../mxm-audio-file-decode/AGENTS.md) reads
-them. Plan: `plans/plan-mxm-audio-file.md` (`plans/plan-mxm-audio-file.md` in the private archive) (revision 6, approved
+them. Plan: `plans/plan-mxm-audio-file.md` in the private archive (revision 6, approved
 2026-09-15).
 
 **Established encoders, not ours.** `hound` writes WAV, `aifc` writes AIFF, `flacenc` writes FLAC.
@@ -118,6 +118,8 @@ cargo test -p mxm-audio-file-decode    # the round trips through every target li
 
 **Status (2026-09-15, Windows):** 16 tests pass on stable and on 1.87; clippy is silent; the round trips in the
 decode crate pass for every target. Linux and macOS are not verified here.
+*Since the split (2026-10-06):* CI runs this crate's tests on Windows, macOS and Linux on every `v*`
+release tag; before a push, Linux is checked in WSL.
 
 # Child DOX Index
 

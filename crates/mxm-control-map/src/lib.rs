@@ -17,9 +17,10 @@
 //!   must not need to know about instruments that were released after it.
 //!
 //! Parameter references are written as **string parameter ids** (`"cutoff"`), which are permanent
-//! by contract (`plugins/AGENTS.md`) and readable by a person. CLAP reports a `u32`, so the string
-//! is hashed the way nice-plug hashes it — see [`hash_param_id`]. A reference written as a bare
-//! number is used as a CLAP id directly, which is what a non-nice-plug plugin needs.
+//! by contract (`plugins/AGENTS.md`; `docs/plugin-conventions.md` here) and readable by a person.
+//! CLAP reports a `u32`, so the string is hashed the way nice-plug hashes it — see
+//! [`hash_param_id`]. A reference written as a bare number is used as a CLAP id directly, which is
+//! what a non-nice-plug plugin needs.
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -127,9 +128,10 @@ impl ParamRef {
 
 /// nice-plug's parameter id hash, reproduced so the layout can use readable string ids.
 ///
-/// A Rabin fingerprint with the top bit cleared — `vendor/nice-plug/src/wrapper/util.rs:35-46`.
-/// `tests/t5_control_map.rs` pins it against mxm-mono-01's real ids, so a change upstream is caught
-/// rather than quietly unmapping every knob.
+/// A Rabin fingerprint with the top bit cleared — `vendor/nice-plug/src/wrapper/util.rs:35-46`,
+/// since the split `src/wrapper/util.rs:35-46` in the nice-plug fork (mxm-audio/nice-plug).
+/// mxm-player's `apps/mxm-player/tests/t5_control_map.rs` pins it against mxm-mono-01's real ids,
+/// so a change upstream is caught rather than quietly unmapping every knob.
 pub fn hash_param_id(id: &str) -> u32 {
     let mut hash: u32 = 0;
     for byte in id.bytes() {
@@ -393,7 +395,8 @@ mod tests {
 
     #[test]
     fn the_param_id_hash_matches_nice_plugs() {
-        // Pinned against the real algorithm at vendor/nice-plug/src/wrapper/util.rs:35-46.
+        // Pinned against the real algorithm at vendor/nice-plug/src/wrapper/util.rs:35-46 (since
+        // the split, src/wrapper/util.rs:35-46 in the nice-plug fork).
         // Worked by hand: 'c'=99, then h = h*31 + byte for each of "utoff".
         let mut expected: u32 = 0;
         for byte in b"cutoff" {

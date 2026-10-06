@@ -10,8 +10,9 @@ the sweep.
 offset measurement found a "lag" of 2,205 frames at a correlation of 1.000000: exactly 22 periods of
 440 Hz. A periodic signal matches itself one period over, so it cannot measure where audio starts.
 A sweep has one alignment. No recording, sample library or third-party audio is involved.
-The root release checklist's media check (item 1) finds these files; this README and
-`../AGENTS.md` are the declaration it asks for.
+The root release checklist's media check (item 1; since the split, *Before this repository is made
+public* in mxm-kit's [`docs/collection-rules.md`](../../../docs/collection-rules.md#research-boundary))
+finds these files; this README and `../AGENTS.md` are the declaration it asks for.
 
 They exist because no Rust crate the collection uses can **write** MP3, AAC, ALAC, Vorbis or Opus.
 WAV, AIFF and FLAC are written by `mxm-audio-file` inside the tests instead.

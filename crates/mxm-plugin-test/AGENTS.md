@@ -13,13 +13,14 @@ hover and in a host's plugin browser speak about the sound, never the machine or
 system §7.6). What each check proves and does not prove is in its module's docs.
 
 They were `plugins/*_test_support.rs` files that each plugin `include!`d, until the collection's split
-into one repository per product (`plans/plan-repo-split.md`, Phase 1): a file outside a plugin's own
+into one repository per product (`plans/plan-repo-split.md` in the private archive, Phase 1): a file outside a plugin's own
 folder cannot travel with it, and a crate can.
 
 # Ownership
 
 Owns `Cargo.toml` and `src/`. The rules the checks enforce belong to their owners — the editor
-contract to [`plugins/AGENTS.md`](https://github.com/mxm-audio/mxm-mono-01/blob/main/plugins/AGENTS.md), the layout to
+contract to each plugin repository's `plugins/AGENTS.md` and
+[`docs/plugin-conventions.md`](../../docs/plugin-conventions.md#editor-contract), the layout to
 [`crates/ui/AGENTS.md`](../ui/AGENTS.md) and the design system, routing to
 [`crates/mxm-modulation/AGENTS.md`](../mxm-modulation/AGENTS.md). This crate holds the measuring code
 only.
@@ -40,14 +41,15 @@ only.
 
 # Work Guidance
 
-- A change here reaches every plugin's tests. The merge gate runs them all and builds no bundle,
-  because a dev-dependency cannot change one (`scripts/merge_gate.py`).
+- A change here reaches every plugin's tests: run them all, in each plugin's own repository; no
+  bundle is needed, because a dev-dependency cannot change one. (Until the split the merge gate,
+  `scripts/merge_gate.py` in the private archive, ran them that way; there is no gate now.)
 
 # Verification
 
 ```bash
 cargo clippy -p mxm-plugin-test --all-targets -- -D warnings
-cargo check --tests -p <each plugin>        # every consumer still compiles against it
+cargo check --tests -p <each plugin>        # in each plugin's repository: every consumer still compiles against it
 ```
 
 The shipped graph must not contain this crate: the leak check in

@@ -225,7 +225,7 @@ Modulation still sums in octaves and clamps once
 ## 9.5 Putting it in a plugin
 
 The parameter/state split is already a contract in
-[`plugins/AGENTS.md`](https://github.com/mxm-audio/mxm-mono-01/blob/main/plugins/AGENTS.md), and it applies unchanged:
+`plugins/AGENTS.md` ([`plugin-conventions.md`](../plugin-conventions.md#editable-models-what-is-a-parameter-and-what-is-state)), and it applies unchanged:
 
 | | Automatable parameter | Persisted state |
 |---|---|---|
@@ -434,7 +434,7 @@ dropping the third Newton step or vectorising across voices
    normalised-resonance contract is the part that must not be compromised for convenience.
 3. **`native_resonance` is the single most important method.** Everything else is bookkeeping. If a
    family's threshold is not measured, its knob is wrong — and
-   [`plugins/AGENTS.md`](https://github.com/mxm-audio/mxm-mono-01/blob/main/plugins/AGENTS.md) already requires mapping resonance around the
+   `plugins/AGENTS.md` ([`plugin-conventions.md`](../plugin-conventions.md#parameters)) already requires mapping resonance around the
    *measured* threshold.
 4. **`osc_ratio` must exist even though it is 1.0 almost everywhere.** The one family where it is
    not would otherwise be silently a minor third out.

@@ -12,7 +12,7 @@ results from `osc_spike`.
 ## How to reproduce all of it
 
 ```bash
-cargo run -p dsp-lab --release --example osc_spike
+cargo run -p dsp-lab --release --example osc_spike    # in mxm-tools, since the split
 ```
 
 About 25 seconds. The output of the run these documents quote is recorded verbatim in

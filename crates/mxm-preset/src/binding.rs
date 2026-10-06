@@ -3,9 +3,9 @@
 //! Until 2026-09-24 every editor carried its own copy of this module: eighteen of them, the effects'
 //! within ten lines of each other and the instruments' drifted by up to five hundred. The owner's
 //! standardisation principle — *"I want to make a 100 plugins. And they should all look, feel and
-//! work the same"* — made it one (`plans/plan-editor-standard.md` R1c). It lives here because this
-//! crate already names nice-plug and draws with `mxm-ui`; `crates/ui` may name neither. A plugin's
-//! `binding` module re-exports it, and keeps only what is its own.
+//! work the same"* — made it one (`plans/plan-editor-standard.md` R1c, in the private archive). It
+//! lives here because this crate already names nice-plug and draws with `mxm-ui`; `crates/ui` may
+//! name neither. A plugin's `binding` module re-exports it, and keeps only what is its own.
 //!
 //! # The one place gestures are bracketed
 //!
@@ -861,8 +861,9 @@ pub const SYNC_DESCRIPTION: &str =
     "Locks the control beside it to the host's tempo, in note lengths.";
 
 /// **A tempo sync's switch**: the quarter note (`Wave::QuarterNote`), the collection's one form for
-/// it (`plans/plan-tempo-sync-controls.md`). Drawn beside the control it syncs, on that knob's grid
-/// (`mxm_ui::tree::switch_beside_knob`); its accessible name is the parameter's.
+/// it (`plans/plan-tempo-sync-controls.md`, in the private archive). Drawn beside the control it
+/// syncs, on that knob's grid (`mxm_ui::tree::switch_beside_knob`); its accessible name is the
+/// parameter's.
 pub fn sync_picture(
     ui: &mut Ui,
     tokens: &Tokens,

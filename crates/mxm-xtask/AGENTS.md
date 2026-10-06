@@ -9,7 +9,7 @@ this repository's tests load, at the tags its `test-bundles.txt` pins (`fetch`).
 `xtask` passes its workspace root and adds only the commands that repository alone needs.
 
 It was the root `xtask`'s `main.rs` and `control_maps.rs` until the collection's split into one
-repository per product (`plans/plan-repo-split.md`, Phase 1): every product repository bundles, and
+repository per product (`plans/plan-repo-split.md` in the private archive, Phase 1): every product repository bundles, and
 one copy of the tooling is what keeps them bundling the same way.
 
 # Ownership

@@ -52,7 +52,8 @@ it does with container metadata. The sampler's `smpl` loop reading stays in the 
 ## The notice travels in the binary
 
 - `NOTICE` is `include_str!("../NOTICE.md")`: the licence, the exact crate versions and where the
-  source is. A bundle is copied alone (`plugins/AGENTS.md`, factory presets), so a notice beside it
+  source is. A bundle is copied alone (`plugins/AGENTS.md`, factory presets; in full,
+  [`docs/plugin-conventions.md`](../../docs/plugin-conventions.md#a-preset-is-parameter-values-and-every-instrument-stores-them-the-same-way)), so a notice beside it
   would be lost.
 - **When the symphonia version or feature list changes, update `NOTICE.md` in the same commit** —
   the crate list is `cargo tree -e normal -p mxm-audio-file-decode | grep symphonia`.
@@ -147,8 +148,8 @@ declaration. **A sweep, not a tone**: a steady sine matches itself a period late
 cargo test -p mxm-audio-file-decode
 cargo clippy -p mxm-audio-file-decode --all-targets
 CARGO_TARGET_DIR=target/msrv-1.87 cargo +1.87.0 test -p mxm-audio-file-decode
-cargo tree -e normal -p mxm-player | grep -c symphonia   # prints 0: the player takes the encoder only
-cargo xtask bundle mxm-creative-sampler --release
+cargo tree -e normal -p mxm-player | grep -c symphonia   # in mxm-player; prints 0: the player takes the encoder only
+cargo xtask bundle mxm-creative-sampler --release        # in mxm-creative-sampler, as is the next line
 grep -a -c "Mozilla Public License" target/bundled/mxm-creative-sampler.clap   # 1: the notice survived linking
 ```
 

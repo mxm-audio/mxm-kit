@@ -61,9 +61,10 @@ The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.
   `mxm-tools` — are **not shared DSP and not an exception**: no shipped DSP moves in and none appears
   in a shipped graph (`crates/mxm-measure/AGENTS.md`'s Verification). `dsp-lab` holds harnesses and
   their policy, `mxm-measure` rulers (never a threshold or verdict), `mxm-listening` interpretation.
-  A harness that verifies one plugin stays with it. Shipping `apps/mxm-listener-hud` is deferred.
+  A harness that verifies one plugin stays with it. Shipping mxm-tools' `apps/mxm-listener-hud` is
+  deferred.
 - `crates/mxm-xtask` is **the build tooling every repository's `xtask` shares** — bundling,
-  control-map staging and `fetch`; the root `xtask` keeps only `fixtures`.
+  control-map staging and `fetch`; mxm-player's root `xtask` adds only `fixtures`.
 - `crates/mxm-plugin-test` is **the checks every plugin's tests share** — neither shared DSP nor
   shared interface; a `[dev-dependencies]` entry only, held by the same leak check.
 
@@ -169,7 +170,8 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
-CI runs the same on Windows, macOS and Linux. Each crate's own `AGENTS.md` names its narrower
+CI runs the same on Windows, macOS and Linux, but only on a `v*` release tag or when started by hand
+(the owner, 2026-10-06); before a push, run it on Windows and on Linux (WSL). Each crate's own `AGENTS.md` names its narrower
 checks; the check that no test-only crate (`mxm-measure`, `mxm-plugin-test`) reaches a shipped
 graph runs in the product repositories, over their own shipped packages.
 

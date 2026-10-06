@@ -50,9 +50,10 @@
 //! # `f32` in, `f64` out
 //!
 //! The audio path is `f32` and measurement is accumulation over a long buffer, which is exactly the
-//! case the root contract reserves `f64` for. So these functions take what the audio path produces
-//! and return what the arithmetic deserves. [`level::peak`] is the exception and returns `f32`,
-//! because selecting the largest of a set of `f32`s introduces no error to lose.
+//! case the root contract reserves `f64` for (the monorepo's; since the split
+//! `docs/filters/04-efficiency.md` §4.7 states it). So these functions take what the audio path
+//! produces and return what the arithmetic deserves. [`level::peak`] is the exception and returns
+//! `f32`, because selecting the largest of a set of `f32`s introduces no error to lose.
 //!
 //! # The ruler validates itself
 //!

@@ -9,14 +9,14 @@ string-to-CLAP parameter id hash. The normative contract is
 [`docs/MXM_CONTROL_MAP.md`](../../docs/MXM_CONTROL_MAP.md); this crate implements it.
 
 It was MXM Player's `src/control_map/schema.rs` and `docs/control-map.json` until the collection's
-split into one repository per product (`plans/plan-repo-split.md`, Phase 1): the player is not the
+split into one repository per product (`plans/plan-repo-split.md` in the private archive, Phase 1): the player is not the
 only reader — every plugin's test holds its own map to the standard, and a DAW will read it too.
 
 # Ownership
 
 Owns `Cargo.toml`, `control-map.json` and `src/`. How a host *applies* a map — takeover, curves at
 run time, the user's overlay file, what the player shows — stays with the host
-([`apps/mxm-player/AGENTS.md`](https://github.com/mxm-audio/mxm-player/blob/main/apps/mxm-player/AGENTS.md), `src/control_map/`). An instrument's
+(mxm-player's [`apps/mxm-player/AGENTS.md`](https://github.com/mxm-audio/mxm-player/blob/main/apps/mxm-player/AGENTS.md), `src/control_map/`). An instrument's
 own map stays with the instrument (`plugins/<plugin>/control-map.json`).
 
 # Local Contracts

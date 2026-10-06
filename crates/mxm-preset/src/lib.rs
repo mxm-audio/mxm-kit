@@ -3,8 +3,9 @@
 //! Five instruments carried this as five verbatim copies of a `preset.rs` and of the editor's
 //! preset controls, deliberately, as the evidence an extraction would be made from. Banks and
 //! categories touch every line of both, and doing that five times over is five bugs; so this is
-//! that extraction (`plans/plan-preset-banks.md`, phase 0). The rules live in `plugins/AGENTS.md`,
-//! *A preset is parameter values*, and are not restated line by line here.
+//! that extraction (`plans/plan-preset-banks.md` in the private archive, phase 0). The rules live
+//! in `plugins/AGENTS.md`, *A preset is parameter values* (in full, this repository's
+//! `docs/plugin-conventions.md`), and are not restated line by line here.
 //!
 //! What a plugin supplies is an [`Instrument`]: its permanent id, its parameters in declaration
 //! order, where the loaded preset's identity is persisted, and its compiled-in factory files.

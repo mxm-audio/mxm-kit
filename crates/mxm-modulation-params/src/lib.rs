@@ -1,10 +1,10 @@
 //! The parameter and interface half of the collection's modulation routing.
 //!
-//! `plans/plan-modulation-routing.md` §4.2 and §4.3. This is a **second crate** rather than a
-//! feature of [`mxm_modulation`] because it names nice-plug and egui and therefore sits at 1.95,
-//! where the routing half must stay at 1.87 so every `*-dsp` crate can take it. Cargo unifies
-//! features across a build graph, so a feature gate would not have held that line —
-//! `docs/adding-an-instrument.md` gotcha 10 records what that already cost here once.
+//! `plans/plan-modulation-routing.md` §4.2 and §4.3, in the private archive. This is a **second
+//! crate** rather than a feature of [`mxm_modulation`] because it names nice-plug and egui and
+//! therefore sits at 1.95, where the routing half must stay at 1.87 so every `*-dsp` crate can take
+//! it. Cargo unifies features across a build graph, so a feature gate would not have held that line
+//! — `docs/adding-an-instrument.md` gotcha 10 records what that already cost here once.
 //!
 //! It owns the shape of a route's two parameters, the reading of them into the arrays
 //! [`mxm_modulation`] wants, and the interface for a target's routes — including **the gesture that

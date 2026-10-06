@@ -11,13 +11,13 @@
 //! | MPEG audio | `mp3` | MP3 (MPEG-1, 2 and 2.5 Layer III) |
 //!
 //! **Refused:** Opus (owner's ruling, 2026-09-15), CAF and ADPCM (rated Good by symphonia), RF64, a
-//! chained Ogg. The crate's `AGENTS.md` carries the measured detail for each row.
+//! chained Ogg. The crate's `NOTES.md` carries the measured detail for each row.
 //!
 //! **A separate crate from the encoder, not a feature of it.** symphonia is MPL-2.0; Cargo unifies a
 //! feature across every package in one build, and `nice_plug_xtask` bundles several packages in one
 //! `cargo build`, so a feature would carry the decoder into whatever shared that build. A crate
 //! outside a package's dependency graph cannot be linked into it under any grouping.
-//! `plans/plan-mxm-audio-file.md` §3.1.
+//! `plans/plan-mxm-audio-file.md` §3.1, in the private archive.
 //!
 //! **What it returns.** Interleaved `f32` at the file's own rate, for the channels the caller keeps,
 //! plus what the file said about itself: rate, channel count, bit depth, codec, container, the frame

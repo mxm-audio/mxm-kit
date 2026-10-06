@@ -2040,7 +2040,8 @@ mod tests {
     #[test]
     fn a_card_defaults_to_not_bypassable() {
         // mxm-mono-01 has no optional sections, and a disabled control implying otherwise is exactly
-        // what `apps/mxm-player/AGENTS.md` warns against for the player's scope decisions.
+        // what `apps/mxm-player/AGENTS.md` in mxm-player warns against for the player's scope
+        // decisions.
         let card = ModuleCard::new("Filter");
         assert!(card.enabled.is_none());
     }

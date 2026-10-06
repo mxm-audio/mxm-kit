@@ -59,8 +59,11 @@ alternative algorithms implemented in the same file. A hardware figure measured 
 source is instead labelled with that person, unit and conditions; it is not an in-repo result:
 
 ```bash
-cargo run -p dsp-lab --release --example osc_spike
+cargo run -p dsp-lab --release --example osc_spike    # in mxm-tools, since the split
 ```
+
+*Since the split (2026-10-06):* `crates/dsp-lab/…` is in [mxm-tools](https://github.com/mxm-audio/mxm-tools) and the shipped
+`crates/mxm-mono-01-dsp/…` in [mxm-mono-01](https://github.com/mxm-audio/mxm-mono-01).
 
 Measurement conditions, so the numbers can be reproduced or disputed:
 

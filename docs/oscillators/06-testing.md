@@ -170,7 +170,7 @@ Three things need the example rather than the test suite:
   job.
 - **Cost.** Timing in a unit test is a flake generator. `cargo test` runs in debug by default,
   where every relative cost in this reference is wrong.
-- **Does it sound like a synthesizer.** `cargo run -p mxm-mono-01-dsp --example mono_01_render_demo` writes a
+- **Does it sound like a synthesizer.** `cargo run -p mxm-mono-01-dsp --example mono_01_render_demo` (in mxm-mono-01) writes a
   WAV, and there is no substitute.
 
 ## 6.6 Measuring something with no closed form

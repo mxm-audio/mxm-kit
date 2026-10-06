@@ -79,9 +79,10 @@ pub fn verify(
                         );
                         // The expected items are measured at 1×; at another scale text rounds
                         // to physical pixels, and a card exactly its floor — the ceiling since
-                        // `plans/plan-editor-standard.md` A1 — can measure a point wider. The
-                        // editor measures its floor in the context it draws in, so it agrees
-                        // with itself; only this comparison crosses scales.
+                        // `plans/plan-editor-standard.md` A1, in the private archive — can
+                        // measure a point wider. The editor measures its floor in the context
+                        // it draws in, so it agrees with itself; only this comparison crosses
+                        // scales.
                         let rounding = if scale == 1.0 { 0.75 } else { 1.5 };
                         assert!(
                             rect.width() <= card.ceiling.unwrap_or(f32::INFINITY) + rounding,

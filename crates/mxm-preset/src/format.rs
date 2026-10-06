@@ -231,8 +231,9 @@ impl Preset {
     ///
     /// The init patch stays compiled in so a user cannot delete it — there is no file to delete,
     /// and no second copy of the defaults to drift from the plugin's `params.rs`, whose defaults
-    /// `plugins/AGENTS.md` makes normative. Generating it makes the browser's *Init* and the
-    /// utility menu's *Init patch* one call rather than two things that agree today.
+    /// `plugins/AGENTS.md` (`docs/plugin-conventions.md`) makes normative. Generating it makes the
+    /// browser's *Init* and the utility menu's *Init patch* one call rather than two things that
+    /// agree today.
     pub fn init(instrument: &dyn Instrument) -> Self {
         let entries = instrument
             .parameters()

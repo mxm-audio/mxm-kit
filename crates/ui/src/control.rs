@@ -3704,7 +3704,7 @@ pub fn shared_toggle_width(ui: &Ui, labels: &[&str]) -> f32 {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Sizes without drawing (`crate::tree`, plans/plan-layout-tree.md).
+// Sizes without drawing (`crate::tree`, plans/plan-layout-tree.md in the private archive).
 //
 // Each function answers, from the fonts and the style alone, what the control beside it occupies
 // when drawn: the narrowest it may be, and its height. They sit here rather than in the tree so that
@@ -4324,10 +4324,10 @@ fn paint_vertical_slider(
 /// a value change, and so it never alters the control's own geometry.
 ///
 /// **Shown to whoever is using the keyboard, not to everybody.** `plans/plan-keyboard-editing.md`
-/// §3 makes this ring the parameter half of the keyboard cursor — one visual with the card outline
-/// — so it follows the same reveal rule: hidden on a pointer press, back on the next keyboard
-/// gesture. See [`crate::navigation::shown`] for what the owner reported and why position and
-/// paint had to become two facts.
+/// §3 (in the private archive) makes this ring the parameter half of the keyboard cursor — one
+/// visual with the card outline — so it follows the same reveal rule: hidden on a pointer press,
+/// back on the next keyboard gesture. See [`crate::navigation::shown`] for what the owner reported
+/// and why position and paint had to become two facts.
 ///
 /// The gate is `running`-conditional because the rule belongs to the cursor. Where none runs — the
 /// player, the cardless developer Parameters surface — `Tab` is the only way focus arrives at all,

@@ -1,4 +1,5 @@
-//! Shared headless checks for plugin cards that are `mxm_ui::tree`s — plans/plan-layout-tree.md §4.3.
+//! Shared headless checks for plugin cards that are `mxm_ui::tree`s — plans/plan-layout-tree.md
+//! §4.3 (in the private archive).
 //! It proves logical geometry and writes pictures for the owner's review. It does not prove native-window, DPI or DAW behaviour.
 //!
 //! A plugin runs `tree_checks::card` for every card in every state of its structural-state matrix,
@@ -152,7 +153,7 @@ pub fn draw<K: Hash + Debug>(
                             },
                             &mut |key, given, took| {
                                 // The knob's name overhangs its box by 0.56 points (crates/ui
-                                // AGENTS.md); anything beyond three quarters of a point is real.
+                                // NOTES.md); anything beyond three quarters of a point is real.
                                 if took.is_positive() && !given.expand(0.75).contains_rect(took) {
                                     strays.push((format!("{key:?}"), given, took));
                                 }

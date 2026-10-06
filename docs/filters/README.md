@@ -22,7 +22,7 @@ in tune, and sound like it *wants* to do that. Almost everything below follows f
 | [07-rust-recipes.md](07-rust-recipes.md) | Trait design, parameter mapping, and a concrete plan for mxm-mono-01 and successors |
 | [08-sources.md](08-sources.md) | Annotated bibliography — what each source is actually good for |
 | [09-voicing.md](09-voicing.md) | **One editable voicing model for every family** — normalised resonance, the core/family split, and how an "advanced" panel is put together |
-| `research:filters/machines/` | **Deep-dives**, one per filter family, researched to the level you could build and argue from — twelve of them, in the private research repository (root *Research boundary*), indexed by `research:filters/machines/README.md`: Moog ladder, Roland IR3109, the SH-2's discrete BA662 cascade, SSM2040 / CEM3320, diode ladder / TB-303, Korg-35 / MS-20, Oberheim SEM & Xpander, Yamaha CS-80, the Buchla low-pass-gate family with the 208's Cards 10/11 kept distinct, Steiner-Parker, Polivoks, ARP 4012/4072 |
+| `research:filters/machines/` | **Deep-dives**, one per filter family, researched to the level you could build and argue from — twelve of them, in the private research repository (root *Research citations*; in full, [`collection-rules.md`](../collection-rules.md#research-boundary)), indexed by `research:filters/machines/README.md`: Moog ladder, Roland IR3109, the SH-2's discrete BA662 cascade, SSM2040 / CEM3320, diode ladder / TB-303, Korg-35 / MS-20, Oberheim SEM & Xpander, Yamaha CS-80, the Buchla low-pass-gate family with the 208's Cards 10/11 kept distinct, Steiner-Parker, Polivoks, ARP 4012/4072 |
 
 ## Status of the code in here
 
@@ -35,6 +35,9 @@ is listed at the top of [chapter 6](06-testing.md) and in each deep-dive's measu
 of `research:filters/machines/ir3109-roland.md` §7 is `crates/mxm-mono-01-dsp/src/filter.rs`
 (since 2026-09-03), and every number the SH-2 deep-dive (`research:filters/machines/ba662-sh-2.md`) quotes comes from
 that crate's `mono_01_filter_spike` and `resonance_gain` examples, which anyone who clones this can re-run.
+*Since the split (2026-10-06):* that crate, and every `crates/mxm-mono-01-dsp/…` path in these
+chapters, is in [mxm-mono-01](https://github.com/mxm-audio/mxm-mono-01); clone that repository to re-run them. `crates/dsp-lab` is in
+[mxm-tools](https://github.com/mxm-audio/mxm-tools).
 The twelfth deep-dive publishes no code of its own for that reason.
 
 Known limits, stated rather than hidden: the `DiodeLadder` in §2.5 is a *behavioural* model, not

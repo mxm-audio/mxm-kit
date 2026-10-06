@@ -25,15 +25,16 @@ licence it has**, and the rules below run from that:
 - **Reproduce a wart deliberately, and label it**, or the next reader fixes it. A wart is a property
   of the hardware, named with its evidence in the plugin's AGENTS.md or its brief;
   `crates/mxm-mono-03-dsp/AGENTS.md`'s *The droop is the topology — compensate outside the filter,
-  never inside* is the shape. **This is not a licence for bugs.** A NaN, a denormal stall, a click
+  never inside* is the shape (*since the split*, in
+  [mxm-mono-03](https://github.com/mxm-audio/mxm-mono-03/blob/main/crates/mxm-mono-03-dsp/AGENTS.md)). **This is not a licence for bugs.** A NaN, a denormal stall, a click
   from state left over between notes is nobody's hardware and the numeric contracts still bind: the
   difference is that a wart is reproducible on the original and a defect is only reproducible here.
 - **The copy is of the function, not the face.** "Homages, not clones" (see *Naming*) is about
   identity and interface — hardware architecture may inspire the DSP, and it never dictates the
   panel. A faithful filter behind an original interface is exactly the intent, and *warts and all*
   stops at the DSP: `docs/MXM_DESIGN_SYSTEM.md` is normative, there are no hardware-replica UIs, and
-  a machine's **interface** limitations are the one thing a copy is free to improve. `todo.txt` asks
-  for exactly that — a TB-303 "with a better interface", its glide moved into the synth where a
+  a machine's **interface** limitations are the one thing a copy is free to improve. `todo.txt` (the
+  monorepo's, in the private archive since the split) asks for exactly that — a TB-303 "with a better interface", its glide moved into the synth where a
   keyboard player can reach it.
 - **No effect that was not on the original instrument** (the owner's ruling, 2026-09-02). Effects are
   their own collection *and* an effect the machine shipped with is part of the machine — the second
@@ -63,6 +64,8 @@ licence it has**, and the rules below run from that:
 - **Don't pre-generalise** — and the destination is why, not an exception to it. Shared building
   blocks come from several honest per-machine implementations, extracted once the evidence says
   what is genuinely shared. Extracting early guesses at it. See the ten crate rules below.
+  *Since the split (2026-10-06):* they are in mxm-kit's root [`AGENTS.md`](../AGENTS.md),
+  *The crates*.
 
 Reference-quality open source: clarity beats cleverness, and every nontrivial algorithm names the
 technique or paper it comes from.
@@ -127,7 +130,8 @@ designation as a product name** — these are homages, not clones. The rule exte
 labels, filter mode names and preset names: "Ladder" is fine, "Moog" is not.
 
 **One literal per plugin, and a rename is that one line.** The plugin's name is written once in its
-crate — `plugin_name!` in `plugins/mxm-mono-01/src/lib.rs` — and both the display name and the
+crate — `plugin_name!` in `plugins/mxm-mono-01/src/lib.rs` (in
+[mxm-mono-01](https://github.com/mxm-audio/mxm-mono-01/blob/main/plugins/mxm-mono-01/src/lib.rs)) — and both the display name and the
 `CLAP_ID` derive from it. `bundler.toml` is the only place it is duplicated outside the crate, and a
 test in the plugin fails if the two disagree. **`CLAP_ID` is deliberately not derived from
 `CARGO_PKG_NAME`**: a permanent identifier must not follow a directory rename, which would change it
@@ -138,7 +142,8 @@ ruling, 2026-09-03, for the effects collection. `mxm-<effect>-<NN>` where `<NN>`
 box, or a descriptive name where no box has a number to key. `mxm-chorus-06` keeps the `06` because
 it is specifically the 106's chorus circuit sold separately, with the circuit's positions as its
 presets and proved equal to the built-in at each; a plug-out effect with no box behind it gets no
-number and no product until a box is chosen (`plans/plan-mxm-fx-collection.md` §1).
+number and no product until a box is chosen (`plans/plan-mxm-fx-collection.md` §1, in the private
+archive).
 
 **A new effect takes `mxm-fx-<effect>`** — the owner's ruling, 2026-09-16, taken when `mxm-fx-curve`
 was proposed and the paragraph above was found not to permit it. The prefix marks the effects
@@ -164,6 +169,8 @@ race, silently and with no warning, and a parallel `--workspace` build dies with
 naming a file that looks locked. Cargo emits `warning: output filename collision` and nothing else.
 Four crates shared `render_demo` and two pairs shared `filter_spike` and `preset_audit`; the fix and
 the three-day misdiagnosis it caused are in [`docs/known-issues.md`](known-issues.md).
+*Since the split (2026-10-06):* each repository is its own workspace, but keep the names unique
+across the collection: a build folder shared between repositories has one examples directory too.
 
 Hardware architecture may inspire the DSP. It never dictates the interface.
 
@@ -192,12 +199,13 @@ relicensing everything.
 The research behind the copies — what a machine, an effect or a filter family *does*, read off
 its own manuals, service notes, schematics and recordings — lives in a separate, **private**
 repository, conventionally a sibling checkout at `../01-mxm-collection-research`
-(`maxmcorp/mxm-collection-research`, split from this one on 2026-09-04). It is private because it
+(`maxmcorp/mxm-collection-research`, split from this one on 2026-09-04; *since the split*, kept
+beside the monorepo in the private archive, not beside any product repository). It is private because it
 holds third-party material. Research source material stays in that repository; fixed product assets
 stay with and are documented by their shipping crate rather than treated as research records. The
 checklist below protects that boundary. Nothing here depends on the research checkout at build or test time. `docs/filters/`, `docs/oscillators/`
 and `docs/modulation/` stay here because they are our own theory, measured by `crates/dsp-lab`
-against our own code; the machine pages, the effect pages and the family deep-dives they cite went
+(in [mxm-tools](https://github.com/mxm-audio/mxm-tools) since the split) against our own code; the machine pages, the effect pages and the family deep-dives they cite went
 across.
 
 **Citing across the boundary.** A reference from this repository into the research is written as
@@ -210,7 +218,8 @@ The path is relative to the research repository's root, with forward slashes; a 
 follows outside the code span, as this repository already writes its own citations. The research
 repository cites back the same way, as `` `software:<path>` `` relative to this root. The link
 check in `docs/AGENTS.md` ignores these on purpose; its resolver checks them when the sibling
-checkout is present.
+checkout is present. *Since the split (2026-10-06):* "this root" was the monorepo's, so a
+`software:` path names a monorepo path; each product repository keeps that layout for its own files.
 
 **What may cross into this repository from the research:** facts; numbers; measurements we made
 ourselves and our own prose, rewritten for their destination; a short quotation (a sentence or
@@ -225,7 +234,8 @@ distributed.
 for `mxm-shimmer` and binding on every effect after it. The research repository may study an
 installed binary by static analysis, and a page written that way is evidence like any other
 (`research:AGENTS.md`, *Installed software*). **What it establishes does not all cross.** This
-repository is MIT and is meant to be published, so the line runs between the technique and the
+repository is MIT and is meant to be published (*since the split*, the products are
+GPL-3.0-or-later and the kit MIT, all published; the line is the same), so the line runs between the technique and the
 artefact:
 
 - **Crosses:** the topology, and the arithmetic that is true of any implementation of it — a
@@ -235,7 +245,7 @@ artefact:
 - **Does not cross:** a constant read byte-exact out of a commercial binary and specific to that
   product — its delay values, its buffer sizes, its block granularity, its internal structure
   offsets, its factory preset values. **Our constants come from our own measurement**, which
-  `plans/AGENTS.md` required of a plan long before any binary was read: those are decided at the
+  `plans/AGENTS.md` (in the private archive) required of a plan long before any binary was read: those are decided at the
   keyboard, against the compiler and a measurement.
 
 **Published source is a different question, and it is ruled** (the owner, 2026-09-09, taken for
@@ -278,3 +288,9 @@ having read a binary first.
 6. MPL notices ship in the artefact. Every release bundle whose package's normal graph contains
    `mxm-audio-file-decode` (`cargo tree -e normal -p <package>`) carries that crate's `NOTICE.md` text
    in its binary, and `cargo tree -e normal -p mxm-player` contains no symphonia crate.
+
+*Since the split (2026-10-06):* each repository runs this list for itself before it is made public
+and before each release. Item 2's paths are the monorepo's; a hit still means an old clone was
+merged back in. Item 4 needs the research checkout, which is in the private archive rather than a
+sibling, so point the path at it; `automation/tests` exists only in the archive. Item 6's
+`mxm-player` check runs in [mxm-player](https://github.com/mxm-audio/mxm-player).

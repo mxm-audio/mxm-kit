@@ -3,6 +3,8 @@
 The detail behind this folder's AGENTS.md: history, measurements, rationale and worked examples.
 AGENTS.md is the contract; this file is the reference it links to.
 
+*Since the split (2026-10-06):* `dsp-lab`, `mxm-listening` and `apps/mxm-listener-hud` are in [mxm-tools](https://github.com/mxm-audio/mxm-tools), a `<product>/…` or `<product>-dsp/…` path in the table below is in that product's own repository, and `plans/…` is in the private archive.
+
 ## Why the crate exists
 
 It exists because nothing in this repository implemented its measurements once. "Magnitude at a
@@ -116,7 +118,7 @@ the crate that owns its local composition.
 | Concept | Consumers | Where it lives |
 |---|---|---|
 | Energy gain in a band (output energy over input energy, in dB) | 1 | `mxm-mono-pr1-dsp/examples/pro_one_measure.rs` |
-| Time until the last sample above an audibility floor | 1 | `mxm-player/plugins/mxm-mono-01/host-tests/tests/behaviour.rs` |
+| Time until the last sample above an audibility floor | 1 | `mxm-mono-01/plugins/mxm-mono-01/host-tests/tests/behaviour.rs` |
 | RT60 from an energy-decay slope | 1 | `mxm-shimmer/examples/shimmer_preset_audit.rs` |
 | Residual level in a fixed late window | 1 | `mxm-shimmer-dsp/src/reverb.rs` |
 | Ratio between two separated RMS windows | 1 | `mxm-bucket-delay-dsp/examples/feedback_spike.rs` |

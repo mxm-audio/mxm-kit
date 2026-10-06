@@ -1,6 +1,6 @@
 //! The `acid` chunk, appended to a finished WAV — **moved unchanged from the player's
 //! `sequencer/wav.rs`**, the one piece of container writing this crate owns rather than delegates
-//! (`plans/plan-mxm-audio-file.md` §3.1).
+//! (`plans/plan-mxm-audio-file.md` §3.1, in the private archive).
 //!
 //! `hound` writes the audio; the chunk is appended afterwards and the RIFF size fixed up, because
 //! `hound` has no API for arbitrary chunks and reimplementing a WAV writer to add twenty-four bytes

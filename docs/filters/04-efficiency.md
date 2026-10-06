@@ -45,7 +45,7 @@ just a speed one.
 | Per sample | One `tan` + one divide per sample | Required for audio-rate cutoff modulation (filter FM), and for anything where the modulator is itself an audio-rate signal. |
 
 The practical architecture: **split the buffer into control blocks, and cap them.** This project's
-[`plugins/AGENTS.md`](https://github.com/mxm-audio/mxm-mono-01/blob/main/plugins/AGENTS.md) already mandates the cap for a different reason (an event-free buffer must not become
+`plugins/AGENTS.md` ([`plugin-conventions.md`](../plugin-conventions.md#realtime-rules-for-process)) already mandates the cap for a different reason (an event-free buffer must not become
 one arbitrarily long block); the same split gives the control rate.
 
 ```rust
@@ -94,7 +94,7 @@ Needed once per coefficient update; if that is per-sample, it dominates.
 
 The rational (Padé) approach is the right one because its pole can be placed *exactly* at `π/2`,
 where `tan`'s pole is — polynomial approximations blow up before or after the pole and mistune the
-top octave. From this repo's `crates/mxm-mono-01-dsp/src/filter.rs`:
+top octave. From this repo's `crates/mxm-mono-01-dsp/src/filter.rs` (in mxm-mono-01 since the split):
 
 ```rust
 /// `tan(x)` via the [5/4] Padé approximant, for `x` in `[0, PI * 0.45]`.

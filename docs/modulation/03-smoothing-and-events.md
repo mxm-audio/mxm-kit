@@ -6,7 +6,7 @@ sounds cheap in a way no amount of oscillator work repairs.
 
 **Scope warning, stated once and meant.** The measurements here come from a **generic one-pole
 model**, not from the shipped path. Smoothing belongs to the plugin —
-[`../../plugins/AGENTS.md`](https://github.com/mxm-audio/mxm-mono-01/blob/main/plugins/AGENTS.md) owns parameters, ranges and smoothing, and
+`plugins/AGENTS.md` ([`plugin-conventions.md`](../plugin-conventions.md#smooth-signals-not-coefficients)) owns parameters, ranges and smoothing, and
 [`../../crates/mxm-mono-01-dsp/AGENTS.md`](https://github.com/mxm-audio/mxm-mono-01/blob/main/crates/mxm-mono-01-dsp/AGENTS.md) explicitly disclaims them
 — and the DSP crate has no dependencies, so an example inside it cannot reach
 `plugins/mxm-mono-01/src/params.rs`. These numbers are evidence about the *technique*. They are not
@@ -110,7 +110,8 @@ Restating the scope warning as a specific gap rather than a caveat:
 ## 3.5 What this says for the collection
 
 - **Smooth signals, not coefficients.** The rule is already in `params.rs`; it belongs in
-  [`../../plugins/AGENTS.md`](https://github.com/mxm-audio/mxm-mono-01/blob/main/plugins/AGENTS.md) where it applies to every future plugin.
+  `plugins/AGENTS.md` where it applies to every future plugin (since the split it is there, in
+  [`plugin-conventions.md`](../plugin-conventions.md#smooth-signals-not-coefficients)).
 - **5–20 ms on continuous parameters.** Measured 28.5 dB of broadband junk with none, 71.6 dB down
   at 5 ms.
 - **Keep the block cap**, and keep the comment explaining it — like the envelope's `MIN_TIME_S`, it

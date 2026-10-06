@@ -1,4 +1,5 @@
-//! The contracts `plans/plan-modulation-routing.md` §10 requires of the routing layer.
+//! The contracts `plans/plan-modulation-routing.md` §10 (in the private archive) requires of the
+//! routing layer.
 //!
 //! Every test here corresponds to a named invariant or to a defect the plan's review loop found, and
 //! several exist because an earlier design failed them. Where that is so the test says which, because

@@ -5,9 +5,9 @@
 //!
 //! A reading is **what the pair delivers at this amount, in the target's own unit** — semitones,
 //! octaves, a percentage — and per octave of keyboard for a Key route
-//! (`plan-modulation-routing.md` decision 1.11; `docs/code-review-notes.md` §7, *what a route's
-//! amount reads*). The plugin supplies the reach, because only it knows its scale table and its
-//! sources' peaks; this module supplies everything else.
+//! (`plan-modulation-routing.md` decision 1.11, in the private archive; `docs/code-review-notes.md`
+//! §7, *what a route's amount reads*). The plugin supplies the reach, because only it knows its
+//! scale table and its sources' peaks; this module supplies everything else.
 
 use std::sync::Arc;
 
@@ -29,7 +29,8 @@ pub struct Unit {
     pub scale: f32,
 }
 
-/// Semitones, to two decimals, so a reading resolves below a semitone (`plugins/AGENTS.md`).
+/// Semitones, to two decimals, so a reading resolves below a semitone (`plugins/AGENTS.md`; in
+/// full, this repository's `docs/plugin-conventions.md`).
 pub const SEMITONES: Unit = Unit {
     suffix: " st",
     places: 2,
@@ -115,7 +116,8 @@ pub enum Fader {
     /// −1…+1, linear.
     Linear,
     /// −1…+1, square-law about zero — a machine pitch column wider than ±24 semitones, so a
-    /// vibrato's cents sit in the first tenth of the travel (`plugins/AGENTS.md`).
+    /// vibrato's cents sit in the first tenth of the travel (`plugins/AGENTS.md`; in full, this
+    /// repository's `docs/plugin-conventions.md`).
     SquareLaw,
     /// 0…+1: a one-sided target whose live half is positive.
     PositiveOnly,

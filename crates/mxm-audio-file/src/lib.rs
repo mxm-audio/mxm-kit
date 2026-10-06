@@ -13,7 +13,7 @@
 //! `flacenc`. This crate owns only what those crates leave to their caller: turning `f32` into the
 //! integers a target stores, refusing a buffer that is not audio, reporting what clipped, and
 //! writing the file so a crash never leaves a half-written one looking finished.
-//! `plans/plan-mxm-audio-file.md` §3.1–3.2.
+//! `plans/plan-mxm-audio-file.md` §3.1–3.2, in the private archive.
 //!
 //! **No policy.** No gain, no normalisation, no dither, no channel folding. A caller that wants
 //! headroom scales before calling, where the argument for the amount can be read — the stance

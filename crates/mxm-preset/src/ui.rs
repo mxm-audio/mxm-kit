@@ -409,9 +409,9 @@ impl PresetUi {
                         baseline,
                     );
                 }
-                // **Reported, not dropped.** `plugins/AGENTS.md`: an unknown id is reported and
-                // skipped, a missing one keeps its value — and the person loading the preset is the
-                // one who should hear about it.
+                // **Reported, not dropped.** `plugins/AGENTS.md` (`docs/plugin-conventions.md`): an
+                // unknown id is reported and skipped, a missing one keeps its value — and the person
+                // loading the preset is the one who should hear about it.
                 self.problem = (!problems.is_empty()).then(|| problems.join("; "));
             }
             self.notice = None;

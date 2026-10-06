@@ -3,7 +3,7 @@
 //! Tracker-style editing with the owner's physical hierarchy — `Shift`+arrows move between
 //! cards/modules, `Command`+arrows (`Ctrl`, or `Cmd` on macOS) move between parameters inside one,
 //! and bare arrows set the value. The M8's axes are kept: **left/right is fine and up/down is
-//! coarse**. `plans/plan-keyboard-editing.md` §1 records both decisions.
+//! coarse**. `plans/plan-keyboard-editing.md` §1, in the private archive, records both decisions.
 //!
 //! # The map is a by-product of drawing, never an authored table
 //!

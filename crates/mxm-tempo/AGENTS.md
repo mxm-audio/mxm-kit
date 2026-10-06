@@ -4,7 +4,8 @@ Parent: [`../../AGENTS.md`](../../AGENTS.md)
 
 # Purpose
 
-The collection's tempo sync, once (`plans/plan-tempo-sync-controls.md`, Revision 2). A tempo-syncable
+The collection's tempo sync, once (`plans/plan-tempo-sync-controls.md` in the private archive,
+Revision 2). A tempo-syncable
 time or rate is one continuous control with one adjacent quarter-note button; with it on, the
 control's own position picks a musical division and the control reads it. Zero dependencies and MSRV
 **1.87**, so the audio half of any plugin can take it without inheriting the GUI floor.

@@ -1,8 +1,8 @@
 //! The collection's modulation routing, as the part that is genuinely shared.
 //!
-//! `plans/plan-modulation-routing.md` §4.1. Four things live here and **no instrument's voice**:
-//! the source frame and its unit delay, route compaction, the combination laws, and the
-//! boundedness contract that keeps a player-made feedback loop finite.
+//! `plans/plan-modulation-routing.md` §4.1, in the private archive. Four things live here and **no
+//! instrument's voice**: the source frame and its unit delay, route compaction, the combination
+//! laws, and the boundedness contract that keeps a player-made feedback loop finite.
 //!
 //! # What a route is
 //!
@@ -311,7 +311,8 @@ pub fn sum_scaled<const N: usize>(
 }
 
 /// A target whose **machine routes share one scale applied after their sum**, and whose routes a
-/// player adds take their own — `plans/plan-modulation-standard.md`'s split sum.
+/// player adds take their own — `plans/plan-modulation-standard.md`'s split sum (in the private
+/// archive).
 ///
 /// A machine that summed its sources on a bus and scaled the bus once (`mxm-mono-pr1`, `mxm-para-07`,
 /// `mxm-mono-00`) keeps that instruction sequence exactly — `sum(uniform) × uniform_scale` — for the

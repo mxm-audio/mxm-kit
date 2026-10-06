@@ -3,6 +3,8 @@
 The detail behind this folder's AGENTS.md: history, measurements, rationale and worked examples.
 AGENTS.md is the contract; this file is the reference it links to.
 
+*Since the split (2026-10-06):* `plans/…` cited here is in the private archive; a `plugins/<plugin>/…`, `crates/<plugin>-dsp/…` or `apps/<plugin>-standalone` path is in that product's own repository, and a rule cited from `plugins/AGENTS.md` is in full in [`docs/plugin-conventions.md`](../../docs/plugin-conventions.md).
+
 ## Why this is a second crate and not a feature
 
 It names nice-plug and egui, so it sits at **1.95**; the routing half must stay at **1.87** so every

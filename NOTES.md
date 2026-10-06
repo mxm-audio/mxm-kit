@@ -119,7 +119,7 @@ extracted on.
   on evidence from honest copies, not ahead of it.
 - `crates/mxm-modulation` is shared on evidence from three instrument source frames, and **every
   instrument uses it** (the owner, 2026-09-15: *it is why it was made*) — all eleven instruments do,
-  `plans/plan-modulation-routing.md` M5 delivered; `mxm-model-drums` for the standard's source and
+  `plans/plan-modulation-routing.md` (in the private archive) M5 delivered; `mxm-model-drums` for the standard's source and
   amplitude laws, its four route slots a drum a recorded deviation from the full grid. It owns *when a value is readable*, *which routes
   are live* and, since the modulation standard (`plans/plan-modulation-standard.md`), **what a
   performance source means** and what an added route reaches; an instrument keeps its machine's own
@@ -151,7 +151,8 @@ extracted on.
   will read it. It owns the data and how a file is read and validated, never how a host applies a
   map. See [`crates/mxm-control-map/AGENTS.md`](crates/mxm-control-map/AGENTS.md).
 - **The unshipped measurement crates** — `crates/dsp-lab`, `crates/mxm-measure` and
-  `crates/mxm-listening` — are **not shared-DSP crates, and are not an exception to the rule above.**
+  `crates/mxm-listening` (*since the split*, `dsp-lab`, `mxm-listening` and the HUD below are in
+  mxm-tools) — are **not shared-DSP crates, and are not an exception to the rule above.**
   No shipped DSP may move into any of them, and none may appear in any shipped graph;
   `crates/mxm-measure/AGENTS.md`'s verification section checks the second of those rather than
   asserting it. What may move there is measurement code that was never plugin-specific in the first
@@ -177,7 +178,8 @@ extracted on.
 - `crates/mxm-xtask` is **the build tooling every repository's `xtask` shares** — `nice_plug_xtask`'s
   bundler, the control-map staging, and `fetch`, which builds other repositories' plugins at pinned
   tags for this repository's tests — so each product repository bundles and tests the same way. The root
-  `xtask` passes its workspace root and keeps only `fixtures`. See
+  `xtask` passes its workspace root and keeps only `fixtures` (*since the split*, that is mxm-player's;
+  every other repository's `xtask` passes its root to the shared tooling and adds nothing). See
   [`crates/mxm-xtask/AGENTS.md`](crates/mxm-xtask/AGENTS.md).
 - `crates/mxm-plugin-test` is **the checks every plugin's tests share** — keyboard coverage, paging,
   the opening size, layout-tree cards, route parameters, time readings, the bundle's name, the words

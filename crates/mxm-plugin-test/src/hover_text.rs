@@ -47,8 +47,8 @@ pub const LEAKS: &[&str] = &[
     "unity",
 ];
 
-/// Makers' and models' names — the root *Naming* rule keeps them out of what a product calls itself
-/// — and the code's own words. **Not the technique**: *bucket-brigade*, *circuit-modelled* and
+/// Makers' and models' names — the root *Naming* rule (mxm-kit's `docs/collection-rules.md`) keeps
+/// them out of what a product calls itself — and the code's own words. **Not the technique**: *bucket-brigade*, *circuit-modelled* and
 /// *diode-ladder* are what sets a plugin apart, and a browser is where a player learns it (the
 /// owner, 2026-09-27: *you removed the unique selling point*).
 pub const HOST_LEAKS: &[&str] = &[

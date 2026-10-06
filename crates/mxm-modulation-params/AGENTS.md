@@ -78,8 +78,8 @@ The owner's rules ([NOTES.md § The box title and the row names](NOTES.md#the-bo
   and caps the slider's `Ui` as well as its track.
 - **A consumer must measure that** from the painted shapes' own bounding rects, with every route
   revealed — never `min_rect`, which is clamped to the rect it was given.
-  `plugins/mxm-mono-01/src/editor.rs`'s `every_card_fits_its_floor_with_every_route_revealed` is the
-  pattern.
+  `plugins/mxm-mono-01/src/editor.rs`'s `every_card_fits_its_floor_with_every_route_revealed` (in
+  mxm-mono-01) is the pattern.
 - **`stack_size` states that size without drawing** (`mxm_ui::tree`): its narrowest is the widest row
   *any* source could draw at its widest reading, inside the group's inset, or the target's line if
   wider; its height is what the patch draws now. Every plugin's `tree_checks` hold both against the
@@ -92,7 +92,8 @@ The owner's rules ([NOTES.md § The box title and the row names](NOTES.md#the-bo
   carries (design system §7.1's rule for `Bound::panel_label`). The short name is the box's title
   ([NOTES.md § The two names](NOTES.md#the-two-names-of-a-target-and-what-the-long-one-cost)).
 - **Both name what the target moves** — *Pitch*, *Cutoff*, *Amplitude* — never *Modulator* or a
-  jack's name, because the name is on every row (`plugins/AGENTS.md`, *Declaring the target list*).
+  jack's name, because the name is on every row (`plugins/AGENTS.md`, *Declaring the target list*;
+  [`docs/plugin-conventions.md`](../../docs/plugin-conventions.md#declaring-the-target-list--what-mxm-mono-00-had-to-discover-twice)).
 - **It is not an alias.** It never changes with the source, and it never becomes the name anything
   reads back. A caller with nothing to drop passes the same string twice, which is what three of the
   four consumers do.

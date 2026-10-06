@@ -3,6 +3,8 @@
 The detail behind this folder's AGENTS.md: history, measurements, rationale and worked examples.
 AGENTS.md is the contract; this file is the reference it links to.
 
+*Since the split (2026-10-06):* `plans/…` cited here is in the private archive; a `plugins/<plugin>/…`, `crates/<plugin>-dsp/…` or `apps/<plugin>-standalone` path is in that product's own repository, and a rule cited from `plugins/AGENTS.md` is in full in [`docs/plugin-conventions.md`](../../docs/plugin-conventions.md).
+
 ## The instrument's seams in full
 
 **A switch added after states were saved** has a state-side seam beside the file-side

@@ -8,7 +8,9 @@ A working reference for building alias-free, musical, real-time oscillators: fun
 antialiasing algorithm families, per-waveform practice, analog character, measurement method,
 per-technique deep dives, and the concrete verdict for mxm-mono-01. The machine survey (chapter 5)
 and the exceptional 208 build-from appendix live in the research repository, cited as
-`research:oscillators/…` (root *Research boundary*).
+`research:oscillators/…` (root *Research citations*; in full, [`collection-rules.md`](../collection-rules.md#research-boundary)).
+
+*Since the split (2026-10-06):* `crates/dsp-lab/…` is in [mxm-tools](https://github.com/mxm-audio/mxm-tools) and `crates/mxm-mono-01-dsp/…` (like any `crates/<plugin>-dsp/…`) in that product's repository, [mxm-mono-01](https://github.com/mxm-audio/mxm-mono-01); the commands that build them run there.
 
 Written for this repo but framework-agnostic. It is the source `crates/<plugin>-dsp` is expected to
 follow when an oscillator changes, and it is the companion volume to
@@ -159,11 +161,11 @@ ten-things list, and in `07-rust-recipes.md`'s verdict, in the same pass.
 # Verification
 
 The code in these documents is quoted from the crate and from the spike, both of which build and
-run in-tree:
+run in-tree (since the split, out of tree: the crate in mxm-mono-01, the spike in mxm-tools):
 
 ```bash
-cargo test -p mxm-mono-01-dsp
-cargo run -p dsp-lab --release --example osc_spike
+cargo test -p mxm-mono-01-dsp                         # in mxm-mono-01
+cargo run -p dsp-lab --release --example osc_spike    # in mxm-tools
 ```
 
 Internal links, after moving or renaming a document:

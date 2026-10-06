@@ -28,8 +28,10 @@ whole subject.
 Measured figures come from `crates/dsp-lab/examples/mod_spike.rs`:
 
 ```bash
-cargo run -p dsp-lab --release --example mod_spike
+cargo run -p dsp-lab --release --example mod_spike    # in mxm-tools, since the split
 ```
+
+*Since the split (2026-10-06):* `crates/dsp-lab/…` is in [mxm-tools](https://github.com/mxm-audio/mxm-tools) and `crates/mxm-mono-01-dsp/…` (like any `crates/<plugin>-dsp/…`) in that product's repository, [mxm-mono-01](https://github.com/mxm-audio/mxm-mono-01); the commands that build them run there.
 
 The run these documents quote is recorded verbatim in
 [`measurements-run.txt`](measurements-run.txt). Conditions: 44.1 kHz, 65536-point FFT,
@@ -38,7 +40,7 @@ exactly-periodic rates so no window function is needed, AMD Ryzen Threadripper 3
 
 **One important limit.** Sections 1–3 of that program measure the **shipped** `lfo.rs` and
 `envelope.rs` through their public API. Section 4 does not, and cannot: smoothing belongs to the
-plugin — [`../../plugins/AGENTS.md`](https://github.com/mxm-audio/mxm-mono-01/blob/main/plugins/AGENTS.md) owns parameters, ranges and smoothing,
+plugin — `plugins/AGENTS.md` ([`plugin-conventions.md`](../plugin-conventions.md#smooth-signals-not-coefficients)) owns parameters, ranges and smoothing,
 and [`../../crates/mxm-mono-01-dsp/AGENTS.md`](https://github.com/mxm-audio/mxm-mono-01/blob/main/crates/mxm-mono-01-dsp/AGENTS.md) explicitly disclaims
 them — and the DSP crate has no dependencies, so an example inside it cannot reach the shipped path.
 **§4 measures a generic one-pole model.** Every number from it is labelled as such where it appears,

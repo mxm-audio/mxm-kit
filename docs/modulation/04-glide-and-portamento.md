@@ -152,7 +152,7 @@ Four properties worth having written down, because none of them is visible from 
   of 500 ms means 63% of the way in 500 ms.
 - **Zero means jump.** `if p.glide_time_s <= 0.0` snaps, rather than running the lag with a
   degenerate coefficient. That is what makes glide an *amount* whose zero is genuinely off, per
-  `plugins/AGENTS.md`'s init-patch contract, and it is why the parameter defaults to 0.0.
+  `plugins/AGENTS.md`'s init-patch contract ([`plugin-conventions.md`](../plugin-conventions.md#every-instrument-has-an-init-patch-and-init-returns-to-it)), and it is why the parameter defaults to 0.0.
 - **The first note of a phrase does not glide.** The distance is zeroed rather than lagged, and the
   pitch snaps to its target, range switch included, so a patch with a long glide does not open with a swoop up from whatever the previous
   phrase left behind. `first_note_does_not_glide_from_a_stale_pitch` holds it.

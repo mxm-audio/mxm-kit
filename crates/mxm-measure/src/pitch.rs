@@ -67,8 +67,9 @@ pub fn frequency_by_crossings(x: &[f32], rate: f64) -> Option<f64> {
 //
 // - **One consumer.** Nothing in the repository's tests measures the pitch of a complex signal this
 //   way; they measure oscillators, which cross zero once a cycle. A shared function with one caller
-//   is the pre-generalisation the root contract forbids, and the gate does not get relaxed for code
-//   that happens to be written already.
+//   is the pre-generalisation the root contract forbids (*Don't pre-generalise*, now in
+//   `docs/collection-rules.md`), and the gate does not get relaxed for code that happens to be
+//   written already.
 // - **It would have been a second detector.** `mxm-creative-sampler-dsp` ships a YIN detector and
 //   `dsp-lab/examples/root_spike.rs` exists to score it against rendered ground truth. A YIN in the
 //   measurement crate is a ruler built out of the thing under test, which is the one shape this crate

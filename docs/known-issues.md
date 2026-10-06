@@ -5,21 +5,28 @@ do anything about them.
 
 **Seven of these are fixed locally.** They are present in the pinned published release, so they are
 still recorded here — but `nice-plug` is redirected to a patched copy in
-[`../vendor/nice-plug`](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) and the defects do not reach a build. Their
+[the nice-plug fork](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) and the defects do not reach a build. Their
 `plugin_robustness.rs`, bundled-behavior and validator regressions stay after an upstream upgrade,
 because they are what proves the upgrade worked.
 
+*Since the split (2026-10-06):* the patched copy that was the monorepo's `vendor/nice-plug` is the
+fork [mxm-audio/nice-plug](https://github.com/mxm-audio/nice-plug), which every repository that
+builds a plugin reaches through `[patch.crates-io]`; its paths below are inside that fork. The
+`apps/mxm-player` paths and `plugin_robustness.rs` are in
+[mxm-player](https://github.com/mxm-audio/mxm-player), and a `plugins/<plugin>/…` path is in that
+plugin's own repository.
+
 | Issue | Status |
 |---|---|
-| No `params.rescan(VALUES)` after a host state load | **Fixed in `vendor/nice-plug`** |
+| No `params.rescan(VALUES)` after a host state load | **Fixed in the nice-plug fork** |
 | Parameters exposed on a normalised range | By design; a host must not assume otherwise |
 | Wildcard `NoteChoke` channel and key values | Not patched — the player avoids the path instead |
-| More than 512 events in one process block allocates | **Fixed in `vendor/nice-plug`** |
-| The state loader trusts a length field from the stream | **Fixed in `vendor/nice-plug`** |
-| A non-finite parameter value from the host reaches the smoother and the DSP | **Fixed in `vendor/nice-plug`** |
-| Unequal main input/output ports are declared as an in-place pair | **Fixed in `vendor/nice-plug`** |
-| The first sample-accurate parameter event is applied before its offset | **Fixed in `vendor/nice-plug`** |
-| An out-of-range event timestamp is used as an audio split point before clamping | **Fixed in `vendor/nice-plug`** |
+| More than 512 events in one process block allocates | **Fixed in the nice-plug fork** |
+| The state loader trusts a length field from the stream | **Fixed in the nice-plug fork** |
+| A non-finite parameter value from the host reaches the smoother and the DSP | **Fixed in the nice-plug fork** |
+| Unequal main input/output ports are declared as an in-place pair | **Fixed in the nice-plug fork** |
+| The first sample-accurate parameter event is applied before its offset | **Fixed in the nice-plug fork** |
+| An out-of-range event timestamp is used as an audio split point before clamping | **Fixed in the nice-plug fork** |
 | The player and a plugin editor both use OpenGL | **Fixed** — the player renders through `wgpu` |
 | A plugin editor renders white when the host repaints too often | **Understood**; worked around in the player |
 | Floating editors resize slowly | **Fixed in the local floating-window patch**; owner confirmed smooth resizing |
@@ -30,7 +37,7 @@ because they are what proves the upgrade worked.
 ## nice-plug: no `params.rescan(VALUES)` after the host loads state
 
 **Status:** upstream bug, present in `nice-plug 0.3.0` *and* on `main` as of 2026-08-25.
-**Fixed locally** in [`vendor/nice-plug`](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) (patch 3).
+**Fixed locally** in [the nice-plug fork](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) (patch 3).
 **Impact, before the patch:** 3 `clap-validator` failures on every nice-plug CLAP plugin, ours
 included, and a stale parameter panel in any host that trusts the callback.
 **Fixable from plugin code:** no.
@@ -99,14 +106,15 @@ nice_debug_assert!(task_posted, "The task queue is full, dropping task...");
 ### Current resolution
 
 The repository takes the vendored-fix option: `[patch.crates-io]` redirects the pinned release to
-`vendor/nice-plug`, where patch 3 schedules `Task::RescanParamValues` after a host state load. The
-regression remains in the player so a future upstream release can replace the vendored copy only
+`vendor/nice-plug` (since the split, the nice-plug fork), where patch 3 schedules `Task::RescanParamValues` after a host state load. The
+regression remains in the player so a future upstream release can replace the vendored copy (now the fork) only
 when it preserves the callback. Until then this is maintained patch debt, not a pending decision.
 
 ### Verification
 
 `plugin_robustness.rs::loading_state_tells_the_host_its_parameter_values_are_stale` exercises the
-host-load path directly. The debug `clap-validator` run documented in `vendor/nice-plug/PATCHES.md`
+host-load path directly. The debug `clap-validator` run documented in the fork's
+[`PATCHES.md`](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) (then `vendor/nice-plug/PATCHES.md`)
 passes the state-reproducibility checks with the vendored patch; they failed without it.
 
 ## nice-plug: parameters are exposed to CLAP hosts on a normalised range
@@ -138,12 +146,12 @@ MXM Player therefore chooses its global recovery from **what the port accepts, n
 is using**: a port that accepts MIDI 1 — which is every MXM plugin today — is sent CC 120, even
 though ordinary notes go out as CLAP events. The wildcard-choke path is reserved for genuinely
 CLAP-only ports, and is verified against `dk.mxm.fixture.clap-only-notes` rather than assumed
-(`apps/mxm-player/tests/verification.rs`).
+([`apps/mxm-player/tests/verification.rs`](https://github.com/mxm-audio/mxm-player/blob/main/apps/mxm-player/tests/verification.rs) in mxm-player).
 
 ## nice-plug: more than 512 events in one process block allocates on the audio thread
 
 **Status:** upstream bug in `nice-plug 0.3.0`, still present on `main` (`542daf1`). Reproduced and
-bisected here. **Fixed locally** in [`vendor/nice-plug`](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) (patch 1).
+bisected here. **Fixed locally** in [the nice-plug fork](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) (patch 1).
 **Impact, before the patch:** debug builds **abort**; release builds allocate on the audio thread
 silently.
 **Fixable from plugin code:** no — the buffer belongs to the wrapper.
@@ -223,7 +231,7 @@ as an occasional dropout.
 ## nice-plug: a non-finite parameter value from the host reaches the smoother and the DSP
 
 **Status:** upstream defect in `nice-plug 0.3.0`. **Fixed locally** in
-[`vendor/nice-plug`](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) (patch 4).
+[the nice-plug fork](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) (patch 4).
 **Impact, before the patch:** one `CLAP_EVENT_PARAM_VALUE` or `PARAM_MOD` carrying NaN or an
 infinity silences the instrument until it is reloaded.
 **Fixable from plugin code:** only by sanitising every parameter read in every plugin — four
@@ -252,7 +260,7 @@ its value: a NaN is not a value the host can have meant.
 ## nice-plug: the CLAP state loader trusts a length field from the stream
 
 **Status:** upstream bug in `nice-plug 0.3.0`, still present on `main` (`542daf1`). Reproduced here.
-**Fixed locally** in [`vendor/nice-plug`](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) (patch 2).
+**Fixed locally** in [the nice-plug fork](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) (patch 2).
 **Impact, before the patch:** a corrupt or truncated preset **aborts the process**, taking the host
 with it.
 **Fixable from plugin code:** no — the length is read before the plugin's deserializer is reached.
@@ -296,7 +304,7 @@ aborting and verify that trailing stream bytes are not consumed.
 ## nice-plug: unequal main ports are declared as an in-place pair
 
 **Status:** defect in `nice-plug 0.3.0`. **Fixed locally** in
-[`vendor/nice-plug`](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) (patch 5).
+[the nice-plug fork](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) (patch 5).
 **Impact, before the patch:** a mono-in, stereo-out effect advertises an impossible in-place pairing;
 `clap-validator` refuses to process it.
 **Fixable from plugin code:** no — the wrapper owns CLAP audio-port declarations.
@@ -311,13 +319,14 @@ the same shape. The patch keeps the pairing for equal channel counts and reports
 ## nice-plug: the first sample-accurate parameter event is applied before its offset
 
 **Status:** defect in `nice-plug 0.3.0`. **Fixed locally** in
-[`vendor/nice-plug`](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) (patch 6).
+[the nice-plug fork](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) (patch 6).
 **Impact, before the patch:** the first nonzero-offset automation event in a block takes effect at
 sample zero. A low-high-low trigger pulse can fire early, while automation without block splitting
 can lose it entirely.
 **Fixable from plugin code:** no — only the wrapper can split processing before applying host events.
 **Regression test:**
-`plugins/mxm-para-07/host-tests/tests/behaviour.rs::trigger_parameter_edges_are_sample_accurate_and_restore_only_a_level`.
+`plugins/mxm-para-07/host-tests/tests/behaviour.rs::trigger_parameter_edges_are_sample_accurate_and_restore_only_a_level`
+in [mxm-para-07](https://github.com/mxm-audio/mxm-para-07/blob/main/plugins/mxm-para-07/host-tests/tests/behaviour.rs).
 
 `nice-plug-0.3.0/src/wrapper/clap/wrapper.rs`, `handle_in_events_until` (around line 1052), already
 looked ahead before applying every event after the first unread one, but applied that first event
@@ -327,12 +336,13 @@ span, then resume at the event and apply it there.
 ## nice-plug: an out-of-range event timestamp becomes an out-of-bounds audio split
 
 **Status:** defect in `nice-plug 0.3.0`. **Fixed locally** in
-[`vendor/nice-plug`](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) (patch 7).
+[the nice-plug fork](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) (patch 7).
 **Impact, before the patch:** a parameter or transport event beyond `frames_count` is returned as
 `block_end`; `BufferManager::create_buffers` then constructs slices beyond the host's audio buffers.
 **Fixable from plugin code:** no — event splitting and host-buffer slicing belong to the wrapper.
 **Regression test:**
-`mxm_state_tests::out_of_range_split_event_is_clamped_before_buffer_partitioning`.
+`mxm_state_tests::out_of_range_split_event_is_clamped_before_buffer_partitioning`, in the fork's
+`src/wrapper/clap/wrapper.rs`.
 
 `handle_in_events_until` compared and returned `raw_event.time`, while `handle_in_event` clamped the
 timestamp only later when converting the event. That later clamp cannot repair a split point already
@@ -475,7 +485,7 @@ cost a round of wrong conclusions here.
 
 ## Floating editors resize slowly
 
-**Status: fixed**, in our floating-window extension to `vendor/nice-plug`, not an upstream
+**Status: fixed**, in our floating-window extension to `vendor/nice-plug` (now the nice-plug fork), not an upstream
 floating-editor regression: upstream did not offer that capability.
 **Impact:** slow/choppy drag-resizing of the synth editors in MXM Player.
 **Fixable from our code: yes**, at the shared wrapper boundary, not through per-synth layouts.
@@ -485,7 +495,8 @@ no measured FPS, DPI breakdown or per-instrument manual sweep was supplied.
 
 ### Cause and invariant
 
-`ClapHostCallbacks::request_resize` in `vendor/nice-plug/src/wrapper/clap/wrapper.rs` forwarded
+`ClapHostCallbacks::request_resize` in `vendor/nice-plug/src/wrapper/clap/wrapper.rs` (the fork's
+`src/wrapper/clap/wrapper.rs`) forwarded
 every native floating resize to `host.gui.request_resize`. That CLAP callback requests a
 **parent's client area**; a floating editor has no parent, and baseview has already resized it.
 The player queued and echoed the request while waking its GUI on each drag event, bypassing its
@@ -495,7 +506,7 @@ GUI thread.
 **Floating resizes are accepted locally; embedded resizes still negotiate with the host.** Capture
 `is_floating` when constructing the callbacks, including callbacks during spawn. Do not remove
 this distinction, lower `MXM_SERVICE_MS`, or change layout/renderer defaults to compensate for
-unnecessary host wakeups. [Vendor DOX](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) owns the upgrade and regression gate.
+unnecessary host wakeups. The fork's [`PATCHES.md`](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) (the monorepo's vendor DOX) owns the upgrade and regression gate.
 
 ### Evidence and regression guard
 
@@ -512,6 +523,10 @@ unnecessary host wakeups. [Vendor DOX](https://github.com/mxm-audio/nice-plug/bl
   `cargo test -p mxm-player --test editor_resize -- --ignored --nocapture`.
   A normal workspace test run skips it. Keep it across dependency upgrades and add new editors
   to its inventory; a validator or panel-layout test is not a substitute.
+- *Since the split (2026-10-06):* the test needs every product's bundle in one profile, so it left
+  mxm-player: it is `collection-tests/editor_resize.rs` in the owner's local workspace, which is not
+  on GitHub yet and has no test package to run it from, so the command above no longer runs
+  anywhere. Its inventory now lists all twenty floating editors.
 
 The native driver is Windows-only and counts callbacks, not displayed FPS. Linux/macOS and
 embedded DAW resizing remain unverified by this repair; the owner's confirmation does not claim
@@ -576,7 +591,8 @@ device's reason, Play refused, and the stream back within the backoff once the h
 
 ### What the player does now
 
-`apps/mxm-player/AGENTS.md`, *A dead stream is not a wedged plugin*: the reason is described, the
+`apps/mxm-player/AGENTS.md`, *A dead stream is not a wedged plugin* (since the split, mxm-player's
+[`apps/mxm-player/NOTES.md`](https://github.com/mxm-audio/mxm-player/blob/main/apps/mxm-player/NOTES.md#a-dead-stream-is-not-a-wedged-plugin)): the reason is described, the
 engine reconnects with a doubling backoff and never gives up, Play refuses while the stream is dead,
 and a start refused by the device deactivates the plugin so the next attempt can activate it again.
 
@@ -622,13 +638,17 @@ headers — which meant the collection was working around the defect instead of 
 `mono_03_render_demo`, `mono_01_filter_spike`, `mono_02_filter_spike`,
 `bucket_delay_preset_audit`, `shimmer_preset_audit`. `[[example]] name = ...` in each manifest
 would also have worked and was rejected: it puts the real name somewhere other than the file, which
-is how the two drift. The rule is now in root `AGENTS.md` *Naming* and in
-`docs/adding-an-instrument.md`, because the instrument guide is what kept minting `render_demo.rs`
+is how the two drift. The rule is now in root `AGENTS.md` *Naming* (since the split,
+[`collection-rules.md`](collection-rules.md#naming)) and in
+[`adding-an-instrument.md`](adding-an-instrument.md), because the instrument guide is what kept minting `render_demo.rs`
 for each new instrument.
 
 **Verify it stays fixed:** `ls */*/examples/*.rs | sed 's|.*/||' | sort | uniq -d` prints nothing,
 and `cargo build --workspace --examples` no longer prints `output filename collision`. `cargo test
 --workspace` now passes **without `-j 1`** — 122 suites, 2401 tests, full parallelism (2026-09-13).
+*Since the split (2026-10-06):* each repository is its own workspace, so run both in each one; the
+names stay unique across the collection, because a build folder shared between repositories has one
+examples directory too.
 
 ## Two crates declared an MSRV they could not build on
 

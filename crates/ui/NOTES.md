@@ -4,6 +4,8 @@ The detail behind this folder's AGENTS.md: history, measurements, rationale and 
 
 Each section below keeps the wording of the AGENTS.md section it came from (as of 2026-10-06), grouped by topic. A reference to a section *above* or *below* means one in this file.
 
+*Since the split (2026-10-06):* `plans/…` cited here is in the private archive; a `plugins/<plugin>/…`, `crates/<plugin>-dsp/…` or `apps/<plugin>-standalone` path is in that product's own repository, and a rule cited from `plugins/AGENTS.md` is in full in [`docs/plugin-conventions.md`](../../docs/plugin-conventions.md).
+
 ## The modules
 
 **Foundation modules:** `theme` (§5 tokens, both themes, measured

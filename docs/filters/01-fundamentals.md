@@ -254,7 +254,7 @@ Three practical rules:
   parameter layer, which a host automation curve or a modulation sum can drive past.
 - **Smooth signals, not timings.** Cutoff and resonance are signals and should be smoothed. Envelope
   times and glide time are coefficients of a state machine and should not — smoothing them makes the
-  timing unanalysable. Same rule as [`plugins/AGENTS.md`](https://github.com/mxm-audio/mxm-mono-01/blob/main/plugins/AGENTS.md).
+  timing unanalysable. Same rule as `plugins/AGENTS.md` ([`plugin-conventions.md`](../plugin-conventions.md#smooth-signals-not-coefficients)).
 
 There is a formal version of this (passivity / energy analysis of time-varying digital filters), but
 the practical test is a unit test that modulates cutoff with a full-range square wave at audio rate

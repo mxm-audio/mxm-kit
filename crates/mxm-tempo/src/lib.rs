@@ -1,12 +1,12 @@
 //! The collection's tempo sync: one ladder of musical divisions, and how a control's position picks
 //! one.
 //!
-//! `plans/plan-tempo-sync-controls.md`. A tempo-syncable time or rate is **one** continuous control
-//! with **one** adjacent on/off button (the quarter note). With the button on, the control's own
-//! normalised position picks a division from its [`Ladder`], and the control reads that division; the
-//! host keeps reading hertz or time. Four plugins carried their own copy of this — three tables that
-//! turned out to be slices of one, and the same rounding and reach arithmetic each time — so it lives
-//! here once.
+//! `plans/plan-tempo-sync-controls.md`, in the private archive. A tempo-syncable time or rate is
+//! **one** continuous control with **one** adjacent on/off button (the quarter note). With the
+//! button on, the control's own normalised position picks a division from its [`Ladder`], and the
+//! control reads that division; the host keeps reading hertz or time. Four plugins carried their
+//! own copy of this — three tables that turned out to be slices of one, and the same rounding and
+//! reach arithmetic each time — so it lives here once.
 //!
 //! # What is here, and what is not
 //!

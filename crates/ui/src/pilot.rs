@@ -9,8 +9,8 @@
 //! **Nothing is piloted now.** The first three rules — a slider's reading never drawing over its
 //! name, a route stack's target line titling its box with each row naming only its source, and a
 //! route's minimum track — were piloted on mxm-mono-08 and rolled out to every editor on 2026-09-24
-//! (`plans/plan-editor-standard.md` R1). mxm-mono-08 keeps the pilot on: it is where the next rule
-//! is tried.
+//! (`plans/plan-editor-standard.md` R1, in the private archive). mxm-mono-08 keeps the pilot on: it
+//! is where the next rule is tried.
 
 use egui::{Context, Id, Ui};
 

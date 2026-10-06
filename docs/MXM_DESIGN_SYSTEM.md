@@ -246,7 +246,7 @@ filter it feeds.
 - **Parallel same-category branches are preferred groups.** Keep them adjacent and on one row
   while width and height permit; split the group when otherwise a fitting card would scroll.
 - **Modulation depth lives at the destination, on every instrument** (the owner, 2026-09-22;
-  `plans/plan-modulation-routing.md` decision 1.1). A source is chosen on the card it moves, beneath
+  `plans/plan-modulation-routing.md` decision 1.1, in the private archive). A source is chosen on the card it moves, beneath
   the control it moves, and a depth fader appears for it — §8's stack. **No card chooses where its
   own output goes**: a machine's destination switch is routes into each destination, present in the
   init patch where the switch pointed.
@@ -377,7 +377,7 @@ A floor derived from only one of them is a number the layout will believe and a 
   seven tabs, because its first page happened to be one short category and the window was hugged
   to that. The window is hugged to the largest extent any page draws, and a shrink that would add a
   page has gone too far.
-- **The hug leaves a small guard** (`opening_size::GUARD`, R2 of `plans/plan-editor-standard.md`):
+- **The hug leaves a small guard** (`opening_size::GUARD`, R2 of `plans/plan-editor-standard.md` in the private archive):
   hugged to the point, a row that fits with a fraction of a point to spare is split by any hair of
   measurement difference, and the window opens on more pages than it was hugged to.
 - **Derive it, do not pick it.** `mxm_plugin_test::opening_size::derive` does the
@@ -814,7 +814,8 @@ For instruments that support routable modulation:
 8. Live modulation motion is shown inside the control, while the editable base value remains clear.
 9. A destination is named for what it moves — *Cutoff from Envelope 1* — and a parameter has one
    destination, however many jacks the hardware gave it. *Modulator*, *Modulator 1* and a jack's
-   name are not destination names (`plugins/AGENTS.md`, *Declaring the target list*).
+   name are not destination names (`plugins/AGENTS.md`, *Declaring the target list*; since the split,
+   [`plugin-conventions.md`](plugin-conventions.md#declaring-the-target-list--what-mxm-mono-00-had-to-discover-twice)).
 
 Simple instruments do not need a modulation matrix merely to match larger products. The language is
 shared; feature depth is not mandatory.

@@ -142,7 +142,7 @@ pub fn render(&mut self, out: &mut [f32], sample_rate: f32) {
 ```
 
 Host events split blocks too, so in the real `process()` the boundary is
-`min(next_event, host_end, start + MAX_BLOCK)` — which [`plugins/AGENTS.md`](https://github.com/mxm-audio/mxm-mono-01/blob/main/plugins/AGENTS.md) already
+`min(next_event, host_end, start + MAX_BLOCK)` — which `plugins/AGENTS.md` ([`plugin-conventions.md`](../plugin-conventions.md#realtime-rules-for-process)) already
 requires for a different reason.
 
 **When you need per-sample coefficients** (audio-rate filter FM), keep this structure but move

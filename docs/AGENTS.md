@@ -8,7 +8,7 @@ The kit's durable documentation: the normative interface system every MXM editor
 control-map contract, and the theory references behind the DSP. Per-instrument design briefs live
 in each product's repository; collection-wide process notes in the workspace repository. The machine,
 effect and family research the copies are built from lives in the private research repository
-(root *Research boundary*) and is cited from here as `research:<path>`.
+(root *Research citations*; in full, [`collection-rules.md`](collection-rules.md#research-boundary)) and is cited from here as `research:<path>`.
 
 Durable, not diary. Implementation plans and their review cycles stay in MXM's private archive.
 
@@ -27,7 +27,7 @@ Durable, not diary. Implementation plans and their review cycles stay in MXM's p
 | `filters/` | Long-form filter theory, chapters `01`–`09`; the per-family deep-dives are `research:filters/machines/` | See [`filters/AGENTS.md`](filters/AGENTS.md) |
 | `oscillators/` | Long-form oscillator theory: general methods and technique deep-dives, measured in-repo; the machine survey and the 208 appendix are `research:oscillators/` | See [`oscillators/AGENTS.md`](oscillators/AGENTS.md) |
 | `modulation/` | LFOs, envelopes, smoothing and glide, measured in-repo; the 208 control-source appendix is `research:modulation/` | See [`modulation/AGENTS.md`](modulation/AGENTS.md) |
-| *machine, effect and family research* | In the private research repository (`research:instruments/`, `research:effects/`, `research:filters/machines/`), cited as `research:<path>`; never files, images or verbatim text | Root *Research boundary* |
+| *machine, effect and family research* | In the private research repository (`research:instruments/`, `research:effects/`, `research:filters/machines/`), cited as `research:<path>`; never files, images or verbatim text | Root *Research citations*; [`collection-rules.md`](collection-rules.md#research-boundary) |
 
 **Name an influence; do not ship a screenshot of one.** `MXM_DESIGN_SYSTEM.md` §16 may name the
 quality being referenced; an image of another product turns a reference into a visual target and is
@@ -87,7 +87,7 @@ presentation choices, not a requirement to rewrite fixed-source instruments.
 per-instrument brief may choose fewer pages or Compact controls; those choices are not global
 limits. Updating the rule does not establish compliance of existing editors.
 
-Changing it is a repo-wide change: check every consumer and update
+Changing it is a collection-wide change: check every consumer, in every product repository, and update
 [`crates/ui/AGENTS.md`](../crates/ui/AGENTS.md) in the same pass.
 
 ## The control map is normative, and split by owner
@@ -96,7 +96,9 @@ Changing it is a repo-wide change: check every consumer and update
 fixed knobs, the page order. They bind every instrument.
 
 **Which parameters fill those roles is not here.** That ships with the instrument, as
-`control-map.json` in the plugin's own crate — see [`../plugins/AGENTS.md`](https://github.com/mxm-audio/mxm-mono-01/blob/main/plugins/AGENTS.md).
+`control-map.json` in the plugin's own crate — see each plugin repository's `plugins/AGENTS.md`
+([mxm-mono-01's](https://github.com/mxm-audio/mxm-mono-01/blob/main/plugins/AGENTS.md)) and
+[`plugin-conventions.md`](plugin-conventions.md#a-plugin-ships-its-own-control-map).
 Nobody is obliged to install the whole collection.
 
 Two rules are load-bearing and easy to break:
@@ -107,7 +109,8 @@ Two rules are load-bearing and easy to break:
   must update the standard, every affected product map and pinned player tests together.
 - **A page holds eight slots or fewer**, or nice-plug silently splits and renames it.
 
-Changing either is a repo-wide change: check every instrument's map in the same pass.
+Changing either is a collection-wide change: check every instrument's map, in its own repository,
+in the same pass.
 
 ## A measured page carries its generator
 
@@ -125,11 +128,13 @@ to compile and to have been run.
 
 # Work Guidance
 
-- Prose, not transcripts. If something is only true this week, it belongs in `plans/`.
+- Prose, not transcripts. If something is only true this week, it belongs in a plan (until the
+  split, `plans/`, now in the private archive), not here.
 - Research for a machine, effect or family happens in the research repository, with its own skill
   (`research:.claude/skills/mxm-collection-research/SKILL.md`). A chapter here cites the result as
   `research:<path>` and takes facts, numbers and our own measurements only — never a third-party
-  file, an image or verbatim text (root *Research boundary*).
+  file, an image or verbatim text (root *Research citations*; in full,
+  [`collection-rules.md`](collection-rules.md#research-boundary)).
 - Delete stale text rather than explaining its history.
 - Cross-link instead of restating. The design system is the single source for interface rules; DSP
   conventions live in the code's own AGENTS.md chain.
@@ -147,10 +152,12 @@ No automated checks. Two manual gates, both real:
   ```
 
   and confirm each path exists relative to its referring file.
-- **`research:` citations resolve**, when the sibling checkout is present:
+- **`research:` citations resolve**, when the research checkout is present — since the split it is
+  in the private archive, not a sibling, so set `RESEARCH` to it (in the monorepo it was
+  `../01-mxm-collection-research`):
 
   ```bash
-  git grep -h -o -E 'research:[A-Za-z0-9._-][A-Za-z0-9._/-]*' -- . ':!automation/tests' | sed 's|^research:||' | sort -u | while read -r p; do [ -e "../01-mxm-collection-research/$p" ] || echo "MISSING $p"; done
+  git grep -h -o -E 'research:[A-Za-z0-9._-][A-Za-z0-9._/-]*' -- . ':!automation/tests' | sed 's|^research:||' | sort -u | while read -r p; do [ -e "$RESEARCH/$p" ] || echo "MISSING $p"; done
   ```
 
 # Child DOX Index

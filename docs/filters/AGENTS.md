@@ -7,7 +7,9 @@ Parent: [`../AGENTS.md`](../AGENTS.md)
 A working reference for building resonant, musical, real-time filters: theory, topologies,
 nonlinearity, efficiency, the historical machines, measurement method, and Rust recipes. The
 per-family deep-dives the chapters cite live in the research repository as
-`research:filters/machines/<family>.md` (root *Research boundary*).
+`research:filters/machines/<family>.md` (root *Research citations*; in full, [`collection-rules.md`](../collection-rules.md#research-boundary)).
+
+*Since the split (2026-10-06):* `crates/dsp-lab/…` is in [mxm-tools](https://github.com/mxm-audio/mxm-tools) and `crates/mxm-mono-01-dsp/…` (like any `crates/<plugin>-dsp/…`) in that product's repository, [mxm-mono-01](https://github.com/mxm-audio/mxm-mono-01); the commands that build them run there.
 
 Written for this repo but framework-agnostic. It is the source the DSP crates are expected to follow
 when a filter changes.
@@ -105,7 +107,7 @@ tests from `06-testing.md`, and run them.
 **One exception is already reproducible:** `research:filters/machines/ba662-sh-2.md` publishes no code and quotes only
 numbers from `crates/mxm-mono-01-dsp`'s `mono_01_filter_spike` and `resonance_gain` examples, because the diode-clamped cascade of `research:filters/machines/ir3109-roland.md` §7 ships in that
 crate. When
-that crate's filter changes, re-run both examples here and update that page's §7 in the same pass —
+that crate's filter changes, re-run both examples here (since the split, in mxm-mono-01) and update that page's §7 in the same pass —
 a commit in the research repository.
 
 ```bash

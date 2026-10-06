@@ -70,7 +70,7 @@ what is acceptable?** A flatness figure does not. A "close enough" does.
 - Every crate but `dsp-lab` and `mxm-listening` takes this as a `[dev-dependencies]` entry, never a
   normal one; those two are measurement themselves and have no shipped graph. `mxm-listening` is
   itself a dev-dependency wherever it is used, so the check covers both names.
-- **One exception, unshipped:** `apps/mxm-listener-hud` takes the listener, and through it this
+- **One exception, unshipped:** mxm-tools' `apps/mxm-listener-hud` takes the listener, and through it this
   crate, normally. Shipping it means adding it to the check's list, which then fails — the owner
   deferred that decision (2026-09-28;
   [NOTES.md § The one unshipped exception](NOTES.md#the-dev-dependency-rules-one-unshipped-exception)).
