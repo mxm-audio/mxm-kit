@@ -422,8 +422,8 @@ Then, in order:
   appeared, `docs/AGENTS.md` if a brief was added, and delete anything that has gone stale.
   *Since the split:* a product repository has no `docs/AGENTS.md`; add the plugin to
   [`plugin-conventions.md`](plugin-conventions.md)'s *The plugins* table and *Each plugin's own
-  contract* index here. The maintainer adds its editor to the collection-wide `editor_resize` inventory,
-  which is not public yet.
+  contract* index here. Its editor also goes in the `editor_resize` inventory of
+  [newdawn-workspace](https://github.com/mxm-audio/newdawn-workspace/blob/main/collection-tests/editor_resize.rs).
 
 ---
 
@@ -520,8 +520,8 @@ plugin's interface on any platform. Your plugin inherits this by depending on th
 `nice-plug` — since the split, by the root `[patch.crates-io]` entry that points `nice-plug` at the
 fork, as every product repository does. If a refresh drops the patch, `t7_editor.rs` fails — but only for a plugin that has a
 test there, so add one. *Since the split:* `t7_editor.rs` is in mxm-player and opens mxm-mono-01's
-editor; every product's floating editor is opened by the collection-wide `editor_resize`, which
-the maintainer runs (not public yet) and adds yours to.
+editor; every product's floating editor is opened by newdawn-workspace's
+[`editor_resize`](https://github.com/mxm-audio/newdawn-workspace/blob/main/collection-tests/editor_resize.rs), so add yours to its inventory there.
 
 ### Everything a person can do, a machine can do
 

@@ -542,8 +542,8 @@ Use the current [design system](MXM_DESIGN_SYSTEM.md) §§3.3–4.3, 6–7 and 1
   there is no parent, and waking/redrawing the host per drag event defeats idle throttling. Check
   accepted native sizes, zero unnecessary host round-trips, and close/reopen; preserve embedded
   host negotiation. `apps/mxm-player/tests/editor_resize.rs` is the Windows bundle-level oracle
-  (since the split, `collection-tests/editor_resize.rs` in the owner's local workspace, not on
-  GitHub yet, because it needs every product's bundle).
+  (since the split, [`collection-tests/editor_resize.rs`](https://github.com/mxm-audio/newdawn-workspace/blob/main/collection-tests/editor_resize.rs) in newdawn-workspace,
+  because it needs every product's bundle).
   Callback counts and headless milliseconds do not establish displayed FPS or smoothness.
 - **Native-editor inventories and mutable bundle profiles drift independently of plugin tests.** A
   new floating editor can pass its own open/reopen proof while remaining absent from the collection

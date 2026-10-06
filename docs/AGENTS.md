@@ -6,7 +6,7 @@ Parent: [`../AGENTS.md`](../AGENTS.md)
 
 The kit's durable documentation: the normative interface system every MXM editor follows, the
 control-map contract, and the theory references behind the DSP. Per-instrument design briefs live
-in each product's repository; the collection-wide process is the maintainer's and not public. The machine,
+in each product's repository; collection-wide process notes in [newdawn-workspace](https://github.com/mxm-audio/newdawn-workspace). The machine,
 effect and family research the copies are built from lives in the private research repository
 (root *Research citations*; in full, [`collection-rules.md`](collection-rules.md#research-boundary)) and is cited from here as `research:<path>`.
 

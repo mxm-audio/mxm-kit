@@ -524,8 +524,8 @@ unnecessary host wakeups. The fork's [`PATCHES.md`](https://github.com/mxm-audio
   A normal workspace test run skips it. Keep it across dependency upgrades and add new editors
   to its inventory; a validator or panel-layout test is not a substitute.
 - *Since the split (2026-10-06):* the test needs every product's bundle in one profile, so it left
-  mxm-player: it is `collection-tests/editor_resize.rs` in the owner's local workspace, which is not
-  on GitHub yet and has no test package to run it from, so the command above no longer runs
+  mxm-player: it is [`collection-tests/editor_resize.rs`](https://github.com/mxm-audio/newdawn-workspace/blob/main/collection-tests/editor_resize.rs) in newdawn-workspace, which
+  has no test package to run it from, so the command above no longer runs
   anywhere. Its inventory now lists all twenty floating editors.
 
 The native driver is Windows-only and counts callbacks, not displayed FPS. Linux/macOS and
