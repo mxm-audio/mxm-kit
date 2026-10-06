@@ -335,6 +335,8 @@ schema}`. What is actually proven:
 - a knob away from its parameter does not jump it, and catches up by crossing;
 - a gesture opens once, closes when the knob goes quiet, and closes on every teardown path;
 - a malformed reload keeps the map that was working.
+- every product's own map holds to the standard it is built against: `cargo xtask bundle` refuses
+  to build otherwise (`mxm-xtask`'s `control_maps::check`), which keeps §9's rule below.
 
 ## 9. An unknown role rejects the whole map, and that is a defect
 

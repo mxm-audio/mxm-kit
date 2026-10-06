@@ -32,14 +32,17 @@ own map stays with the instrument (`plugins/<plugin>/control-map.json`).
 # Work Guidance
 
 - A change to `control-map.json` is a pass over every instrument's map at once
-  (`docs/MXM_CONTROL_MAP.md`, *before 1.0*), checked by MXM Player's `tests/t5_control_map.rs`.
+  (`docs/MXM_CONTROL_MAP.md`, *before 1.0*). Each repository's `cargo xtask bundle` checks its own
+  maps against the standard (`mxm-xtask`'s `control_maps::check`), so a change here reaches every
+  product the next time it bundles against the new kit tag. MXM Player's `tests/t5_control_map.rs`
+  checks how the host applies a map.
 
 # Verification
 
 ```bash
 cargo test -p mxm-control-map              # the shipped layout parses; schema and validation rules
 cargo clippy -p mxm-control-map --all-targets
-cargo test -p mxm-player --test t5_control_map   # every product's map against the standard
+cargo test -p mxm-xtask --lib control_maps   # a map that breaks the standard fails the bundle
 ```
 
 # Child DOX Index

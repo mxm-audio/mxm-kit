@@ -14,8 +14,9 @@ pub mod fetch;
 
 use std::path::Path;
 
-/// Runs `fetch`, or `nice_plug_xtask` on the command line it was given and, after a `bundle`,
-/// stages the control maps of the plugins in `workspace_root`'s `bundler.toml`.
+/// Runs `fetch`, or `nice_plug_xtask` on the command line it was given. A `bundle` first checks the
+/// control maps of the plugins in `workspace_root`'s `bundler.toml` against the standard, and after
+/// building stages them beside the bundles.
 ///
 /// `workspace_root` is the caller's own: the parent of its `env!("CARGO_MANIFEST_DIR")`. This crate
 /// cannot know it, because its own manifest directory is wherever the dependency was fetched to.
@@ -27,6 +28,11 @@ pub fn main(workspace_root: &Path) -> nice_plug_xtask::Result<()> {
         return Ok(());
     }
     let bundling = std::env::args().nth(1).as_deref() == Some("bundle");
+    if bundling {
+        // Fatal, and before the build: a map every host would refuse is a broken product, as a
+        // failing test is. (A missing map is not; see below.)
+        control_maps::check(workspace_root)?;
+    }
     nice_plug_xtask::main()?;
 
     if bundling {

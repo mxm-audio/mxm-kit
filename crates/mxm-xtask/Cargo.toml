@@ -12,3 +12,5 @@ publish = false
 [dependencies]
 nice-plug-xtask = "=0.1.1"
 anyhow = "=1.0.104"
+# The control-map standard, which a staged map is checked against (`control_maps`).
+mxm-control-map.workspace = true

@@ -28,6 +28,10 @@ plugins to fetch; all three belong to the repository being built.
   `target/bundled/<Bundle Name>.control-map.json`, which is where MXM Player looks for it. A plugin
   without one is not an error — it simply has no roles filled. Staging never fails the bundle: an
   unmapped plugin still works.
+- **A map that does not hold to the standard fails the bundle**, before anything is built
+  (`control_maps::check`, the check a host makes on loading it). That is what keeps a broken map from
+  shipping now that no collection-wide test reads every product's map; it replaced MXM Player's
+  `every_shipped_product_map_loads_against_the_standard` at the split.
 - **`bundle` builds the *outermost* workspace on the path, so a workspace nested inside another
   bundles the outer one.** `nice_plug_xtask::chdir_workspace_root` walks `CARGO_MANIFEST_DIR` from
   the root and stops at the first directory holding a workspace manifest, while the control maps go
