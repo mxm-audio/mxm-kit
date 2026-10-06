@@ -176,7 +176,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
-CI runs the same on Windows, macOS and Linux, but only on a `v*` release tag or when started by hand
+CI runs the same on Windows, macOS and Linux, but only on a `v*` tag or when started by hand
 (the owner, 2026-10-06); before a push, run it on Windows and on Linux (WSL). Each crate's own `AGENTS.md` names its narrower
 checks; the check that no test-only crate (`mxm-measure`, `mxm-plugin-test`) reaches a shipped
 graph runs in the product repositories, over their own shipped packages.
