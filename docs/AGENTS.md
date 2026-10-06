@@ -18,6 +18,7 @@ Durable, not diary. Implementation plans and their review cycles stay in MXM's p
 |---|---|---|
 | `MXM_DESIGN_SYSTEM.md` | The collection's interface system, §1–§15 | **Normative** |
 | `MXM_CONTROL_MAP.md` | One controller across the collection: roles, fixed knobs, pages, reserved CCs | **Normative** |
+| `plugin-conventions.md` | The conventions every MXM plugin keeps, with their reasons, measurements and history; each plugin repository's `plugins/AGENTS.md` is the short contract that links here | **Normative** for plugins |
 | `mxm-measure.html` | What `crates/mxm-measure` offers, as figures: every number and series is measured by `crates/mxm-measure/examples/showcase.rs` and embedded | Living; see *A measured page carries its generator* |
 | `filters/` | Long-form filter theory, chapters `01`–`09`; the per-family deep-dives are `research:filters/machines/` | See [`filters/AGENTS.md`](filters/AGENTS.md) |
 | `oscillators/` | Long-form oscillator theory: general methods and technique deep-dives, measured in-repo; the machine survey and the 208 appendix are `research:oscillators/` | See [`oscillators/AGENTS.md`](oscillators/AGENTS.md) |

@@ -7,7 +7,8 @@ top-level Child DOX Index. The detail behind them is in [NOTES.md](NOTES.md).
 
 **The MXM instrument kit**: the MIT-licensed libraries every MXM instrument and effect is built
 on, published so anyone can build instruments that look, feel and work the same — and work fully
-in newDAWn. The crates are below; `docs/` holds the normative design system and control map, and the
+in newDAWn. The crates are below; `docs/` holds the normative design system and control map, the
+conventions every MXM plugin keeps ([`docs/plugin-conventions.md`](docs/plugin-conventions.md)), and the
 collection's filter, oscillator and modulation theory ([NOTES.md § What the kit holds](NOTES.md#what-the-kit-holds)).
 
 The MXM products — the instruments and effects, MXM Player, newDAWn — are GPL-3.0, each in its own
@@ -180,7 +181,7 @@ graph runs in the product repositories, over their own shipped packages.
 | [`crates/mxm-tempo/AGENTS.md`](crates/mxm-tempo/AGENTS.md) | Tempo sync: the one sixteen-step division ladder, a control's span and direction, position → division, the clamp-never-rescale reach law, and the tempo in force |
 | [`crates/mxm-part-routing/AGENTS.md`](crates/mxm-part-routing/AGENTS.md) | Shared part assignments, claimed-channel matching, fixed-capacity arbitration, CLAP-style note-owner matching and bounded destination transfer |
 | [`crates/mxm-modulation-params/AGENTS.md`](crates/mxm-modulation-params/AGENTS.md) | The routing's parameter and interface half: why it is a second crate rather than a feature, removal as one parameter write with the amount left alone, rows derived from values rather than editor state, and the source as a label because a row *is* its source |
-| [`crates/mxm-measure/AGENTS.md`](crates/mxm-measure/AGENTS.md) | The measurement rulers every test and harness shares: a named computation and never a verdict, the dev-dependency-only rule and its check, the result forms, the extraction gate with its **declined register**, and the closed-form controls that keep a shared ruler honest |
+| [`crates/mxm-measure/AGENTS.md`](crates/mxm-measure/AGENTS.md) | The measurement rulers every test and harness shares: a named computation and never a verdict, the dev-dependency-only rule and its check, the result forms, the extraction gate (its **declined register** in that folder's `NOTES.md`), and the closed-form controls that keep a shared ruler honest |
 | [`crates/mxm-control-map/AGENTS.md`](crates/mxm-control-map/AGENTS.md) | The control-map standard (`control-map.json`) and its schema — layout, instrument maps, parsing, validation and the parameter id hash — read by MXM Player and the plugins' tests |
 | [`crates/mxm-plugin-test/AGENTS.md`](crates/mxm-plugin-test/AGENTS.md) | The checks every plugin's tests share — keyboard coverage, paging, the opening size, layout-tree cards, route parameters, time readings, the bundle's name in `bundler.toml` and the words a player reads (with their word lists) — one copy for all, dev-dependency only |
 | [`crates/mxm-xtask/AGENTS.md`](crates/mxm-xtask/AGENTS.md) | The build tooling every repository's `xtask` shares: bundling through `nice_plug_xtask`, control-map staging, and the outermost-workspace trap |
@@ -188,4 +189,4 @@ graph runs in the product repositories, over their own shipped packages.
 | [`crates/mxm-audio-file-decode/AGENTS.md`](crates/mxm-audio-file-decode/AGENTS.md) | Reading audio through symphonia (MPL-2.0): the formats it reads, a second crate rather than a feature, the compiled-in notice, Great-or-Excellent components only, what is bounded and what is not, what is refused and how skipped audio is found, per-file gapless reporting, and fixtures that are our own work |
 | [`crates/ui/AGENTS.md`](crates/ui/AGENTS.md) | The shared interface foundation and its design-system contract |
 | [`crates/mxm-preset/AGENTS.md`](crates/mxm-preset/AGENTS.md) | Shared preset format, library, browser, identity, authored-model Init and durable-content transaction |
-| [`docs/AGENTS.md`](docs/AGENTS.md) | The normative design system and control map, the measured `mxm-measure` page, and the filter, oscillator and modulation theory |
+| [`docs/AGENTS.md`](docs/AGENTS.md) | The normative design system and control map, the plugin conventions, the measured `mxm-measure` page, and the filter, oscillator and modulation theory |
