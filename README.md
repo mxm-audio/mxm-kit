@@ -11,6 +11,7 @@ resizable, one design system — and that work fully in newDAWn.
 | [`mxm-modulation`](crates/mxm-modulation) | Modulation routing: source frames, compaction, combination laws |
 | [`mxm-modulation-params`](crates/mxm-modulation-params) | Its parameter and interface half |
 | [`mxm-tempo`](crates/mxm-tempo) | Tempo sync: one ladder of musical divisions |
+| [`mxm-keys`](crates/mxm-keys) | The keyboard language: keys in, gestures out, and the keymap |
 | [`mxm-part-routing`](crates/mxm-part-routing) | Drum part routing, note arbitration and click-free destinations |
 | [`mxm-control-map`](crates/mxm-control-map) | The controller-map standard and its schema |
 | [`mxm-audio-file`](crates/mxm-audio-file) | WAV, AIFF and FLAC writing |

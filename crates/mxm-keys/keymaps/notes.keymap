@@ -1,0 +1,34 @@
+# The bindings from the owner's notes of 2026-10-05: verbs on the top row, actions on the home
+# row, step sizes on the bottom row. Keys are positions, named after a US keyboard's legends.
+#
+#   Q  .          W  MOVE       E  EXTENT     R  VALUE
+#   A  ADD        S  SELECT     D  DUPLICATE  F  .
+#   Z  MUSICAL    X  COARSE     C  FINE       V  MICRO
+#
+# A starting point to try, not a choice: the bindings are chosen from usage.
+
+name = The 2026-10-05 notes
+
+move = W
+extent = E
+value = R
+
+add = A
+select = S
+duplicate = D
+
+musical = Z
+coarse = X
+fine = C
+micro = V
+
+delete = Delete Backspace
+open = Enter
+back = Escape
+# Provisional: Tab, Caps Lock and a tapped Shift are the candidates, and usage decides.
+out = Tab
+view = Shift
+
+tap-arms = yes
+one-arrow = no
+timeout = off

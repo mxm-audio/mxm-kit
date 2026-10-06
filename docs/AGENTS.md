@@ -78,6 +78,9 @@ bare-arrow editing. Every control that edits a parameter joins
 the cursor — knob, switch, segmented control and selector alike — and each editor proves its own
 coverage, because a control that paints without registering is silently unreachable. Adopting it
 was not a licence to change any parameter, page assignment or controller mapping, and none changed.
+**§11 is to be replaced** (the owner, 2026-10-06): the collection moves to newDAWn's keyboard
+language, whose engine is [`crates/mxm-keys`](../crates/mxm-keys/AGENTS.md), in a later pass the
+owner starts. Until that pass, §11 binds every editor.
 
 §7.1 keeps parameter names canonical while permitting omission of a repeated module prefix in a
 named card/section; §7.4 permits source sublabels directly below their controls. These are opt-in

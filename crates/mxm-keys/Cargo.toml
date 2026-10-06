@@ -1,0 +1,13 @@
+[package]
+name = "mxm-keys"
+description = "The shared keyboard language: physical keys in, finished gestures out, and the keymap that puts its jobs on keys"
+version.workspace = true
+edition.workspace = true
+# No dependencies at all, and no egui: an adapter feeds it keys, so any editor or host can take it
+# without inheriting the 1.95 GUI floor.
+rust-version = "1.87"
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]

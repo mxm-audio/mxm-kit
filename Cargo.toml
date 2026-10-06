@@ -6,6 +6,7 @@ members = [
     "crates/mxm-modulation",
     "crates/mxm-modulation-params",
     "crates/mxm-tempo",
+    "crates/mxm-keys",
     "crates/mxm-part-routing",
     "crates/mxm-control-map",
     "crates/mxm-audio-file",
@@ -35,6 +36,7 @@ mxm-preset = { path = "crates/mxm-preset" }
 mxm-modulation = { path = "crates/mxm-modulation" }
 mxm-modulation-params = { path = "crates/mxm-modulation-params" }
 mxm-tempo = { path = "crates/mxm-tempo" }
+mxm-keys = { path = "crates/mxm-keys" }
 mxm-part-routing = { path = "crates/mxm-part-routing" }
 mxm-control-map = { path = "crates/mxm-control-map" }
 mxm-audio-file = { path = "crates/mxm-audio-file" }

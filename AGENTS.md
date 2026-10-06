@@ -35,7 +35,7 @@ fixes in its `PATCHES.md` — which every repository that builds a plugin patche
 ## The crates
 
 The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.md#the-crate-rules-in-full).
-**Ten crate rules, deliberately different** — count the bullets before editing this number:
+**Eleven crate rules, deliberately different** — count the bullets before editing this number:
 
 - `crates/ui` is **shared from day one**: design system §13 exempts the shell, theme tokens,
   typography and basic parameter controls; anything *beyond* them waits for two instruments.
@@ -67,6 +67,11 @@ The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.
   control-map staging and `fetch`; mxm-player's root `xtask` adds only `fixtures`.
 - `crates/mxm-plugin-test` is **the checks every plugin's tests share** — neither shared DSP nor
   shared interface; a `[dev-dependencies]` entry only, held by the same leak check.
+- `crates/mxm-keys` is **the shared keyboard language's engine**, an owner-approved exception to
+  evidence-first extraction (2026-10-05: the keyboard library is built here from the start, so the
+  DAW and the instruments share one): keys in, gestures out, and the keymap format. It never knows
+  what a gesture changes. The editors keep design system §11's cursor until the owner's later
+  conversion pass (2026-10-06). Zero dependencies and MSRV 1.87.
 
 # Local Contracts
 
@@ -114,6 +119,7 @@ cargo +1.87.0 build -p <crate>          # and `test`, which is the harder floor
 | `crates/mxm-tempo` | **1.87** | Zero dependencies, so a plugin's audio half and any DSP crate can take it without inheriting the GUI floor. **Verified on 1.87**, library and tests |
 | `crates/mxm-modulation-params` | **1.95** | nice-plug and egui: the parameter and interface half, which is why it is a second crate rather than a feature |
 | `crates/mxm-control-map` | **1.95** | Inherited, not lowered: serde alone would allow less, but every consumer (the player, the plugins' tests) is at the GUI floor and none needs lower |
+| `crates/mxm-keys` | **1.87** | Zero dependencies and no egui, so any editor or host can take it without inheriting the GUI floor. **Verified on 1.87**, library and tests |
 | `crates/mxm-part-routing` | **1.87** | Zero dependencies; framework-free part assignments, claimed-channel matching, fixed-capacity arbitration, owner matching and bounded destination transfer. **Verified on 1.87**, library and tests |
 | `crates/mxm-measure` | **1.87** | Zero dependencies, so every crate that measures sound can dev-depend on it without inheriting the GUI floor. **Verified on 1.87**, library and tests |
 | `crates/mxm-xtask` | **1.95** | Build tooling, inherited: it runs on the developer's toolchain, never in a plugin |
@@ -181,6 +187,7 @@ graph runs in the product repositories, over their own shipped packages.
 |---|---|
 | [`crates/mxm-modulation/AGENTS.md`](crates/mxm-modulation/AGENTS.md) | Shared source frames, route compaction, combination laws and bounded publication |
 | [`crates/mxm-tempo/AGENTS.md`](crates/mxm-tempo/AGENTS.md) | Tempo sync: the one sixteen-step division ladder, a control's span and direction, position → division, the clamp-never-rescale reach law, and the tempo in force |
+| [`crates/mxm-keys/AGENTS.md`](crates/mxm-keys/AGENTS.md) | The shared keyboard language's engine: physical keys, the jobs, the plain-text keymap and its refusals, held and tapped gestures and their rules, and why no keymap can take a standard shortcut |
 | [`crates/mxm-part-routing/AGENTS.md`](crates/mxm-part-routing/AGENTS.md) | Shared part assignments, claimed-channel matching, fixed-capacity arbitration, CLAP-style note-owner matching and bounded destination transfer |
 | [`crates/mxm-modulation-params/AGENTS.md`](crates/mxm-modulation-params/AGENTS.md) | The routing's parameter and interface half: why it is a second crate rather than a feature, removal as one parameter write with the amount left alone, rows derived from values rather than editor state, and the source as a label because a row *is* its source |
 | [`crates/mxm-measure/AGENTS.md`](crates/mxm-measure/AGENTS.md) | The measurement rulers every test and harness shares: a named computation and never a verdict, the dev-dependency-only rule and its check, the result forms, the extraction gate (its **declined register** in that folder's `NOTES.md`), and the closed-form controls that keep a shared ruler honest |

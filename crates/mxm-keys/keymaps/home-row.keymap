@@ -1,0 +1,33 @@
+# The 2026-10-05 notes' language with MOVE and VALUE on the home row, under the middle and index
+# fingers, and the actions on the top row: the first comparison the notes ask for.
+#
+#   Q  SELECT     W  ADD        E  DUPLICATE  R  .
+#   A  EXTENT     S  MOVE       D  VALUE      F  .
+#   Z  MUSICAL    X  COARSE     C  FINE       V  MICRO
+#
+# A starting point to try, not a choice: the bindings are chosen from usage.
+
+name = Verbs on the home row
+
+move = S
+extent = A
+value = D
+
+add = W
+select = Q
+duplicate = E
+
+musical = Z
+coarse = X
+fine = C
+micro = V
+
+delete = Delete Backspace
+open = Enter
+back = Escape
+out = Tab
+view = Shift
+
+tap-arms = yes
+one-arrow = no
+timeout = off
