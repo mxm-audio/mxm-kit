@@ -1,0 +1,13 @@
+[package]
+name = "mxm-tempo"
+description = "The collection's tempo sync: one ladder of musical divisions, and how a control's position picks one"
+version.workspace = true
+edition.workspace = true
+# No dependencies at all, so the audio half of any plugin, and any DSP crate, can take it without
+# inheriting the 1.95 GUI floor.
+rust-version = "1.87"
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]

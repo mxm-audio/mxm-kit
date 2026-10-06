@@ -1,0 +1,16 @@
+[package]
+name = "mxm-control-map"
+description = "The collection's control map: the standard layout (roles, fixed knobs, bank, pages), an instrument's map onto it, parsing and validation. The contract is docs/MXM_CONTROL_MAP.md."
+version.workspace = true
+edition.workspace = true
+# The GUI floor, inherited rather than lowered: every consumer (MXM Player, the plugins' tests) is at
+# it already, and nothing needs it lower.
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+# The pins MXM Player took them at; both are already in the workspace lock file.
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.145"

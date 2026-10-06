@@ -1,0 +1,22 @@
+[package]
+name = "mxm-plugin-test"
+description = "The headless checks every plugin's tests share: keyboard coverage, paging and the opening size, layout-tree cards, route parameters and time readings. A dev-dependency only; ships nothing."
+version.workspace = true
+edition.workspace = true
+# egui declares 1.95, and every check here paints a real panel.
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+nice-plug.workspace = true
+egui.workspace = true
+# `wgpu` renders a frame to pixels for the layout-tree review pictures (`tree_checks::pictures`).
+egui_kittest = { version = "=0.36.1", features = ["wgpu"] }
+mxm-ui.workspace = true
+# The modulation standard's conformance (`routing_checks`). This crate is only ever a
+# `[dev-dependencies]` entry, so the feature never reaches a shipped graph.
+mxm-modulation = { workspace = true, features = ["conformance"] }
+mxm-modulation-params.workspace = true

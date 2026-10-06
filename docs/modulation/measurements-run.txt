@@ -1,0 +1,57 @@
+MXM-101 modulation spike
+
+Analysis: N = 65536, fs = 44100 Hz, exactly-periodic rates, rectangular window.
+Sections 1-3 measure the shipped `lfo.rs` and `envelope.rs`. Section 4 measures a
+generic smoothing model, NOT the plugin's — see the module docs.
+
+1. The LFO's own spectrum. `lfo.rs` states it is not band limited; this is what
+   that costs, measured as energy off the LFO's own harmonic grid.
+
+           shape   rate (Hz)      alias dB     harmonics
+        Triangle        7.40        -111.9          2681
+        Triangle       15.48        -102.4          1282
+        Triangle       30.28         -93.7           655
+          Square        7.40         -38.7          2681
+          Square       15.48         -35.5          1282
+          Square       30.28         -32.5           655
+           SawUp        7.40         -36.9          2681
+           SawUp       15.48         -33.7          1282
+           SawUp       30.28         -30.8           655
+          Random        7.40           n/a         noise
+          Random       15.48           n/a         noise
+          Random       30.28           n/a         noise
+
+2. Tremolo: a 1 kHz sine multiplied by the LFO, so whatever is in the LFO lands in
+   the audio band where it can be measured against the carrier.
+
+           shape   rate (Hz)        alias dB    vs LFO alone
+        Triangle        7.40          -120.0            -8.1
+        Triangle       30.28          -101.8            -8.1
+          Square        7.40           -74.1           -35.4
+          Square       30.28           -68.2           -35.6
+           SawUp        7.40           -76.5           -39.6
+           SawUp       30.28           -70.5           -39.8
+
+3. Envelope attack: how short is too short. A 1 kHz sine gated by the shipped
+   ADSR, measured as energy away from the carrier bin — the click.
+
+       attack (ms)     click >4 kHz dB            peak
+               0.0               -64.0           1.000
+               0.5               -64.0           1.000
+               1.0               -64.0           1.000
+               5.0               -63.6           1.000
+              20.0               -63.5           1.000
+
+4. Parameter smoothing. **A generic one-pole model, not the plugin's** — see the
+   module docs. A control stepping between two values every 10 ms, applied as a
+   gain on a 1 kHz sine.
+
+        smoothing (ms)    zipper >4 kHz dB    audible step
+                   0.0               -28.5             yes
+                   0.2               -45.6             yes
+                   1.0               -59.1              no
+                   5.0               -71.6              no
+                  20.0               -84.5              no
+
+# NOTE: the instrument called MXM-101 above was renamed `mxm-mono-01` on 2026-08-31.
+# This file records what was measured under the name it had at the time and is left unchanged.

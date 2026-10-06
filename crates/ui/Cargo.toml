@@ -1,0 +1,35 @@
+[package]
+name = "mxm-ui"
+description = "Shared interface foundation for the MXM Synth Collection"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+# No windowing crate, no host crate, no plugin framework: this crate is called by the player as a
+# pane and by a plugin editor inside a DAW's window, so it must not assume it owns a window, an
+# event loop or a swapchain.
+egui.workspace = true
+
+# The layout engine behind `shell::flow`. It is **not** an exception to the rule above: taffy is a
+# pure-Rust implementation of CSS flexbox with no platform, windowing or framework dependency of
+# any kind, and it computes rectangles — the same thing this crate was already doing by hand, and
+# getting wrong (`shell::Level`'s one-frame lag, and the columns that alternated).
+egui_taffy = "=0.14.0"
+
+# The theme choice outlives the editor that made it (design system §10), and there is nowhere else
+# for it to live: plugin state is where presets and a host's project go, and §10 forbids a preset
+# carrying the theme. So this crate owns one small file under the config directory.
+#
+# Neither of these is an exception to the rule above: they are a serialiser and a path lookup, with
+# no window, event loop or plugin framework between them. Same versions `mxm-preset` already
+# resolves, so the tree gains nothing it did not have.
+serde_json = "=1.0.145"
+dirs       = "=5.0.1"
+
+[dev-dependencies]
+egui_kittest = "=0.36.1"
+kittest = "=0.4.0"

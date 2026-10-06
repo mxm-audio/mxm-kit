@@ -1,0 +1,26 @@
+[package]
+name = "mxm-audio-file-decode"
+description = "Reads audio files — WAV, AIFF, FLAC, ALAC, MP3, AAC in M4A and Ogg Vorbis — through symphonia"
+version.workspace = true
+edition.workspace = true
+# The same floor as the encoder: symphonia declares 1.85. Verified with `cargo +1.87.0`.
+rust-version = "1.87"
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+# MPL-2.0, accepted in shipped plugins by the owner on 2026-09-15, used unmodified. Only components
+# symphonia rates Great or Excellent are enabled: its "Good" means "some streams may panic", which
+# is why CAF and ADPCM are absent. See AGENTS.md.
+symphonia = { version = "=0.6.1", default-features = false, features = [
+    "wav", "aiff", "isomp4", "ogg",
+    "pcm", "flac", "alac", "aac", "mp3", "vorbis",
+] }
+
+[dev-dependencies]
+# The round-trip tests write through the encoder and read back through this crate.
+mxm-audio-file = { path = "../mxm-audio-file" }
+# Plants a NaN in a float WAV, which the collection's encoder refuses to write.
+hound = "=3.5.1"

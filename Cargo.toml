@@ -1,0 +1,63 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/ui",
+    "crates/mxm-preset",
+    "crates/mxm-modulation",
+    "crates/mxm-modulation-params",
+    "crates/mxm-tempo",
+    "crates/mxm-part-routing",
+    "crates/mxm-control-map",
+    "crates/mxm-audio-file",
+    "crates/mxm-audio-file-decode",
+    "crates/mxm-measure",
+    "crates/mxm-plugin-test",
+    "crates/mxm-xtask",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"        # the GUI floor; crates that do not need it override downward
+license = "MIT"
+authors = ["mxm"]
+repository = "https://github.com/mxm-audio/mxm-kit"
+
+[workspace.dependencies]
+# Pinned exactly, as in every MXM repository; Cargo.lock is committed.
+# default-features = false drops `vst3` (GPL bindings) and `tracing-subscriber`
+# (a plugin must not install a global subscriber into its host).
+nice-plug = { version = "=0.3.0", default-features = false, features = ["editor", "assert_process_allocs"] }
+egui = "=0.36.1"
+
+mxm-ui = { path = "crates/ui" }
+mxm-preset = { path = "crates/mxm-preset" }
+mxm-modulation = { path = "crates/mxm-modulation" }
+mxm-modulation-params = { path = "crates/mxm-modulation-params" }
+mxm-tempo = { path = "crates/mxm-tempo" }
+mxm-part-routing = { path = "crates/mxm-part-routing" }
+mxm-control-map = { path = "crates/mxm-control-map" }
+mxm-audio-file = { path = "crates/mxm-audio-file" }
+mxm-audio-file-decode = { path = "crates/mxm-audio-file-decode" }
+mxm-measure = { path = "crates/mxm-measure" }
+mxm-plugin-test = { path = "crates/mxm-plugin-test" }
+mxm-xtask = { path = "crates/mxm-xtask" }
+
+[profile.release]
+lto = "thin"
+strip = "symbols"
+
+# The rulers (the FFT) are measurement, not shipped code; every crate that measures sound pays for
+# them unoptimised.
+[profile.dev.package.mxm-measure]
+opt-level = 3
+
+[profile.profiling]
+inherits = "release"
+debug = true
+strip = "none"
+
+# nice-plug 0.3.0 as published plus the patches in its fork's PATCHES.md. (A plugin repository also
+# patches egui-baseview, which only its editor's nice-plug-egui pulls in; no crate here does.)
+[patch.crates-io]
+nice-plug = { path = "../nice-plug" }

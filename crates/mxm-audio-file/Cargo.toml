@@ -1,0 +1,19 @@
+[package]
+name = "mxm-audio-file"
+description = "Writes audio files — WAV, AIFF and FLAC — for every plugin, app and harness in the collection"
+version.workspace = true
+edition.workspace = true
+# Below the 1.95 GUI floor on purpose: the DSP crates' listening harnesses dev-depend on this crate,
+# and they build at 1.87. Verified with `cargo +1.87.0`, not assumed.
+rust-version = "1.87"
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+# Established encoders, pinned exactly. No MPL code lives in this crate: decoding is the separate
+# `mxm-audio-file-decode`, so an export-only consumer can never link symphonia.
+hound = "=3.5.1"
+aifc = "=0.7.0"
+flacenc = { version = "=0.5.1", default-features = false }

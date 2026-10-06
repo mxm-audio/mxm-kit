@@ -1,0 +1,19 @@
+[package]
+name = "mxm-modulation"
+description = "The collection's modulation routing: the source frame, route compaction and the combination laws"
+version.workspace = true
+edition.workspace = true
+# No dependencies at all, so every `*-dsp` crate can take this one without inheriting the 1.95 GUI
+# floor. The parameter half lives in `mxm-modulation-params`, which does sit at 1.95 — see that
+# crate, and `plans/plan-modulation-routing.md` §4.
+rust-version = "1.87"
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+
+[features]
+# The standard's conformance checks, for an instrument's tests. Enable it only from
+# `[dev-dependencies]`, so no shipped graph carries it.
+conformance = []

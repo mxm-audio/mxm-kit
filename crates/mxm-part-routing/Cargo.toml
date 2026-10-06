@@ -1,0 +1,9 @@
+[package]
+name = "mxm-part-routing"
+version.workspace = true
+edition.workspace = true
+rust-version = "1.87"
+license.workspace = true
+publish = false
+
+[dependencies]

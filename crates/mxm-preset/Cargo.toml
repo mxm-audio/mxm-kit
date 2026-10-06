@@ -1,0 +1,28 @@
+[package]
+name = "mxm-preset"
+description = "The collection's preset system: the file format, the library, the loaded identity, and the app-bar controls, for every instrument and effect"
+version.workspace = true
+edition.workspace = true
+# The app-bar controls draw with egui, which declares 1.95. The format and the library alone would
+# stand at 1.87; they are not split out until something framework-free needs them.
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+nice-plug.workspace = true
+egui.workspace = true
+mxm-ui.workspace = true
+mxm-tempo.workspace = true
+
+# A preset file is **user-editable**, so it will arrive malformed, and hand-rolled parsing of
+# hand-edited text is where the bugs live. `dirs` because user presets live under the config
+# directory — a plugin is never told the path its `.clap` was loaded from.
+serde      = { version = "=1.0.229", features = ["derive"] }
+serde_json = "=1.0.145"
+dirs       = "=5.0.1"
+
+[dev-dependencies]
+egui_kittest = "=0.36.1"
+kittest = "=0.4.0"

@@ -1,0 +1,18 @@
+[package]
+name = "mxm-modulation-params"
+description = "The parameter and interface half of the collection's modulation routing"
+version.workspace = true
+edition.workspace = true
+# egui and nice-plug, so 1.95 -- which is exactly why this is a second crate and not a feature of
+# `mxm-modulation`. See that crate, and `plans/plan-modulation-routing.md` §4.
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+nice-plug.workspace = true
+egui.workspace = true
+mxm-ui.workspace = true
+mxm-preset.workspace = true
+mxm-modulation.workspace = true

@@ -1,0 +1,1352 @@
+//! The keyboard cursor: a card, a parameter inside it, and the value.
+//!
+//! Tracker-style editing with the owner's physical hierarchy — `Shift`+arrows move between
+//! cards/modules, `Command`+arrows (`Ctrl`, or `Cmd` on macOS) move between parameters inside one,
+//! and bare arrows set the value. The M8's axes are kept: **left/right is fine and up/down is
+//! coarse**. `plans/plan-keyboard-editing.md` §1 records both decisions.
+//!
+//! # The map is a by-product of drawing, never an authored table
+//!
+//! Only one editor in the collection declares which parameter sits on which card, and a layout
+//! that reflows would make eight more such tables wrong the first time a disclosure opened. So no
+//! table: a control [`mark`]s itself as it paints, inside a [`card`] scope the paging renderer
+//! opens and an [`at`] scope its plugin's binding opens. The registry is then exactly what is on
+//! screen, including what a disclosure just revealed, because it *is* what was drawn.
+//!
+//! The cursor therefore acts on the **previous** frame's registry, which is how
+//! [`crate::flow::drawn`] already works and is not a defect: a frame that had not been drawn yet
+//! has no geometry to navigate.
+//!
+//! # It does not own the value
+//!
+//! This module moves a cursor and hands egui's focus to whatever it lands on. The value edit is
+//! the focused control's own [`crate::control`] keyboard path, and the *size* of a step is the
+//! parameter's, carried in [`crate::control::Steps`] by the plugin that owns it. Nothing here
+//! knows what a parameter is.
+
+use std::collections::HashMap;
+
+use egui::{Id, Key, Pos2, Rect, Response, Stroke, StrokeKind, Ui};
+
+use crate::space::{HAIRLINE, RADIUS};
+use crate::theme::Tokens;
+
+/// One control, as the frame painted it.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Spot {
+    /// The [`crate::paging::Key`] of the card it was drawn in.
+    pub card: u64,
+    /// The parameter's permanent id — stable across a reflow, which an index is not.
+    pub key: String,
+    /// The complete parameter control. Multi-cell controls union every cell here.
+    pub rect: Rect,
+    /// The primary focus target, so the cursor can hand egui its focus.
+    pub id: Id,
+    /// Every focusable widget belonging to this parameter. A segmented control has one per cell.
+    pub focus_ids: Vec<Id>,
+    /// The pointer pressed, dragged or clicked this control in the frame that drew it.
+    ///
+    /// Read from the control's own [`Response`], never from where the press landed: a press on a
+    /// popup drawn over a knob belongs to the popup, and only the widget can say it was pressed.
+    pub pointed: bool,
+}
+
+/// What the cursor is on.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Cursor {
+    pub card: Option<u64>,
+    pub key: Option<String>,
+}
+
+/// The cursor, plus what it remembers about cards it has left.
+///
+/// Held by the editor beside `view` and the text-entry buffers rather than in egui's memory:
+/// `panel` is a free function over borrowed state precisely so a test can drive it and assert
+/// where the cursor went.
+#[derive(Clone, Debug, Default)]
+pub struct State {
+    cursor: Cursor,
+    /// The parameter last visited on each card, so re-entering a card resumes rather than resets.
+    remembered: HashMap<u64, String>,
+    /// Set for the one frame a move happened, so focus is requested then and not every frame.
+    moved: bool,
+    /// The pointer moved the cursor while something else held the keyboard — an inert frame, a
+    /// text field, an open menu — so the focus that move owes the control has not been handed over
+    /// yet. The first frame free to hand it over does; a newer cursor move supersedes it.
+    owed: bool,
+}
+
+impl State {
+    pub fn cursor(&self) -> &Cursor {
+        &self.cursor
+    }
+
+    /// The card the cursor is on, for the renderer that draws its outline.
+    pub fn card(&self) -> Option<u64> {
+        self.cursor.card
+    }
+
+    pub fn parameter(&self) -> Option<&str> {
+        self.cursor.key.as_deref()
+    }
+
+    fn settle(&mut self, spot: &Spot) {
+        self.cursor.card = Some(spot.card);
+        self.cursor.key = Some(spot.key.clone());
+        self.remembered.insert(spot.card, spot.key.clone());
+    }
+}
+
+fn registry_id() -> Id {
+    Id::new("mxm-navigation")
+}
+fn current_id() -> Id {
+    registry_id().with("current")
+}
+fn last_id() -> Id {
+    registry_id().with("last")
+}
+fn card_id() -> Id {
+    registry_id().with("card")
+}
+fn scope_id() -> Id {
+    registry_id().with("scope")
+}
+fn outline_id() -> Id {
+    registry_id().with("outline")
+}
+fn running_id() -> Id {
+    registry_id().with("running")
+}
+fn target_id() -> Id {
+    registry_id().with("target")
+}
+fn shown_id() -> Id {
+    registry_id().with("shown")
+}
+
+/// Whether the cursor is currently *shown*, as opposed to merely positioned.
+///
+/// **Where the keyboard is and whether to draw it are two facts, and this crate used to have
+/// one.** The cursor lands on the first control the moment an editor first paints, so every panel
+/// in the collection opened with a card ringed and a knob focused that nobody had asked for, and
+/// the ring stayed put through an entire session of mouse work. The owner reported it on the
+/// grain-fx panel (2026-09-11): *"this should not start with a border ... the border should only
+/// appear when the user starts keyboard navigation and editing."*
+///
+/// So the position is kept and only the paint is withheld. [`run`] hides it on any pointer press
+/// and shows it on any keyboard gesture, which is the web's `:focus-visible` rule and what §11
+/// means by *keyboard focus is always visible*: visible to whoever is using the keyboard.
+///
+/// **The position survives being hidden, and that is the point of separating them.** A knob turned
+/// with the mouse is still the cursor's parameter, so the very next arrow press edits *that* value
+/// and reveals the cursor already sitting on it — no keystroke is spent arriving, which is the
+/// whole speed of the feature.
+pub fn shown(ctx: &egui::Context) -> bool {
+    ctx.data(|d| d.get_temp::<bool>(shown_id()).unwrap_or(false))
+}
+
+/// Hides the cursor. Called on a pointer press, wherever the press landed.
+fn conceal(ctx: &egui::Context) {
+    ctx.data_mut(|d| d.insert_temp(shown_id(), false));
+}
+
+/// Shows the cursor. Called when a key that drives it is pressed.
+fn reveal(ctx: &egui::Context) {
+    ctx.data_mut(|d| d.insert_temp(shown_id(), true));
+}
+
+/// Whether this frame carries a press of a key that operates the cursor.
+///
+/// **Peeked, never consumed**: [`requested`] and [`crate::control`] both still need these events,
+/// and this only asks whether somebody has reached for the keyboard. The set is §11's table minus
+/// `Escape` — which cancels and closes rather than navigating — and minus undo, which is not this
+/// interface at all.
+fn keyboard_gesture(ctx: &egui::Context) -> bool {
+    ctx.input(|input| {
+        input.events.iter().any(|event| {
+            matches!(
+                event,
+                egui::Event::Key {
+                    key: Key::ArrowLeft
+                        | Key::ArrowRight
+                        | Key::ArrowUp
+                        | Key::ArrowDown
+                        | Key::Home
+                        | Key::End
+                        | Key::Tab
+                        | Key::Enter
+                        | Key::Backspace,
+                    pressed: true,
+                    ..
+                }
+            )
+        })
+    })
+}
+
+/// Whether a cursor is driving this context, set by [`run`] and read by [`crate::control`].
+///
+/// **The rollout is per editor, and this is what keeps it from breaking the ones it has not
+/// reached.** Where a cursor runs, `Shift` and `Command` own its two navigation tiers while bare
+/// arrows edit the value. Where none does — an editor not yet converted — a bare arrow still edits
+/// the focused control exactly as it did before, because taking that away and giving nothing back
+/// would leave those editors worse than untouched.
+pub fn running(ui: &Ui) -> bool {
+    ui.ctx()
+        .data(|d| d.get_temp::<bool>(running_id()).unwrap_or(false))
+}
+
+/// Whether the control being painted is the cursor's parameter target.
+///
+/// Keyboard behavior cannot depend solely on egui focus. A custom painted control can remain the
+/// navigation target while none of its generated responses retains native focus between frames.
+pub fn keyboard_target(ui: &Ui) -> bool {
+    let (Some(card), Some(key)) = (
+        ui.ctx().data(|d| d.get_temp::<u64>(card_id())),
+        ui.ctx().data(|d| d.get_temp::<String>(scope_id())),
+    ) else {
+        return false;
+    };
+    ui.ctx()
+        .data(|d| d.get_temp::<(u64, String)>(target_id()))
+        .is_some_and(|target| target.0 == card && target.1 == key)
+}
+
+/// Opens the card a control is being drawn in. The paging renderer calls this; a plugin does not.
+///
+/// Nested cards do not exist (§3.3 nests *groups*, one level, and a group is not a card), so this
+/// sets rather than pushes.
+pub fn card<R>(ui: &mut Ui, key: u64, body: impl FnOnce(&mut Ui) -> R) -> R {
+    ui.ctx().data_mut(|d| d.insert_temp(card_id(), key));
+    let out = body(ui);
+    ui.ctx().data_mut(|d| d.remove::<u64>(card_id()));
+    out
+}
+
+/// Opens a card drawn in the app bar, above the paging renderer: design system §3.1 puts the master
+/// output there. It is [`card`] plus a record of where it was painted, because the renderer's
+/// report, which gives every other card its geometry, cannot see the bar. `body` returns the
+/// painted rectangle. [`paged_with_bar`] reads it back next frame. `key` must not collide with a
+/// paging card key.
+pub fn bar_card(ui: &mut Ui, key: u64, body: impl FnOnce(&mut Ui) -> Rect) {
+    let rect = card(ui, key, body);
+    ui.ctx().data_mut(|d| d.insert_temp(bar_rect_id(key), rect));
+}
+
+/// Takes a bar card the bar did not draw this frame out of the cursor's sequence — one the app
+/// bar moved into its `…` menu (`shell::product_actions`). Its rectangle is last frame's
+/// otherwise, and the cursor would stop on a card that is no longer there.
+pub fn bar_card_absent(ctx: &egui::Context, key: u64) {
+    ctx.data_mut(|d| d.remove::<Rect>(bar_rect_id(key)));
+}
+
+fn bar_rect_id(key: u64) -> Id {
+    registry_id().with(("bar", key))
+}
+
+/// Names the parameter whose control is about to be drawn.
+///
+/// The plugin's binding opens this, because the permanent id is the plugin's to know. Without it a
+/// control paints exactly as before and simply does not join the registry — which is what keeps
+/// this rollout per-editor rather than all-or-nothing.
+pub fn at<R>(ui: &mut Ui, key: &str, body: impl FnOnce(&mut Ui) -> R) -> R {
+    ui.ctx()
+        .data_mut(|d| d.insert_temp(scope_id(), key.to_owned()));
+    let out = body(ui);
+    ui.ctx().data_mut(|d| d.remove::<String>(scope_id()));
+    out
+}
+
+/// Draws an editor-only control inside a parameter's scope without joining the registry.
+///
+/// A picker that chooses *which* parameter a control edits is not itself a parameter and has no
+/// permanent id, but it is drawn inside the owning parameter's [`at`] scope — mxm-mono-08's routing
+/// slider carries its source menu on its own name line. Left alone it would register as a second
+/// cell of that parameter and then answer the same bare arrow, so one press would both step the
+/// menu and move the value. This closes the scope for its body: nothing inside marks, and
+/// [`keyboard_target`] is false there.
+pub fn aside<R>(ui: &mut Ui, body: impl FnOnce(&mut Ui) -> R) -> R {
+    let held = ui.ctx().data(|d| d.get_temp::<String>(scope_id()));
+    ui.ctx().data_mut(|d| d.remove::<String>(scope_id()));
+    let out = body(ui);
+    if let Some(key) = held {
+        ui.ctx().data_mut(|d| d.insert_temp(scope_id(), key));
+    }
+    out
+}
+
+/// Records a focusable control at its painted rectangle. Called by the controls in
+/// [`crate::control`], once each, on the response that carries their focus.
+///
+/// **It also records whether the pointer took the control this frame** — pressed it, dragged it or
+/// clicked it — and [`run`] then moves the cursor there. egui gives a painted control no keyboard
+/// focus when it is clicked or dragged (only its text and drag-value widgets ask for it), so a
+/// cursor that followed focus alone stayed on the previous parameter, hidden, and the next arrow
+/// edited that one instead of the knob just turned. The owner's report, 2026-09-23: *"When I click
+/// on a parameter, or move it with the mouse it should immediately be possible to edit that
+/// parameter with the arrow keys."*
+///
+/// Silently does nothing outside a [`card`] and an [`at`] scope, and during the paging renderer's
+/// measurement pass — that pass draws into a separate, inputless context and its geometry is not
+/// on screen.
+pub fn mark(ui: &Ui, response: &Response, rect: Rect) {
+    let pointed = response.is_pointer_button_down_on() || response.clicked();
+    register(ui, response.id, rect, pointed);
+}
+
+/// [`mark`], for a control a press must not select: `control::remove_mark`, whose press deletes
+/// the row it sits on, so the cursor would be left on a parameter that is gone.
+pub fn mark_unclaimed(ui: &Ui, id: Id, rect: Rect) {
+    register(ui, id, rect, false);
+}
+
+fn register(ui: &Ui, id: Id, rect: Rect, pointed: bool) {
+    let (Some(card), Some(key)) = (
+        ui.ctx().data(|d| d.get_temp::<u64>(card_id())),
+        ui.ctx().data(|d| d.get_temp::<String>(scope_id())),
+    ) else {
+        return;
+    };
+    ui.ctx().data_mut(|d| {
+        let spots = d.get_temp_mut_or_default::<Vec<Spot>>(current_id());
+        if let Some(spot) = spots
+            .iter_mut()
+            .find(|spot| spot.key == key && spot.card == card)
+        {
+            // A segmented parameter paints one response per cell. It is one navigation target:
+            // keep the first cell as the target, but use the union for geometry and remember every
+            // cell so clicking any of them can move the cursor to this parameter.
+            spot.rect = spot.rect.union(rect);
+            spot.pointed |= pointed;
+            if !spot.focus_ids.contains(&id) {
+                spot.focus_ids.push(id);
+            }
+            return;
+        }
+        spots.push(Spot {
+            card,
+            key,
+            rect,
+            id,
+            focus_ids: vec![id],
+            pointed,
+        });
+    });
+}
+
+/// The registry as the previous frame left it.
+pub fn spots(ctx: &egui::Context) -> Vec<Spot> {
+    ctx.data(|d| d.get_temp::<Vec<Spot>>(last_id()).unwrap_or_default())
+}
+
+/// What a key press asked for. `Shift` and `Command` arrows only — bare value arrows belong to the
+/// selected control and are deliberately left in the queue for it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Step {
+    Card(Dir),
+    Param(Dir),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Dir {
+    Left,
+    Right,
+    Up,
+    Down,
+}
+
+impl Dir {
+    const fn forward(self) -> bool {
+        matches!(self, Self::Right | Self::Down)
+    }
+}
+
+/// Reads the navigation keys, **before any control is drawn**, and consumes them.
+///
+/// Consumed rather than merely read, and read first, for the reason `crate::browser` records: a
+/// bare arrow that reaches egui also walks its own focus ring, and the cursor and the ring then
+/// disagree about where the keyboard is.
+fn requested(ctx: &egui::Context) -> Vec<Step> {
+    let mut steps = Vec::new();
+    ctx.input_mut(|input| {
+        // Walk the queue itself rather than calling `consume_key`: egui's method removes *all*
+        // matching repeats at once and returns only a bool, which cannot preserve count or order.
+        input.events.retain(|event| {
+            let egui::Event::Key {
+                key,
+                pressed: true,
+                modifiers,
+                ..
+            } = event
+            else {
+                return true;
+            };
+            let dir = match key {
+                Key::ArrowLeft => Dir::Left,
+                Key::ArrowRight => Dir::Right,
+                Key::ArrowUp => Dir::Up,
+                Key::ArrowDown => Dir::Down,
+                _ => return true,
+            };
+            // The owner's physical hierarchy: Shift is the highest tier (cards/modules), Command
+            // is the middle tier (parameters), and an unmodified arrow is left for the value.
+            // Explicit fields make Shift win if both modifiers happen to be held.
+            let step = if modifiers.shift {
+                Some(Step::Card(dir))
+            } else if modifiers.command {
+                Some(Step::Param(dir))
+            } else {
+                None
+            };
+            if let Some(step) = step {
+                steps.push(step);
+                false
+            } else {
+                true
+            }
+        });
+    });
+    steps
+}
+
+/// Moves the cursor, and hands egui's focus to where it lands.
+///
+/// `order` is every card key in the paging plan's category-first order, flattened across pages;
+/// `cards` is the report's exact visible `(key, rectangle)` list. A page is where a card happens to
+/// sit at this width, not a boundary the cursor respects. Crossing one returns the card that must be
+/// shown, and the caller asks the paging renderer for it.
+///
+/// `inert` suspends the whole layer — while the preset browser is open, while a value is being
+/// typed, or whenever another surface owns the keyboard.
+#[must_use]
+pub fn run(
+    ctx: &egui::Context,
+    state: &mut State,
+    order: &[u64],
+    cards: &[(u64, Rect)],
+    inert: bool,
+) -> Option<u64> {
+    // Roll the registry: what the last frame drew becomes what this frame navigates.
+    ctx.data_mut(|d| {
+        let current = d.get_temp::<Vec<Spot>>(current_id()).unwrap_or_default();
+        if !current.is_empty() {
+            d.insert_temp(last_id(), current);
+        }
+        d.insert_temp(current_id(), Vec::<Spot>::new());
+    });
+
+    // Declared even while inert: the editor still has a cursor, it is merely suspended, and the
+    // controls must not fall back to their pre-cursor arrow handling for one frame because the
+    // preset browser happens to be open.
+    ctx.data_mut(|d| d.insert_temp(running_id(), true));
+
+    // **A pointer press puts the cursor away, wherever it landed, and it is hidden before the
+    // inert check on purpose.** A click into the preset browser is still somebody reaching for the
+    // mouse, and leaving a stale ring behind the browser is the very thing the owner reported.
+    if ctx.input(|input| input.pointer.any_pressed()) {
+        conceal(ctx);
+    }
+
+    state.moved = false;
+    let spots = spots(ctx);
+
+    // **Follow the pointer.** A control the pointer pressed, dragged or clicked in the last frame
+    // is where the keyboard is now, so the next bare arrow edits the knob just turned rather than
+    // the parameter the cursor was left on. egui never focuses a painted control for a click, so
+    // this cannot come from the focus-follow below; the registry records it instead (see [`mark`]).
+    //
+    // **Before the inert return, and position only.** A gesture whose next frame is inert — a value
+    // opened for typing, the preset browser in front — would otherwise be lost, because the control
+    // is not redrawn while its entry is open. The focus the move owes is handed over later, on the
+    // first frame nothing else holds the keyboard.
+    let pointed = spots.iter().find(|spot| spot.pointed);
+    if let Some(spot) = pointed {
+        if state.cursor.card != Some(spot.card) || state.cursor.key.as_deref() != Some(&spot.key) {
+            state.settle(spot);
+        }
+        let focused = ctx.memory(|m| m.focused());
+        state.owed = !focused.is_some_and(|id| spot.focus_ids.contains(&id));
+    }
+
+    // **A text field or an open popup owns the keyboard**, exactly as the editor's own `inert`
+    // surfaces do: a long selector's search field edits its text with `Shift` and `Command`
+    // arrows, and any open list walks its rows with the arrows. The cursor neither reveals nor
+    // takes a key while either is up, and the pointer's owed focus waits for them to close.
+    //
+    // `Popup::is_any_open` and not `Context::any_popup_open`: this runs before anything is drawn,
+    // and the context's answer is built from the popups drawn so far in this pass — none yet.
+    // egui's memory keeps a menu's open state from frame to frame.
+    let inert = inert || ctx.text_edit_focused() || egui::Popup::is_any_open(ctx);
+    if inert {
+        clear_target(ctx);
+        return None;
+    }
+
+    // And a key brings it back — *after* the inert check, because while the browser is open or a
+    // value is being typed the arrows are that surface's and say nothing about this cursor.
+    if keyboard_gesture(ctx) {
+        reveal(ctx);
+    }
+
+    if spots.is_empty() {
+        clear_target(ctx);
+        return None;
+    }
+
+    // Follow the tab ring: a cell `Tab` focused moves the cursor to it, so the two never disagree
+    // about where the keyboard is. **Not in a frame the pointer claimed a control**: egui gives up
+    // focus on a click but not on a drag, so the knob the cursor was on can still hold it while
+    // another is dragged, and following it would undo the pointer's move.
+    let focused = ctx.memory(|m| m.focused());
+    if pointed.is_none()
+        && let Some(spot) = focused.and_then(|id| spots.iter().find(|s| s.focus_ids.contains(&id)))
+        && (state.cursor.card != Some(spot.card) || state.cursor.key.as_deref() != Some(&spot.key))
+    {
+        state.settle(spot);
+    }
+
+    // Hand over the focus a pointer move owed, now that nothing else holds the keyboard.
+    if state.owed {
+        state.owed = false;
+        state.moved = true;
+    }
+
+    let steps = requested(ctx);
+
+    // A cursor that has never landed starts on the first thing drawn, so the first keystroke is
+    // never spent arriving.
+    if state.cursor.key.is_none() {
+        if let Some(first) = spots.first() {
+            state.settle(first);
+            state.moved = true;
+        }
+        if steps.is_empty() {
+            focus(ctx, state, &spots);
+            publish_target(ctx, state);
+            return None;
+        }
+    }
+
+    let mut show = None;
+    for step in steps {
+        match step {
+            Step::Card(dir) => {
+                if let Some(wanted) = move_card(state, &spots, order, cards, dir) {
+                    show = Some(wanted);
+                }
+            }
+            Step::Param(dir) => move_param(state, &spots, dir),
+        }
+    }
+    focus(ctx, state, &spots);
+    publish_target(ctx, state);
+    show
+}
+
+fn publish_target(ctx: &egui::Context, state: &State) {
+    ctx.data_mut(
+        |data| match (state.cursor.card, state.cursor.key.as_ref()) {
+            (Some(card), Some(key)) => {
+                data.insert_temp(target_id(), (card, key.clone()));
+            }
+            _ => data.remove::<(u64, String)>(target_id()),
+        },
+    );
+}
+
+fn clear_target(ctx: &egui::Context) {
+    ctx.data_mut(|data| data.remove::<(u64, String)>(target_id()));
+}
+
+/// Stops this context's cursor layer and restores controls' pre-cursor keyboard behavior.
+///
+/// Used by cardless surfaces such as the developer Parameters list. Clearing the paint registry is
+/// deliberate: retaining the last musician page would let invisible cards consume its arrows.
+pub fn stop(ctx: &egui::Context) {
+    // The reveal flag is deliberately *not* cleared, and is kept current here: a cardless surface
+    // is where somebody clicks around for a while, and the card page they return to must not light
+    // up because this surface stopped watching the mouse.
+    if ctx.input(|input| input.pointer.any_pressed()) {
+        conceal(ctx);
+    }
+    ctx.data_mut(|d| {
+        d.remove::<bool>(running_id());
+        d.remove::<Vec<Spot>>(current_id());
+        d.remove::<Vec<Spot>>(last_id());
+        d.remove::<(u64, String)>(target_id());
+        d.remove::<u64>(outline_id());
+    });
+}
+
+/// Gives egui the focus the cursor claims, and locks its own arrow travel out of it.
+///
+/// Only on a frame the cursor moved: requesting focus every frame would fight anything else that
+/// legitimately takes it, and the lock filter is what stops a bare arrow being spent twice.
+fn focus(ctx: &egui::Context, state: &State, spots: &[Spot]) {
+    let Some(spot) = current_spot(state, spots) else {
+        return;
+    };
+    ctx.memory_mut(|m| {
+        if state.moved {
+            m.request_focus(spot.id);
+        }
+        m.set_focus_lock_filter(
+            spot.id,
+            egui::EventFilter {
+                tab: false,
+                // `true` means the focused widget has exclusive access, so egui does not also
+                // move its own focus ring after the navigation layer consumes or delegates it.
+                horizontal_arrows: true,
+                vertical_arrows: true,
+                escape: false,
+            },
+        );
+    });
+}
+
+fn current_spot<'s>(state: &State, spots: &'s [Spot]) -> Option<&'s Spot> {
+    let key = state.cursor.key.as_deref()?;
+    let card = state.cursor.card?;
+    spots.iter().find(|s| s.card == card && s.key == key)
+}
+
+/// Moves to a card painted in the requested direction.
+///
+/// Geometry comes from the paging renderer's exact card rectangles, not the union of whichever
+/// controls happen to be inside one. At a page edge there is no geometry for the next page, so the
+/// adjacent card in the paging plan is the bridge: right/down move forward, left/up move backward.
+fn move_card(
+    state: &mut State,
+    spots: &[Spot],
+    order: &[u64],
+    cards: &[(u64, Rect)],
+    dir: Dir,
+) -> Option<u64> {
+    let current = state.cursor.card?;
+    let here = cards
+        .iter()
+        .find(|(key, _)| *key == current)
+        .map(|(_, rect)| *rect);
+    let geometric = here.and_then(|here| {
+        directional(
+            here,
+            cards
+                .iter()
+                .filter(|(key, _)| *key != current)
+                .map(|(key, rect)| (*key, *rect)),
+            dir,
+        )
+    });
+
+    // Geometry exists only for the selected page. At an edge, the adjacent canonical card is the
+    // bridge to another page; do not use that fallback when it is visible in the wrong direction.
+    let target = geometric.or_else(|| {
+        let target = sequence_target(order, current, dir)?;
+        (!cards.iter().any(|(key, _)| *key == target)).then_some(target)
+    })?;
+
+    enter(state, spots, target);
+    // A card the cursor moved to that this frame did not draw is on another page; the caller asks
+    // for it, and the parameter settles when it arrives.
+    (!cards.iter().any(|(key, _)| *key == target)).then_some(target)
+}
+
+fn enter(state: &mut State, spots: &[Spot], card: u64) {
+    state.cursor.card = Some(card);
+    state.moved = true;
+    let resumed = state
+        .remembered
+        .get(&card)
+        .filter(|key| spots.iter().any(|s| s.card == card && s.key == **key))
+        .cloned();
+    state.cursor.key =
+        resumed.or_else(|| spots.iter().find(|s| s.card == card).map(|s| s.key.clone()));
+    if let Some(key) = state.cursor.key.clone() {
+        state.remembered.insert(card, key);
+    }
+}
+
+/// Moves inside one card in the direction painted on the key.
+fn move_param(state: &mut State, spots: &[Spot], dir: Dir) {
+    let (Some(card), Some(key)) = (state.cursor.card, state.cursor.key.as_deref()) else {
+        return;
+    };
+    let Some(from) = spots
+        .iter()
+        .find(|spot| spot.card == card && spot.key == key)
+    else {
+        return;
+    };
+    let target = directional(
+        from.rect,
+        spots
+            .iter()
+            .filter(|spot| spot.card == card && spot.key != key)
+            .map(|spot| (spot, spot.rect)),
+        dir,
+    );
+
+    if let Some(spot) = target {
+        state.settle(spot);
+        state.moved = true;
+    }
+}
+
+fn sequence_target(order: &[u64], current: u64, dir: Dir) -> Option<u64> {
+    let at = order.iter().position(|key| *key == current)?;
+    let next = if dir.forward() {
+        at.checked_add(1).filter(|next| *next < order.len())?
+    } else {
+        at.checked_sub(1)?
+    };
+    Some(order[next])
+}
+
+/// The nearest target in the requested half-plane.
+///
+/// Primary-axis distance sorts first, so Down reaches the next row before a better-aligned card
+/// several rows away. Perpendicular distance breaks ties within that row or column.
+fn directional<T>(from: Rect, candidates: impl Iterator<Item = (T, Rect)>, dir: Dir) -> Option<T> {
+    let here = from.center();
+    let mut best: Option<((u8, f32, f32), T)> = None;
+    for (target, rect) in candidates {
+        let there: Pos2 = rect.center();
+        let horizontal = matches!(dir, Dir::Left | Dir::Right);
+        let (signed_primary, secondary, band) = match dir {
+            Dir::Left => (here.x - there.x, (there.y - here.y).abs(), 0.5),
+            Dir::Right => (there.x - here.x, (there.y - here.y).abs(), 0.5),
+            Dir::Up => (
+                here.y - there.y,
+                (there.x - here.x).abs(),
+                from.height().max(rect.height()) * 0.5,
+            ),
+            Dir::Down => (
+                there.y - here.y,
+                (there.x - here.x).abs(),
+                from.height().max(rect.height()) * 0.5,
+            ),
+        };
+        if signed_primary <= band {
+            continue;
+        }
+        // Horizontal movement stays in an overlapping visual row when one exists. Without this,
+        // a card hundreds of points lower whose centre was one point nearer in x beat the card
+        // visibly beside the cursor.
+        let same_row = from.bottom() > rect.top() + 0.5 && rect.bottom() > from.top() + 0.5;
+        let cost = (u8::from(horizontal && !same_row), signed_primary, secondary);
+        if best.as_ref().is_none_or(|(prior, _)| cost < *prior) {
+            best = Some((cost, target));
+        }
+    }
+    best.map(|(_, target)| target)
+}
+
+/// Runs the cursor over a [`crate::paging::editor`] surface, in the plan's own order.
+///
+/// Every editor derives the same three things from the last frame's report — the plan's flattened
+/// category-first card order, the visible cards' exact rectangles, and the request that brings an
+/// off-page card into view — and the pilot's own review caught the one mistake there is to make:
+/// walking authored order, which the renderer has already re-sorted. Deriving it in each editor is
+/// that mistake once per editor, so it is derived here instead.
+///
+/// **It needs no card list from the caller**, and asking for one would be ceremony for an
+/// unreachable path: a spot is only registered inside a [`card`] scope, which only
+/// [`crate::paging::editor::show`] opens, and `show` stores its report at the end of the same
+/// frame. So a non-empty registry implies a report, and where there is no report [`run`] has
+/// nothing to move anyway.
+///
+/// `inert` is the paging renderer's own `hold` condition: while the preset browser is open or a
+/// value is being typed, the arrows belong to that surface.
+pub fn paged(ctx: &egui::Context, state: &mut State, inert: bool) {
+    paged_with_bar(ctx, state, inert, &[]);
+}
+
+/// [`paged`] for an editor that also draws parameters in the app bar through [`bar_card`].
+///
+/// The bar cards come first in the cursor's sequence, so a card step off the top of the first card
+/// lands on them rather than wrapping to the end of the plan. They use last frame's painted
+/// geometry, and they are never a page to turn to: they are always on screen, and asking the
+/// renderer for one would request a card it has never heard of.
+pub fn paged_with_bar(ctx: &egui::Context, state: &mut State, inert: bool, bar: &[u64]) {
+    let (mut order, mut cards) = match crate::paging::editor::report(ctx) {
+        Some(report) => (
+            report
+                .plan
+                .pages
+                .iter()
+                .flat_map(|page| page.cards.iter().map(|key| key.0))
+                .collect::<Vec<_>>(),
+            report
+                .visible
+                .into_iter()
+                .map(|(key, rect)| (key.0, rect))
+                .collect::<Vec<_>>(),
+        ),
+        None => (Vec::new(), Vec::new()),
+    };
+    for (index, &key) in bar.iter().enumerate() {
+        order.insert(index, key);
+        if let Some(rect) = ctx.data(|d| d.get_temp::<Rect>(bar_rect_id(key))) {
+            cards.push((key, rect));
+        }
+    }
+    if let Some(wanted) = run(ctx, state, &order, &cards, inert)
+        && !bar.contains(&wanted)
+    {
+        crate::paging::editor::request_card(ctx, crate::paging::Key(wanted));
+    }
+    outline(ctx, state.card());
+}
+
+/// Tells the renderer which card outline to paint. Set by the editor, read by the paging renderer.
+///
+/// **The reveal rule is applied here rather than at the call sites**, because there is more than
+/// one: [`paged_with_bar`], which [`paged`] delegates to, and any editor that drives [`run`] itself. A rule enforced once per caller is
+/// a rule that is one new editor away from being forgotten, and the editor asking for an outline
+/// has no business knowing whether the mouse was the last thing touched.
+pub fn outline(ctx: &egui::Context, card: Option<u64>) {
+    let card = card.filter(|_| shown(ctx));
+    ctx.data_mut(|d| match card {
+        Some(card) => {
+            d.insert_temp(outline_id(), card);
+        }
+        None => d.remove::<u64>(outline_id()),
+    });
+}
+
+/// Paints the card cursor, if this is the card it is on.
+///
+/// **Painted, never laid out**, and drawn outside the card's own rectangle in the same way
+/// `control`'s focus ring is drawn outside a control's: a cursor that occupied space would move
+/// every card beside it the moment it arrived, which §7.1's no-resize rule forbids.
+///
+/// Fill *and* border, so it is not hue alone (§15) and stays distinct from a bypassed card's
+/// reduced emphasis and from the focus ring inside it.
+pub fn paint_card(ui: &Ui, tokens: &Tokens, card: u64, rect: Rect) {
+    if ui.ctx().data(|d| d.get_temp::<u64>(outline_id())) != Some(card) {
+        return;
+    }
+    ui.painter().rect_stroke(
+        rect.expand(2.0),
+        RADIUS as f32 + 2.0,
+        Stroke::new(2.0 * HAIRLINE, tokens.accent),
+        StrokeKind::Outside,
+    );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn spot(card: u64, key: &str, x: f32, y: f32) -> Spot {
+        let id = Id::new((card, key));
+        Spot {
+            card,
+            key: key.to_owned(),
+            rect: Rect::from_min_size(Pos2::new(x, y), egui::vec2(40.0, 40.0)),
+            id,
+            focus_ids: vec![id],
+            pointed: false,
+        }
+    }
+
+    fn cards(spots: &[Spot]) -> Vec<(u64, Rect)> {
+        spots.iter().map(|spot| (spot.card, spot.rect)).collect()
+    }
+
+    #[test]
+    fn a_bar_card_opens_its_card_scope_and_records_where_it_was_painted() {
+        let ctx = egui::Context::default();
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+            bar_card(ui, 64, |ui| {
+                assert_eq!(ui.ctx().data(|d| d.get_temp::<u64>(card_id())), Some(64));
+                ui.allocate_exact_size(egui::vec2(96.0, 20.0), egui::Sense::hover())
+                    .0
+            });
+            assert_eq!(ui.ctx().data(|d| d.get_temp::<u64>(card_id())), None);
+        });
+        output.textures_delta.clear();
+        assert!(ctx.data(|d| d.get_temp::<Rect>(bar_rect_id(64))).is_some());
+        assert!(ctx.data(|d| d.get_temp::<Rect>(bar_rect_id(65))).is_none());
+    }
+
+    #[test]
+    fn a_multi_cell_parameter_is_one_complete_spot_with_every_focus_id() {
+        let ctx = egui::Context::default();
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+            card(ui, 7, |ui| {
+                at(ui, "mode", |ui| {
+                    mark_unclaimed(
+                        ui,
+                        Id::new("first"),
+                        Rect::from_min_max(Pos2::ZERO, Pos2::new(20.0, 20.0)),
+                    );
+                    mark_unclaimed(
+                        ui,
+                        Id::new("second"),
+                        Rect::from_min_max(Pos2::new(20.0, 0.0), Pos2::new(40.0, 20.0)),
+                    );
+                });
+            });
+        });
+        output.textures_delta.clear();
+
+        let registered = ctx.data(|data| data.get_temp::<Vec<Spot>>(current_id()).unwrap());
+        assert_eq!(registered.len(), 1);
+        assert_eq!(registered[0].rect.width(), 40.0);
+        assert_eq!(registered[0].focus_ids.len(), 2);
+    }
+
+    #[test]
+    fn parameter_arrows_follow_painted_direction_instead_of_wrapping_reading_order() {
+        let spots = vec![
+            spot(0, "a", 0.0, 0.0),
+            spot(0, "b", 60.0, 0.0),
+            spot(0, "c", 0.0, 100.0),
+        ];
+        let mut state = State::default();
+        state.settle(&spots[0]);
+
+        move_param(&mut state, &spots, Dir::Right);
+        assert_eq!(state.parameter(), Some("b"));
+
+        move_param(&mut state, &spots, Dir::Right);
+        assert_eq!(
+            state.parameter(),
+            Some("b"),
+            "Right must not wrap to a control painted down and left"
+        );
+
+        move_param(&mut state, &spots, Dir::Down);
+        assert_eq!(state.parameter(), Some("c"));
+        move_param(&mut state, &spots, Dir::Up);
+        assert_eq!(state.parameter(), Some("a"));
+    }
+
+    /// One frame of an editor: the last frame's spots, `run`, and the outline the renderer reads.
+    fn frame(
+        ctx: &egui::Context,
+        state: &mut State,
+        spots: &[Spot],
+        input: egui::RawInput,
+    ) -> Option<u64> {
+        let mut output = ctx.run_ui(input, |ui| {
+            ui.ctx()
+                .data_mut(|d| d.insert_temp(last_id(), spots.to_vec()));
+            let order: Vec<u64> = cards(spots).into_iter().map(|(key, _)| key).collect();
+            let _ = run(ui.ctx(), state, &order, &cards(spots), false);
+            outline(ui.ctx(), state.card());
+        });
+        output.textures_delta.clear();
+        ctx.data(|d| d.get_temp::<u64>(outline_id()))
+    }
+
+    fn press(key: Key, modifiers: egui::Modifiers) -> egui::RawInput {
+        egui::RawInput {
+            events: vec![egui::Event::Key {
+                key,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers,
+            }],
+            ..Default::default()
+        }
+    }
+
+    fn click(pos: Pos2) -> egui::RawInput {
+        egui::RawInput {
+            events: vec![egui::Event::PointerButton {
+                pos,
+                button: egui::PointerButton::Primary,
+                pressed: true,
+                modifiers: egui::Modifiers::NONE,
+            }],
+            ..Default::default()
+        }
+    }
+
+    /// **The owner's report of 2026-09-11**: a panel opened with a card already ringed, and the
+    /// ring stayed through a whole session of mouse work. Position and paint are two facts now,
+    /// and this asserts both halves of the split at once — nothing is painted until somebody
+    /// reaches for the keyboard, and the cursor is nevertheless already placed when they do, so
+    /// the first press edits rather than arrives.
+    #[test]
+    fn no_border_until_the_keyboard_is_used_and_none_after_a_click() {
+        let ctx = egui::Context::default();
+        let spots = vec![spot(0, "a", 0.0, 0.0), spot(0, "b", 60.0, 0.0)];
+        let mut state = State::default();
+
+        assert_eq!(
+            frame(&ctx, &mut state, &spots, egui::RawInput::default()),
+            None,
+            "an editor must not open with a border nobody asked for"
+        );
+        assert!(!shown(&ctx));
+        assert_eq!(
+            state.parameter(),
+            Some("a"),
+            "the cursor is placed even while it is invisible, or the first press is spent arriving"
+        );
+
+        assert_eq!(
+            frame(
+                &ctx,
+                &mut state,
+                &spots,
+                press(Key::ArrowUp, egui::Modifiers::NONE)
+            ),
+            Some(0),
+            "a bare value arrow is keyboard editing and reveals the cursor"
+        );
+        assert!(shown(&ctx));
+
+        // Move it, so what survives the click is a place the cursor was driven to.
+        frame(
+            &ctx,
+            &mut state,
+            &spots,
+            press(Key::ArrowRight, egui::Modifiers::COMMAND),
+        );
+        assert_eq!(state.parameter(), Some("b"));
+
+        assert_eq!(
+            frame(&ctx, &mut state, &spots, click(Pos2::new(500.0, 500.0))),
+            None,
+            "a click anywhere puts the border away"
+        );
+        assert!(!shown(&ctx));
+        assert_eq!(
+            state.parameter(),
+            Some("b"),
+            "hidden is not lost: the mouse user's parameter is still the arrows' target"
+        );
+
+        assert_eq!(
+            frame(
+                &ctx,
+                &mut state,
+                &spots,
+                press(Key::ArrowUp, egui::Modifiers::NONE)
+            ),
+            Some(0),
+            "and the next keypress brings it back where it was"
+        );
+        assert_eq!(state.parameter(), Some("b"));
+    }
+
+    /// `Escape` closes and cancels; it is not navigation, and a panel must not light up because
+    /// somebody dismissed a menu.
+    #[test]
+    fn escape_is_not_a_reveal() {
+        let ctx = egui::Context::default();
+        let spots = vec![spot(0, "a", 0.0, 0.0)];
+        let mut state = State::default();
+        frame(&ctx, &mut state, &spots, egui::RawInput::default());
+        assert_eq!(
+            frame(
+                &ctx,
+                &mut state,
+                &spots,
+                press(Key::Escape, egui::Modifiers::NONE)
+            ),
+            None
+        );
+        assert!(!shown(&ctx));
+    }
+
+    #[test]
+    fn every_navigation_press_batched_into_one_frame_is_executed() {
+        let ctx = egui::Context::default();
+        let mut observed = Vec::new();
+        let mut bare_survived = false;
+        let key = |key, modifiers| egui::Event::Key {
+            key,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers,
+        };
+        let mut output = ctx.run_ui(
+            egui::RawInput {
+                events: vec![
+                    key(Key::ArrowDown, egui::Modifiers::SHIFT),
+                    key(Key::ArrowRight, egui::Modifiers::COMMAND),
+                    key(Key::ArrowRight, egui::Modifiers::COMMAND),
+                    key(Key::ArrowUp, egui::Modifiers::NONE),
+                ],
+                ..Default::default()
+            },
+            |ui| {
+                observed = requested(ui.ctx());
+                bare_survived = ui.input(|input| {
+                    input.events.iter().any(|event| {
+                        matches!(
+                            event,
+                            egui::Event::Key {
+                                key: Key::ArrowUp,
+                                pressed: true,
+                                ..
+                            }
+                        )
+                    })
+                });
+            },
+        );
+        output.textures_delta.clear();
+        assert_eq!(
+            observed,
+            vec![
+                Step::Card(Dir::Down),
+                Step::Param(Dir::Right),
+                Step::Param(Dir::Right)
+            ]
+        );
+        assert!(
+            bare_survived,
+            "the unmodified value arrow reaches the control"
+        );
+    }
+
+    #[test]
+    fn a_card_uses_geometry_and_reports_the_adjacent_card_on_another_page() {
+        let spots = vec![spot(0, "a", 0.0, 0.0), spot(1, "b", 60.0, 0.0)];
+        let visible = cards(&spots);
+        let order = [0_u64, 1, 2];
+        let mut state = State::default();
+        state.settle(&spots[0]);
+
+        assert_eq!(
+            move_card(&mut state, &spots, &order, &visible, Dir::Right),
+            None
+        );
+        assert_eq!(state.card(), Some(1));
+
+        let show = move_card(&mut state, &spots, &order, &visible, Dir::Right);
+        assert_eq!(
+            show,
+            Some(2),
+            "a card this frame did not draw must be asked for"
+        );
+        assert_eq!(state.card(), Some(2));
+    }
+
+    #[test]
+    fn down_chooses_the_next_row_before_a_better_aligned_later_row() {
+        let spots = vec![
+            spot(0, "a", 0.0, 0.0),
+            spot(1, "b", 80.0, 100.0),
+            spot(2, "c", 0.0, 200.0),
+        ];
+        let visible = cards(&spots);
+        let mut state = State::default();
+        state.settle(&spots[0]);
+
+        move_card(&mut state, &spots, &[0, 1, 2], &visible, Dir::Down);
+        assert_eq!(state.card(), Some(1), "the immediately adjacent row wins");
+    }
+
+    /// Leaving a card and coming back resumes where it was left, so a keystroke is never spent
+    /// re-aiming at the control just used.
+    #[test]
+    fn a_card_remembers_the_parameter_it_was_left_on() {
+        let spots = vec![
+            spot(0, "a", 0.0, 0.0),
+            spot(0, "b", 60.0, 0.0),
+            spot(1, "c", 120.0, 0.0),
+        ];
+        let visible = vec![(0, spots[0].rect.union(spots[1].rect)), (1, spots[2].rect)];
+        let order = [0_u64, 1];
+        let mut state = State::default();
+        state.settle(&spots[0]);
+        move_param(&mut state, &spots, Dir::Right);
+        assert_eq!(state.parameter(), Some("b"));
+
+        move_card(&mut state, &spots, &order, &visible, Dir::Right);
+        assert_eq!(state.parameter(), Some("c"));
+
+        move_card(&mut state, &spots, &order, &visible, Dir::Left);
+        assert_eq!(
+            state.parameter(),
+            Some("b"),
+            "resumed, not reset to the first"
+        );
+    }
+
+    /// [`frame`] with the editor's own `inert` condition, for a frame another surface owns.
+    fn frame_inert(ctx: &egui::Context, state: &mut State, spots: &[Spot], input: egui::RawInput) {
+        let mut output = ctx.run_ui(input, |ui| {
+            ui.ctx()
+                .data_mut(|d| d.insert_temp(last_id(), spots.to_vec()));
+            let order: Vec<u64> = cards(spots).into_iter().map(|(key, _)| key).collect();
+            let _ = run(ui.ctx(), state, &order, &cards(spots), true);
+        });
+        output.textures_delta.clear();
+    }
+
+    fn pointed(mut spot: Spot) -> Spot {
+        spot.pointed = true;
+        spot
+    }
+
+    /// **The owner's report of 2026-09-23**: a knob turned with the mouse did not become the
+    /// arrows' target, because egui never focuses a painted control for a click and the cursor
+    /// only followed focus. The pointer now moves the cursor itself, and hands the control focus
+    /// as a `Command`+arrow move would.
+    #[test]
+    fn a_pointer_press_moves_the_cursor_and_hands_the_control_focus() {
+        let ctx = egui::Context::default();
+        let (a, b) = (spot(0, "a", 0.0, 0.0), spot(0, "b", 60.0, 0.0));
+        let mut state = State::default();
+        frame(
+            &ctx,
+            &mut state,
+            &[a.clone(), b.clone()],
+            egui::RawInput::default(),
+        );
+        assert_eq!(state.parameter(), Some("a"));
+
+        frame(
+            &ctx,
+            &mut state,
+            &[a.clone(), pointed(b.clone())],
+            egui::RawInput::default(),
+        );
+        assert_eq!(state.parameter(), Some("b"), "the pointer chose b");
+        assert_eq!(ctx.memory(|m| m.focused()), Some(b.id));
+        assert!(!shown(&ctx), "the pointer does not reveal the cursor");
+    }
+
+    /// A drag does not take focus from the knob the cursor was on — egui only surrenders focus
+    /// on a click — so following focus in the same frame would undo the pointer's move.
+    #[test]
+    fn a_drag_is_not_undone_by_the_control_that_still_holds_focus() {
+        let ctx = egui::Context::default();
+        let (a, b) = (spot(0, "a", 0.0, 0.0), spot(0, "b", 60.0, 0.0));
+        let mut state = State::default();
+        frame(
+            &ctx,
+            &mut state,
+            &[a.clone(), b.clone()],
+            egui::RawInput::default(),
+        );
+        ctx.memory_mut(|m| m.request_focus(a.id));
+
+        frame(
+            &ctx,
+            &mut state,
+            &[a.clone(), pointed(b.clone())],
+            egui::RawInput::default(),
+        );
+        assert_eq!(state.parameter(), Some("b"));
+    }
+
+    /// A press whose next frame is inert — a value opened for typing, the preset browser in front —
+    /// still moves the cursor, and the focus it owes arrives on the first frame that is free.
+    #[test]
+    fn a_pointer_press_survives_an_inert_frame_and_its_focus_arrives_after() {
+        let ctx = egui::Context::default();
+        let (a, b) = (spot(0, "a", 0.0, 0.0), spot(0, "b", 60.0, 0.0));
+        let mut state = State::default();
+        frame(
+            &ctx,
+            &mut state,
+            &[a.clone(), b.clone()],
+            egui::RawInput::default(),
+        );
+
+        frame_inert(
+            &ctx,
+            &mut state,
+            &[a.clone(), pointed(b.clone())],
+            egui::RawInput::default(),
+        );
+        assert_eq!(state.parameter(), Some("b"), "position moves while inert");
+        assert_ne!(ctx.memory(|m| m.focused()), Some(b.id), "but focus waits");
+
+        frame(
+            &ctx,
+            &mut state,
+            &[a.clone(), b.clone()],
+            egui::RawInput::default(),
+        );
+        assert_eq!(ctx.memory(|m| m.focused()), Some(b.id), "and arrives");
+    }
+
+    /// The first frame's press lands where it was aimed, not on the first control drawn.
+    #[test]
+    fn a_pointer_press_on_the_first_frame_is_where_the_cursor_lands() {
+        let ctx = egui::Context::default();
+        let (a, b) = (spot(0, "a", 0.0, 0.0), spot(0, "b", 60.0, 0.0));
+        let mut state = State::default();
+        frame(
+            &ctx,
+            &mut state,
+            &[a, pointed(b)],
+            egui::RawInput::default(),
+        );
+        assert_eq!(state.parameter(), Some("b"));
+    }
+
+    /// An open menu walks its own rows with the arrows, and a search field edits its text with
+    /// `Shift` and `Command` arrows: while either is up the cursor neither moves nor reveals.
+    #[test]
+    fn an_open_popup_keeps_the_keyboard_from_the_cursor() {
+        let ctx = egui::Context::default();
+        let spots = vec![spot(0, "a", 0.0, 0.0), spot(0, "b", 60.0, 0.0)];
+        let mut state = State::default();
+        frame(&ctx, &mut state, &spots, egui::RawInput::default());
+        egui::Popup::open_id(&ctx, Id::new("a menu"));
+
+        frame(
+            &ctx,
+            &mut state,
+            &spots,
+            press(Key::ArrowRight, egui::Modifiers::COMMAND),
+        );
+        assert_eq!(state.parameter(), Some("a"), "the menu's keys are its own");
+        assert!(!shown(&ctx), "and the cursor does not appear behind it");
+
+        egui::Popup::close_all(&ctx);
+        frame(
+            &ctx,
+            &mut state,
+            &spots,
+            press(Key::ArrowRight, egui::Modifiers::COMMAND),
+        );
+        assert_eq!(
+            state.parameter(),
+            Some("b"),
+            "closed, the cursor has them back"
+        );
+    }
+
+    #[test]
+    fn a_focused_text_field_keeps_the_keyboard_from_the_cursor() {
+        let ctx = egui::Context::default();
+        let spots = vec![spot(0, "a", 0.0, 0.0), spot(0, "b", 60.0, 0.0)];
+        let mut state = State::default();
+        let mut text = String::new();
+        // Draw a text field and give it focus, then keep drawing it so it stays focused.
+        for _ in 0..2 {
+            let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+                let field = ui.text_edit_singleline(&mut text);
+                field.request_focus();
+            });
+            output.textures_delta.clear();
+        }
+        assert!(ctx.text_edit_focused());
+
+        let mut output = ctx.run_ui(press(Key::ArrowRight, egui::Modifiers::COMMAND), |ui| {
+            ui.ctx()
+                .data_mut(|d| d.insert_temp(last_id(), spots.clone()));
+            let order: Vec<u64> = cards(&spots).into_iter().map(|(key, _)| key).collect();
+            let _ = run(ui.ctx(), &mut state, &order, &cards(&spots), false);
+            let _ = ui.text_edit_singleline(&mut text);
+        });
+        output.textures_delta.clear();
+        assert_ne!(state.parameter(), Some("b"), "the field's keys are its own");
+        assert!(!shown(&ctx));
+    }
+}
