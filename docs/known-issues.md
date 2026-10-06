@@ -146,6 +146,9 @@ event boundary (`legacy_note`: a missing voice id is `None`, a wildcard channel 
 behaviour did not change with the refresh. Found while porting, not fixed, because the port changed
 no behaviour: mxm-mono-03 and mxm-poly-06 store a NoteOn's channel without `% NUM_CHANNELS` and
 then index their 16-entry bend tables with it, so a NoteOn on a wildcard channel would panic.
+**Fixed the same day** in those two and in mxm-mono-01, which had the same pattern: the stored
+channel wraps as the pitch-bend path does (mxm-mono-00 and the drums already did), so a wildcard
+reads channel 15's tables. Each has a `wildcard_channel` regression that panics without the fix.
 
 CLAP defines `-1` in a note event's channel, key, port or note-id fields as "match all", which is
 what makes a wildcard `NoteChoke` the natural global recovery for a CLAP-only note port.
