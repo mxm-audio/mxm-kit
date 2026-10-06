@@ -11,9 +11,13 @@
 //! mxm-mono-01   v0.1.0  debug     # -> target/debug/<library>, nice-plug's allocation guard on
 //! ```
 //!
-//! Each repository is cloned shallowly at its tag into `target/fetched/<repository>-<tag>` and built
+//! Each repository is cloned shallowly at its tag into [`fetch_dir`]`/<repository>-<tag>` and built
 //! there with its own `cargo xtask bundle` (release) or `cargo build` (debug), so it builds exactly
 //! as its own repository does. A clone already present is reused: a tag does not move.
+//!
+//! **The clones live outside this repository.** nice-plug's bundler bundles the *outermost* workspace
+//! on a path (`nice_plug_xtask::chdir_workspace_root`), so a clone inside this repository's `target/`
+//! would bundle this repository instead. Its first version did exactly that.
 
 use anyhow::{Context, Result, bail};
 use std::path::{Path, PathBuf};
@@ -69,11 +73,10 @@ pub fn fetch(workspace_root: &Path) -> Result<Vec<PathBuf>> {
     let text = std::fs::read_to_string(&list)
         .with_context(|| format!("Could not read {}", list.display()))?;
     let target = workspace_root.join("target");
+    let clones = fetch_dir()?;
     let mut placed = Vec::new();
     for wanted in parse(&text)? {
-        let checkout = target
-            .join("fetched")
-            .join(format!("{}-{}", wanted.repo, wanted.tag));
+        let checkout = clones.join(format!("{}-{}", wanted.repo, wanted.tag));
         if !checkout.join("Cargo.toml").exists() {
             run(Command::new("git")
                 .args(["clone", "--quiet", "--depth", "1", "--branch", &wanted.tag])
@@ -81,12 +84,7 @@ pub fn fetch(workspace_root: &Path) -> Result<Vec<PathBuf>> {
                 .arg(&checkout))?;
         }
         if wanted.release {
-            run(Command::new(cargo()).current_dir(&checkout).args([
-                "xtask",
-                "bundle",
-                &wanted.repo,
-                "--release",
-            ]))?;
+            run(cargo_in(&checkout).args(["xtask", "bundle", &wanted.repo, "--release"]))?;
             let bundled = target.join("bundled");
             std::fs::create_dir_all(&bundled)?;
             for name in [
@@ -100,9 +98,7 @@ pub fn fetch(workspace_root: &Path) -> Result<Vec<PathBuf>> {
                 }
             }
         } else {
-            run(Command::new(cargo())
-                .current_dir(&checkout)
-                .args(["build", "-p", &wanted.repo]))?;
+            run(cargo_in(&checkout).args(["build", "-p", &wanted.repo]))?;
             let library = format!(
                 "{}{}{}",
                 std::env::consts::DLL_PREFIX,
@@ -149,8 +145,35 @@ fn copy(from: &Path, to: &Path) -> Result<()> {
     Ok(())
 }
 
-fn cargo() -> String {
-    std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned())
+/// Where fetched repositories are cloned and built: `MXM_FETCH_DIR` if set, else
+/// `<CARGO_HOME>/mxm-fetch` (`~/.cargo/mxm-fetch` by default). Outside every workspace (see the module
+/// documentation), and shared by every repository on the machine, so two that need the same plugin
+/// build it once.
+pub fn fetch_dir() -> Result<PathBuf> {
+    if let Some(dir) = std::env::var_os("MXM_FETCH_DIR") {
+        return Ok(dir.into());
+    }
+    let cargo_home = std::env::var_os("CARGO_HOME")
+        .map(PathBuf::from)
+        .or_else(|| {
+            std::env::var_os("HOME")
+                .or_else(|| std::env::var_os("USERPROFILE"))
+                .map(|home| PathBuf::from(home).join(".cargo"))
+        })
+        .context("Neither CARGO_HOME nor a home directory is set; set MXM_FETCH_DIR")?;
+    Ok(cargo_home.join("mxm-fetch"))
+}
+
+/// Cargo, run in a fetched repository as if started there. This command runs under `cargo run`,
+/// whose `CARGO_MANIFEST_DIR` names this repository's xtask, and nice-plug's bundler reads it before
+/// anything else to find the workspace it bundles.
+fn cargo_in(checkout: &Path) -> Command {
+    let mut command = Command::new(std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned()));
+    command
+        .current_dir(checkout)
+        .env_remove("CARGO_MANIFEST_DIR")
+        .env_remove("CARGO_TARGET_DIR");
+    command
 }
 
 #[cfg(test)]

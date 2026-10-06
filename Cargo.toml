@@ -16,7 +16,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.3.0"
+version = "0.3.1"
 edition = "2024"
 rust-version = "1.95"        # the GUI floor; crates that do not need it override downward
 license = "MIT"

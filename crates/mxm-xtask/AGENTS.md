@@ -39,7 +39,10 @@ plugins to fetch; all three belong to the repository being built.
   inside the repository. Keep worktrees, and repositories, out of any directory that holds a
   workspace manifest of its own.
 - **`fetch` builds another repository the way it builds itself.** It clones the pinned tag into
-  `target/fetched/<repository>-<tag>` and runs that repository's own `cargo xtask bundle` (release)
+  `fetch::fetch_dir()` — `MXM_FETCH_DIR`, else `<CARGO_HOME>/mxm-fetch` — **outside every workspace**,
+  for the reason above: its first version cloned into this repository's `target/fetched/`, and the
+  bundler then looked for the fetched plugin in this repository (0.3.1). It runs that repository's
+  own `cargo xtask bundle` (release)
   or `cargo build` (debug, where nice-plug's allocation guard is compiled in), then copies the
   `.clap` and its control map into `target/bundled/`, or the bare library into `target/debug/`. A
   clone already there is reused, because a tag does not move. `test-bundles.txt` is
