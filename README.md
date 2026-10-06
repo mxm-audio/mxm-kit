@@ -30,12 +30,12 @@ builds with:
 
 ```toml
 [dependencies]
-mxm-ui = { git = "https://github.com/mxm-audio/mxm-kit", tag = "v0.3.1" }
-mxm-preset = { git = "https://github.com/mxm-audio/mxm-kit", tag = "v0.3.1" }
+mxm-ui = { git = "https://github.com/mxm-audio/mxm-kit", tag = "v0.4.0" }
+mxm-preset = { git = "https://github.com/mxm-audio/mxm-kit", tag = "v0.4.0" }
 
 [patch.crates-io]
-nice-plug = { git = "https://github.com/mxm-audio/nice-plug", tag = "0.3.0-mxm.1" }
-egui-baseview = { git = "https://github.com/mxm-audio/egui-baseview", tag = "0.7.0-mxm.1" }
+nice-plug = { git = "https://github.com/mxm-audio/nice-plug", tag = "0.4.2-mxm.1" }
+egui-baseview = { git = "https://github.com/mxm-audio/egui-baseview", tag = "0.7.1-mxm.1" }
 ```
 
 Any MXM instrument repository under [github.com/mxm-audio](https://github.com/mxm-audio) is a

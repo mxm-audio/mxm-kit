@@ -38,6 +38,9 @@ plugin's own repository.
 
 **Status:** upstream bug, present in `nice-plug 0.3.0` *and* on `main` as of 2026-08-25.
 **Fixed locally** in [the nice-plug fork](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) (patch 3).
+*Since the fork's refresh onto nice-plug 0.4.2 (2026-10-06):* **fixed upstream** — `Task::StateChanged`
+now asks the host to rescan values (`f5235690`, the #63 follow-up), so patch 3 is dropped; the fork's
+patch 8 still schedules the rescan after a rolled-back load, which upstream does not.
 **Impact, before the patch:** 3 `clap-validator` failures on every nice-plug CLAP plugin, ours
 included, and a stale parameter panel in any host that trusts the callback.
 **Fixable from plugin code:** no.
@@ -137,6 +140,12 @@ until a value is typed in.
 **Status:** reported during the player's design review; not independently reproduced here, and
 **not patched** — the player avoids the path rather than relying on it.
 **Impact:** the player never relies on it for an MXM plugin.
+*Since the fork's refresh onto nice-plug 0.4.2 (2026-10-06):* the wrapper delivers `-1` as a typed
+`Wildcard` (`Key`, `Channel`, `VoiceID`). Every MXM plugin converts it back to 0.3.0's shape at the
+event boundary (`legacy_note`: a missing voice id is `None`, a wildcard channel or key is 255), so
+behaviour did not change with the refresh. Found while porting, not fixed, because the port changed
+no behaviour: mxm-mono-03 and mxm-poly-06 store a NoteOn's channel without `% NUM_CHANNELS` and
+then index their 16-entry bend tables with it, so a NoteOn on a wildcard channel would panic.
 
 CLAP defines `-1` in a note event's channel, key, port or note-id fields as "match all", which is
 what makes a wildcard `NoteChoke` the natural global recovery for a CLAP-only note port.
@@ -154,6 +163,12 @@ CLAP-only ports, and is verified against `dk.mxm.fixture.clap-only-notes` rather
 bisected here. **Fixed locally** in [the nice-plug fork](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) (patch 1).
 **Impact, before the patch:** debug builds **abort**; release builds allocate on the audio thread
 silently.
+*Since the fork's refresh onto nice-plug 0.4.2 (2026-10-06):* upstream answered the report (#87)
+by letting the input queue grow, which still allocates; the fork keeps patch 1's hard bound,
+adapted (the queue is reserved at activation, with upstream's `INPUT_EVENT_CAPACITY` of 1024 as
+its floor). The figures below are 0.3.0's: `NoteEvent<()>` is 24 bytes since 0.4.2, so 20480 no
+longer follows from the live type (mxm-mono-01's
+`note_event_size_explains_the_recorded_allocation_failure` pins today's size).
 **Fixable from plugin code:** no — the buffer belongs to the wrapper.
 **Regression tests:**
 `plugin_robustness.rs::more_events_than_the_configured_wrapper_capacity_do_not_allocate_or_abort`
@@ -232,6 +247,9 @@ as an occasional dropout.
 
 **Status:** upstream defect in `nice-plug 0.3.0`. **Fixed locally** in
 [the nice-plug fork](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) (patch 4).
+*Since the fork's refresh onto nice-plug 0.4.2 (2026-10-06):* **fixed upstream** with the same check
+in both arms (`0899f50062`, the fix for #86), so patch 4 is dropped. Poly-modulation values are
+still unguarded, as they were under 0.3.0 with the patch.
 **Impact, before the patch:** one `CLAP_EVENT_PARAM_VALUE` or `PARAM_MOD` carrying NaN or an
 infinity silences the instrument until it is reloaded.
 **Fixable from plugin code:** only by sanitising every parameter read in every plugin — four
@@ -261,6 +279,9 @@ its value: a NaN is not a value the host can have meant.
 
 **Status:** upstream bug in `nice-plug 0.3.0`, still present on `main` (`542daf1`). Reproduced here.
 **Fixed locally** in [the nice-plug fork](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) (patch 2).
+*Since the fork's refresh onto nice-plug 0.4.2 (2026-10-06):* upstream added a 256 MiB cap and a
+fallible reservation (`19cad8147d`, the fix for #85); the fork takes upstream's cap (half our former
+512 MiB) and keeps its exact-length read, because upstream still parses a truncated payload.
 **Impact, before the patch:** a corrupt or truncated preset **aborts the process**, taking the host
 with it.
 **Fixable from plugin code:** no — the length is read before the plugin's deserializer is reached.
@@ -305,6 +326,8 @@ aborting and verify that trailing stream bytes are not consumed.
 
 **Status:** defect in `nice-plug 0.3.0`. **Fixed locally** in
 [the nice-plug fork](https://github.com/mxm-audio/nice-plug/blob/main/PATCHES.md) (patch 5).
+*Since the fork's refresh onto nice-plug 0.4.2 (2026-10-06):* **fixed upstream** with the identical
+check (`can_process_in_place`, `f4afbb7581`, the fix for #84), so patch 5 is dropped.
 **Impact, before the patch:** a mono-in, stereo-out effect advertises an impossible in-place pairing;
 `clap-validator` refuses to process it.
 **Fixable from plugin code:** no — the wrapper owns CLAP audio-port declarations.

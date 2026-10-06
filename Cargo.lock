@@ -1520,7 +1520,7 @@ dependencies = [
 
 [[package]]
 name = "mxm-audio-file"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
  "aifc",
  "flacenc",
@@ -1529,7 +1529,7 @@ dependencies = [
 
 [[package]]
 name = "mxm-audio-file-decode"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
  "hound",
  "mxm-audio-file",
@@ -1538,7 +1538,7 @@ dependencies = [
 
 [[package]]
 name = "mxm-control-map"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -1546,15 +1546,15 @@ dependencies = [
 
 [[package]]
 name = "mxm-measure"
-version = "0.3.1"
+version = "0.4.0"
 
 [[package]]
 name = "mxm-modulation"
-version = "0.3.1"
+version = "0.4.0"
 
 [[package]]
 name = "mxm-modulation-params"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
  "egui",
  "mxm-modulation",
@@ -1565,11 +1565,11 @@ dependencies = [
 
 [[package]]
 name = "mxm-part-routing"
-version = "0.3.1"
+version = "0.4.0"
 
 [[package]]
 name = "mxm-plugin-test"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
  "egui",
  "egui_kittest",
@@ -1581,7 +1581,7 @@ dependencies = [
 
 [[package]]
 name = "mxm-preset"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
  "dirs",
  "egui",
@@ -1596,11 +1596,11 @@ dependencies = [
 
 [[package]]
 name = "mxm-tempo"
-version = "0.3.1"
+version = "0.4.0"
 
 [[package]]
 name = "mxm-ui"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
  "dirs",
  "egui",
@@ -1612,7 +1612,7 @@ dependencies = [
 
 [[package]]
 name = "mxm-xtask"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "mxm-control-map",
@@ -1709,8 +1709,8 @@ dependencies = [
 
 [[package]]
 name = "nice-plug"
-version = "0.3.0"
-source = "git+https://github.com/mxm-audio/nice-plug?tag=0.3.0-mxm.1#ba34543e40d58013e90e63a5aae5d12bc0328bd8"
+version = "0.4.2"
+source = "git+https://github.com/mxm-audio/nice-plug?tag=0.4.2-mxm.1#92f8c6ac332355796bf85fe8104c086f26c0ae68"
 dependencies = [
  "anyhow",
  "anymap3",
@@ -1732,14 +1732,15 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.20",
  "tracing",
+ "try-lock",
  "windows",
 ]
 
 [[package]]
 name = "nice-plug-core"
-version = "0.3.0"
+version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3efe28c7689d970d8ebe9afec813895ace1fdb544fb50f79122ccc1ee6dca54b"
+checksum = "ab8fe3f3e395c1140d7519a78069b59b2e3bf6da2b904d0c54ad7ab49a60ba09"
 dependencies = [
  "atomic_float",
  "atomic_refcell",
@@ -1753,6 +1754,7 @@ dependencies = [
  "raw-window-handle",
  "serde",
  "serde_json",
+ "thiserror 2.0.20",
  "tracing",
 ]
 
@@ -3241,6 +3243,12 @@ dependencies = [
  "thread_local",
  "tracing-core",
 ]
+
+[[package]]
+name = "try-lock"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
 name = "type-map"

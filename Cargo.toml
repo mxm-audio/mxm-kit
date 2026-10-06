@@ -16,7 +16,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.3.1"
+version = "0.4.0"
 edition = "2024"
 rust-version = "1.95"        # the GUI floor; crates that do not need it override downward
 license = "MIT"
@@ -27,7 +27,7 @@ repository = "https://github.com/mxm-audio/mxm-kit"
 # Pinned exactly, as in every MXM repository; Cargo.lock is committed.
 # default-features = false drops `vst3` (GPL bindings) and `tracing-subscriber`
 # (a plugin must not install a global subscriber into its host).
-nice-plug = { version = "=0.3.0", default-features = false, features = ["editor", "assert_process_allocs"] }
+nice-plug = { version = "=0.4.2", default-features = false, features = ["editor", "assert_process_allocs"] }
 egui = "=0.36.1"
 
 mxm-ui = { path = "crates/ui" }
@@ -60,4 +60,4 @@ strip = "none"
 # nice-plug 0.3.0 as published plus the patches in its fork's PATCHES.md. (A plugin repository also
 # patches egui-baseview, which only its editor's nice-plug-egui pulls in; no crate here does.)
 [patch.crates-io]
-nice-plug = { git = "https://github.com/mxm-audio/nice-plug", tag = "0.3.0-mxm.1" }
+nice-plug = { git = "https://github.com/mxm-audio/nice-plug", tag = "0.4.2-mxm.1" }

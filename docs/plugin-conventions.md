@@ -41,7 +41,7 @@ Twenty plugins — eleven instruments and nine effects:
 | [`mxm-classic-verb/`](https://github.com/mxm-audio/mxm-classic-verb/blob/main/plugins/mxm-classic-verb/AGENTS.md) | Everyday algorithmic reverb whose spaces are fitted from impulse responses |
 | [`mxm-creative-sampler/`](https://github.com/mxm-audio/mxm-creative-sampler/blob/main/plugins/mxm-creative-sampler/AGENTS.md) | Original small-sample instrument with Repitch, Stretch and Grain readers and embedded asset state |
 | [`mxm-drum-machine/`](https://github.com/mxm-audio/mxm-drum-machine/blob/main/plugins/mxm-drum-machine/AGENTS.md) | Original sixteen-slot drum instrument over an append-only pool of machine-specific circuits; all 94 admitted models owner listening-approved, Kit or chromatic MIDI per slot, stereo main plus sixteen mono outputs, nine source-family audition presets on one canonical role map |
-| [`mxm-model-drums/`](https://github.com/mxm-audio/mxm-model-drums/blob/main/plugins/mxm-model-drums/AGENTS.md) | Sixteen slots of realistic synthesized drums that reach far past the real ones; twenty general controls and four routes a slot (650 parameters); the Ringing kick its first model; built and bundled, clap-validator clean |
+| [`mxm-model-drums/`](https://github.com/mxm-audio/mxm-model-drums/blob/main/plugins/mxm-model-drums/AGENTS.md) | Sixteen slots of realistic synthesized drums that reach far past the real ones; twenty general controls and four routes a slot (650 parameters); the Ringing kick its first model; built and bundled, clap-validator clean. *Private and unreleased since 2026-10-06, so the link works only for the maintainer* |
 
 
 **This doc holds shared conventions.** Permanent identifiers, machine-specific behavior and active

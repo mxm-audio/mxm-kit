@@ -385,6 +385,8 @@ mod tests {
     struct CountingHost(std::sync::atomic::AtomicUsize);
 
     impl nice_plug::context::gui::GuiContextInner for CountingHost {
+        // A test double has no host to ask for a restart (nice-plug 0.4).
+        fn request_restart(&self) {}
         fn plugin_api(&self) -> PluginApi {
             PluginApi::Clap
         }
