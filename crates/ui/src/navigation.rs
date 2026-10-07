@@ -409,7 +409,8 @@ pub fn spots(ctx: &egui::Context) -> Vec<Spot> {
 enum Step {
     Card(Dir),
     Param(Dir),
-    /// The keyboard language's bare arrow: the nearest parameter that way, on any card.
+    /// The keyboard language's bare arrow: the next parameter that way in the card, ← → only along
+    /// its row.
     Any(Dir),
 }
 
@@ -803,7 +804,11 @@ fn move_param(state: &mut State, spots: &[Spot], dir: Dir) {
     }
 }
 
-/// The keyboard language's bare arrow: the nearest parameter painted that way, on any card.
+/// The keyboard language's bare arrow: parameter to parameter **inside the card**, as in a synth
+/// editor; COARSE + an arrow goes card to card. ← → stay on the parameter's row and stop at its
+/// end, ↑ ↓ go to the nearest row that way and the parameter most in line there. (The owner,
+/// 2026-10-07, of the first pilot, whose arrows went to the nearest parameter on any card: "There
+/// is no logic to the order ... sometimes the lr keys jumps up or down to cards.")
 fn move_any(state: &mut State, spots: &[Spot], dir: Dir) {
     let (Some(card), Some(key)) = (state.cursor.card, state.cursor.key.as_deref()) else {
         return;
@@ -814,11 +819,15 @@ fn move_any(state: &mut State, spots: &[Spot], dir: Dir) {
     else {
         return;
     };
+    let horizontal = matches!(dir, Dir::Left | Dir::Right);
+    let row =
+        |rect: Rect| from.rect.bottom() > rect.top() + 0.5 && rect.bottom() > from.rect.top() + 0.5;
     let target = directional(
         from.rect,
         spots
             .iter()
-            .filter(|spot| !(spot.card == card && spot.key == key))
+            .filter(|spot| spot.card == card && spot.key != key)
+            .filter(|spot| !horizontal || row(spot.rect))
             .map(|spot| (spot, spot.rect)),
         dir,
     );
@@ -1543,5 +1552,81 @@ mod tests {
         let view_down: Vec<_> = tap(Key::C).into_iter().chain(tap(Key::ArrowDown)).collect();
         frame(&mut state, view_down, &mut pressed);
         assert_eq!(state.bar(), None, "VIEW + down is the cards again");
+    }
+
+    /// **The keyboard language's bare arrows keep to the card**, and ← → to the row: at the end
+    /// of either they stop, and COARSE + an arrow goes to the next card.
+    #[test]
+    fn under_the_language_the_arrows_keep_to_the_card_and_the_row() {
+        let ctx = egui::Context::default();
+        crate::pilot::enable(&ctx);
+        let mut state = State::default();
+        // Card 1: a row of two, and one below them; card 2 to the right, level with the first row.
+        let spots = vec![
+            spot(1, "a", 0.0, 0.0),
+            spot(1, "b", 50.0, 0.0),
+            spot(1, "c", 0.0, 60.0),
+            spot(2, "d", 120.0, 0.0),
+            spot(2, "e", 120.0, 70.0),
+        ];
+        let cards = |state: &State| (state.card(), state.parameter().map(str::to_owned));
+        frame(&ctx, &mut state, &spots, egui::RawInput::default());
+        assert_eq!(cards(&state), (Some(1), Some("a".into())));
+        let arrow = |key| press(key, egui::Modifiers::NONE);
+        frame(&ctx, &mut state, &spots, arrow(Key::ArrowRight));
+        assert_eq!(cards(&state), (Some(1), Some("b".into())));
+        frame(&ctx, &mut state, &spots, arrow(Key::ArrowRight));
+        assert_eq!(
+            cards(&state),
+            (Some(1), Some("b".into())),
+            "the row ends; the card doesn't change"
+        );
+        frame(&ctx, &mut state, &spots, arrow(Key::ArrowDown));
+        assert_eq!(
+            cards(&state),
+            (Some(1), Some("c".into())),
+            "down is the next row, most in line"
+        );
+        frame(&ctx, &mut state, &spots, arrow(Key::ArrowRight));
+        assert_eq!(
+            cards(&state),
+            (Some(1), Some("c".into())),
+            "right never drops to another row"
+        );
+        frame(&ctx, &mut state, &spots, arrow(Key::ArrowDown));
+        assert_eq!(cards(&state), (Some(1), Some("c".into())), "the card ends");
+        // COARSE + right is the next card.
+        frame(
+            &ctx,
+            &mut state,
+            &spots,
+            egui::RawInput {
+                events: vec![
+                    egui::Event::Key {
+                        key: Key::S,
+                        physical_key: None,
+                        pressed: true,
+                        repeat: false,
+                        modifiers: egui::Modifiers::NONE,
+                    },
+                    egui::Event::Key {
+                        key: Key::S,
+                        physical_key: None,
+                        pressed: false,
+                        repeat: false,
+                        modifiers: egui::Modifiers::NONE,
+                    },
+                    egui::Event::Key {
+                        key: Key::ArrowRight,
+                        physical_key: None,
+                        pressed: true,
+                        repeat: false,
+                        modifiers: egui::Modifiers::NONE,
+                    },
+                ],
+                ..Default::default()
+            },
+        );
+        assert_eq!(state.card(), Some(2), "COARSE + right is the next card");
     }
 }
