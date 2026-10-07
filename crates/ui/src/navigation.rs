@@ -89,6 +89,9 @@ pub struct State {
     cell: usize,
     /// VIEW + arrows left the cards for a bar: which, counted from the top.
     bar: Option<usize>,
+    /// A card COARSE + an arrow asked the renderer to show from another page, and the frames left
+    /// to wait for it before the cursor stops waiting.
+    awaiting: Option<(u64, u8)>,
     /// The cursor among a bar's widgets.
     reach: crate::reach::State<usize>,
 }
@@ -655,6 +658,26 @@ pub fn run(
         return None;
     }
 
+    // **The page changed under the cursor** — a tab chosen from the view bar, or with the mouse —
+    // so its card is not drawn any more: it goes to the first card of the page shown, where it was
+    // last on it. Not while a card COARSE asked for is on its way (the owner, 2026-10-07: back from
+    // the tabs the cursor was on nothing, and COARSE + an arrow started from a card off screen).
+    if pilot {
+        if let Some((card, left)) = state.awaiting {
+            let arrived = cards.iter().any(|(key, _)| *key == card);
+            state.awaiting = (!arrived && left > 0).then_some((card, left - 1));
+        }
+        if state.awaiting.is_none()
+            && let Some(card) = state.cursor.card
+            && !cards.iter().any(|(key, _)| *key == card)
+            && let Some(first) = order
+                .iter()
+                .find(|key| cards.iter().any(|(visible, _)| visible == *key))
+        {
+            enter(state, &spots, *first);
+        }
+    }
+
     // A cursor that has never landed starts on the first thing drawn, so the first keystroke is
     // never spent arriving.
     if state.cursor.key.is_none() {
@@ -675,6 +698,7 @@ pub fn run(
             Step::Card(dir) => {
                 if let Some(wanted) = move_card(state, &spots, order, cards, dir) {
                     show = Some(wanted);
+                    state.awaiting = Some((wanted, 4));
                 }
             }
             Step::Param(dir) => move_param(state, &spots, dir),
@@ -1685,5 +1709,46 @@ mod tests {
             },
         );
         assert_eq!(state.card(), Some(2), "COARSE + right is the next card");
+    }
+
+    /// **The page changes under the cursor** (a tab chosen, with the keys or the mouse): the
+    /// cursor goes to the first card of the page shown, and COARSE + an arrow starts from there.
+    #[test]
+    fn under_the_language_a_new_page_takes_the_cursor_to_its_first_card() {
+        let ctx = egui::Context::default();
+        crate::pilot::enable(&ctx);
+        let mut state = State::default();
+        let first_page = vec![spot(1, "a", 0.0, 0.0), spot(2, "b", 100.0, 0.0)];
+        let second_page = vec![spot(3, "c", 0.0, 0.0), spot(4, "d", 100.0, 0.0)];
+        let order = [1, 2, 3, 4];
+        let page = |ctx: &egui::Context, state: &mut State, spots: &[Spot], input| {
+            let mut output = ctx.run_ui(input, |ui| {
+                ui.ctx()
+                    .data_mut(|d| d.insert_temp(last_id(), spots.to_vec()));
+                let _ = run(ui.ctx(), state, &order, &cards(spots), false);
+            });
+            output.textures_delta.clear();
+        };
+        page(&ctx, &mut state, &first_page, egui::RawInput::default());
+        assert_eq!(state.card(), Some(1));
+        // The second page is shown: the cursor follows it.
+        page(&ctx, &mut state, &second_page, egui::RawInput::default());
+        assert_eq!((state.card(), state.parameter()), (Some(3), Some("c")));
+        // COARSE + right from there is the next card on this page.
+        let coarse_right = egui::RawInput {
+            events: [(Key::S, true), (Key::S, false), (Key::ArrowRight, true)]
+                .into_iter()
+                .map(|(key, pressed)| egui::Event::Key {
+                    key,
+                    physical_key: None,
+                    pressed,
+                    repeat: false,
+                    modifiers: egui::Modifiers::NONE,
+                })
+                .collect(),
+            ..Default::default()
+        };
+        page(&ctx, &mut state, &second_page, coarse_right);
+        assert_eq!(state.card(), Some(4));
     }
 }
