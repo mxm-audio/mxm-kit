@@ -56,6 +56,8 @@ pub enum Action {
     /// Duplicates, and selects the copy so it can be moved straight away.
     Duplicate,
     Delete,
+    /// Deletes and closes the gap: what came after moves up to where it began.
+    Ripple,
     /// Opens the item: goes in.
     Open,
 }
@@ -76,7 +78,7 @@ pub enum Job {
 
 impl Job {
     /// Every job, in the order a keymap file lists them.
-    pub const ALL: [Job; 15] = [
+    pub const ALL: [Job; 16] = [
         Job::Verb(Verb::Move),
         Job::Verb(Verb::Extent),
         Job::Verb(Verb::Value),
@@ -88,6 +90,7 @@ impl Job {
         Job::Action(Action::Add),
         Job::Action(Action::Duplicate),
         Job::Action(Action::Delete),
+        Job::Action(Action::Ripple),
         Job::Action(Action::Open),
         Job::Out,
         Job::Back,
@@ -108,6 +111,7 @@ impl Job {
             Job::Action(Action::Add) => "add",
             Job::Action(Action::Duplicate) => "duplicate",
             Job::Action(Action::Delete) => "delete",
+            Job::Action(Action::Ripple) => "ripple",
             Job::Action(Action::Open) => "open",
             Job::Out => "out",
             Job::Back => "back",

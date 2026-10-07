@@ -127,6 +127,7 @@ fn action_name(action: Action) -> &'static str {
         Action::Add => "add",
         Action::Duplicate => "duplicate",
         Action::Delete => "delete",
+        Action::Ripple => "ripple",
         Action::Open => "open",
     }
 }

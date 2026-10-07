@@ -22,7 +22,8 @@ coarse = X
 fine = C
 micro = V
 
-delete = Delete Backspace
+delete = Delete
+ripple = Backspace
 open = Enter
 back = Escape
 # Provisional: Tab, Caps Lock and a tapped Shift are the candidates, and usage decides.

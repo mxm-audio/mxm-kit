@@ -25,7 +25,8 @@ micro = F
 add = Z
 duplicate = X
 
-delete = Delete Backspace
+delete = Delete
+ripple = Backspace
 open = Enter
 back = Escape
 # The study put OUT on Caps Lock, which comes out 0.6 points cheaper, but a toolkit that reports
