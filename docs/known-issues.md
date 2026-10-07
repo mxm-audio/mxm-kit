@@ -448,10 +448,20 @@ enable, so the test harness initialises no adapter and CI needed no change.
 
 ## A plugin editor renders white when the host repaints too often
 
-**Status: understood and worked around**, in `apps/mxm-player`.
-**Impact:** the plugin's interface is a blank white rectangle. It looks like a plugin bug and is not.
-**Fixable from our code: yes** — it is a host-side scheduling choice.
-**Fixable from plugin code: no.**
+**Status: fixed in the plugins (2026-10-07)**, by the baseview fork, and worked around in
+`apps/mxm-player` and newDAWn before that.
+**Impact:** the plugin's interface is a blank white rectangle, or, in a host that draws now and then,
+an editor that ignores the mouse while the host is busy (newDAWn while it played, 2026-10-07).
+**Fixable from our code: yes**, on both sides. The host can leave idle time between its frames; the
+plugin can draw on a message no host starves.
+**Fixable from plugin code: yes, after all.** This entry said no. The mechanism below is right, but
+the editor's frames came from `WM_TIMER`, which Windows withholds while *anything* else is queued,
+a pending `WM_PAINT` included. [mxm-audio/baseview](https://github.com/mxm-audio/baseview)'s
+`PATCHES.md` adds a frame clock that posts a message every 15 ms, which Windows delivers before
+input, paint and timers, and the egui-baseview fork takes baseview from there. Measured with the
+player redrawing every 1 ms (`MXM_SERVICE_MS=1`), mxm-mono-08's editor captured as below: 25
+distinct colours (white) before, 1624 (the whole editor) after. A plugin built before it relocks on
+the egui-baseview fork still has the old timer.
 
 ### It is not the OpenGL issue above, and that is the point
 
