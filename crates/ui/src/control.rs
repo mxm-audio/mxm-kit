@@ -7142,4 +7142,36 @@ mod tests {
         rig.frame(tap(Key::Delete), |ui| two_knobs(ui, &mut asked));
         assert_eq!(asked[0], Some(0.0), "DELETE is the default");
     }
+
+    /// Under the language, a segmented parameter is one stop for the arrows, and VALUE + an arrow
+    /// chooses the next cell, as it changes any value.
+    #[test]
+    fn under_the_language_value_and_an_arrow_choose_the_next_cell() {
+        let mut rig = Cursor::new();
+        crate::pilot::enable(&rig.ctx);
+        let mut selected = 0usize;
+        let draw = |ui: &mut Ui, selected: &mut usize| {
+            crate::navigation::at(ui, "length", |ui| {
+                segmented(
+                    ui,
+                    &crate::theme::LIGHT,
+                    "Length",
+                    &["2 steps", "3 steps", "4 steps", "5 steps"],
+                    selected,
+                    None,
+                    Some(0),
+                    &["Two steps.", "Three steps.", "Four steps.", "Five steps."],
+                );
+            });
+        };
+        for _ in 0..3 {
+            rig.frame(Vec::new(), |ui| draw(ui, &mut selected));
+        }
+        rig.frame(tap(Key::ArrowRight), |ui| draw(ui, &mut selected));
+        assert_eq!(selected, 0, "a bare arrow is not an edit");
+        rig.frame(taps(&[Key::W, Key::ArrowRight, Key::Tab]), |ui| {
+            draw(ui, &mut selected)
+        });
+        assert_eq!(selected, 1, "VALUE + right is the next cell");
+    }
 }
