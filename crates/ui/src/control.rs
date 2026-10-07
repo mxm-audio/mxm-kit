@@ -7143,10 +7143,12 @@ mod tests {
         assert_eq!(asked[0], Some(0.0), "DELETE is the default");
     }
 
-    /// Under the language, a segmented parameter is one stop for the arrows, and VALUE + an arrow
-    /// chooses the next cell, as it changes any value.
+    /// Under the language, **each cell of a segmented parameter is a stop for the arrows** (the
+    /// owner, 2026-10-07: "It fits what I see on the screen"): a bare arrow goes to the next cell
+    /// without choosing it, OPEN chooses the cell the cursor is on, and VALUE + an arrow still
+    /// chooses the next one from the chosen.
     #[test]
-    fn under_the_language_value_and_an_arrow_choose_the_next_cell() {
+    fn under_the_language_the_arrows_stop_on_each_cell_and_open_chooses_it() {
         let mut rig = Cursor::new();
         crate::pilot::enable(&rig.ctx);
         let mut selected = 0usize;
@@ -7168,10 +7170,17 @@ mod tests {
             rig.frame(Vec::new(), |ui| draw(ui, &mut selected));
         }
         rig.frame(tap(Key::ArrowRight), |ui| draw(ui, &mut selected));
-        assert_eq!(selected, 0, "a bare arrow is not an edit");
+        rig.frame(Vec::new(), |ui| draw(ui, &mut selected));
+        assert_eq!(rig.nav.cell(), 1, "right is the next cell");
+        assert_eq!(selected, 0, "a bare arrow chooses nothing");
+        rig.frame(tap(Key::Enter), |ui| draw(ui, &mut selected));
+        assert_eq!(selected, 1, "OPEN chooses the cell the cursor is on");
         rig.frame(taps(&[Key::W, Key::ArrowRight, Key::Tab]), |ui| {
             draw(ui, &mut selected)
         });
-        assert_eq!(selected, 1, "VALUE + right is the next cell");
+        assert_eq!(
+            selected, 2,
+            "VALUE + right is the next cell from the chosen one"
+        );
     }
 }

@@ -830,7 +830,10 @@ out.
 
 Where `pilot` is on (mxm-mono-08, from 2026-10-07), `navigation::run` reads the keys through the
 `mxm-keys` engine instead of §11's modifiers, before any control is drawn: a bare arrow goes to the
-nearest parameter on any card (`Step::Any`), COARSE + an arrow is the old card step, VIEW + an arrow
+next parameter inside the card (`Step::Any`; ← → only along the row), and to each cell of a
+segmented control, which takes egui's focus so OPEN (Enter, left in egui's queue) chooses it (the
+owner, 2026-10-07: the first pilot's arrows crossed cards and rows, and stepping across a control's
+buttons "fits what I see on the screen"), COARSE + an arrow is the old card step, VIEW + an arrow
 moves between the cards and the bars `navigation::bar` recorded (the view bar, then the app bar),
 where `reach` walks their widgets. VALUE's presses, OUT's keep, BACK's cancel and DELETE's reset are
 published as `ValueKeys` for the one control the cursor is on, which takes them in

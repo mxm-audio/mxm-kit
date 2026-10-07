@@ -47,6 +47,11 @@ pub struct Spot {
     pub id: Id,
     /// Every focusable widget belonging to this parameter. A segmented control has one per cell.
     pub focus_ids: Vec<Id>,
+    /// Where each of `focus_ids` was painted: a segmented control's cells, each a stop for the
+    /// keyboard language's arrows.
+    pub cells: Vec<Rect>,
+    /// The cell the pointer took, of `focus_ids`, when `pointed`.
+    pub pointed_cell: usize,
     /// The pointer pressed, dragged or clicked this control in the frame that drew it.
     ///
     /// Read from the control's own [`Response`], never from where the press landed: a press on a
@@ -79,6 +84,9 @@ pub struct State {
     owed: bool,
     /// The keyboard language's engine, where the pilot reads keys through it ([`language`]).
     language: Option<mxm_keys::Engine>,
+    /// The cell of the parameter the cursor is on, of its `focus_ids`: the keyboard language stops
+    /// on each cell of a segmented control, and OPEN presses the one the cursor is on.
+    cell: usize,
     /// VIEW + arrows left the cards for a bar: which, counted from the top.
     bar: Option<usize>,
     /// The cursor among a bar's widgets.
@@ -104,9 +112,19 @@ impl State {
         self.bar
     }
 
+    /// The cell of the parameter the cursor is on: 0, but for a segmented control's other cells.
+    pub fn cell(&self) -> usize {
+        self.cell
+    }
+
     fn settle(&mut self, spot: &Spot) {
+        self.settle_cell(spot, 0);
+    }
+
+    fn settle_cell(&mut self, spot: &Spot, cell: usize) {
         self.cursor.card = Some(spot.card);
         self.cursor.key = Some(spot.key.clone());
+        self.cell = cell.min(spot.focus_ids.len().saturating_sub(1));
         self.remembered.insert(spot.card, spot.key.clone());
     }
 }
@@ -381,9 +399,13 @@ fn register(ui: &Ui, id: Id, rect: Rect, pointed: bool) {
             // keep the first cell as the target, but use the union for geometry and remember every
             // cell so clicking any of them can move the cursor to this parameter.
             spot.rect = spot.rect.union(rect);
-            spot.pointed |= pointed;
             if !spot.focus_ids.contains(&id) {
                 spot.focus_ids.push(id);
+                spot.cells.push(rect);
+            }
+            if pointed {
+                spot.pointed = true;
+                spot.pointed_cell = spot.focus_ids.iter().position(|&f| f == id).unwrap_or(0);
             }
             return;
         }
@@ -393,7 +415,9 @@ fn register(ui: &Ui, id: Id, rect: Rect, pointed: bool) {
             rect,
             id,
             focus_ids: vec![id],
+            cells: vec![rect],
             pointed,
+            pointed_cell: 0,
         });
     });
 }
@@ -537,8 +561,11 @@ pub fn run(
     // first frame nothing else holds the keyboard.
     let pointed = spots.iter().find(|spot| spot.pointed);
     if let Some(spot) = pointed {
-        if state.cursor.card != Some(spot.card) || state.cursor.key.as_deref() != Some(&spot.key) {
-            state.settle(spot);
+        if state.cursor.card != Some(spot.card)
+            || state.cursor.key.as_deref() != Some(&spot.key)
+            || state.cell != spot.pointed_cell
+        {
+            state.settle_cell(spot, spot.pointed_cell);
         }
         let focused = ctx.memory(|m| m.focused());
         state.owed = !focused.is_some_and(|id| spot.focus_ids.contains(&id));
@@ -579,10 +606,16 @@ pub fn run(
     // another is dragged, and following it would undo the pointer's move.
     let focused = ctx.memory(|m| m.focused());
     if pointed.is_none()
-        && let Some(spot) = focused.and_then(|id| spots.iter().find(|s| s.focus_ids.contains(&id)))
-        && (state.cursor.card != Some(spot.card) || state.cursor.key.as_deref() != Some(&spot.key))
+        && let Some(id) = focused
+        && let Some(spot) = spots.iter().find(|s| s.focus_ids.contains(&id))
     {
-        state.settle(spot);
+        let cell = spot.focus_ids.iter().position(|&f| f == id).unwrap_or(0);
+        if state.cursor.card != Some(spot.card)
+            || state.cursor.key.as_deref() != Some(&spot.key)
+            || state.cell != cell
+        {
+            state.settle_cell(spot, cell);
+        }
     }
 
     // Hand over the focus a pointer move owed, now that nothing else holds the keyboard.
@@ -698,12 +731,13 @@ fn focus(ctx: &egui::Context, state: &State, spots: &[Spot]) {
     let Some(spot) = current_spot(state, spots) else {
         return;
     };
+    let id = spot.focus_ids.get(state.cell).copied().unwrap_or(spot.id);
     ctx.memory_mut(|m| {
         if state.moved {
-            m.request_focus(spot.id);
+            m.request_focus(id);
         }
         m.set_focus_lock_filter(
-            spot.id,
+            id,
             egui::EventFilter {
                 tab: false,
                 // `true` means the focused widget has exclusive access, so egui does not also
@@ -819,20 +853,40 @@ fn move_any(state: &mut State, spots: &[Spot], dir: Dir) {
     else {
         return;
     };
+    // Every stop in the card: a parameter, or each cell of a segmented one (the owner, 2026-10-07:
+    // "It fits what I see on the screen"), whose OPEN then presses that cell.
+    let stops = spots
+        .iter()
+        .filter(|spot| spot.card == card)
+        .flat_map(|spot| {
+            let cells: Vec<Rect> = if spot.cells.len() > 1 {
+                spot.cells.clone()
+            } else {
+                vec![spot.rect]
+            };
+            cells
+                .into_iter()
+                .enumerate()
+                .map(move |(cell, rect)| (spot, cell, rect))
+        });
+    let here = if from.cells.len() > 1 {
+        from.cells.get(state.cell).copied().unwrap_or(from.rect)
+    } else {
+        from.rect
+    };
     let horizontal = matches!(dir, Dir::Left | Dir::Right);
-    let row =
-        |rect: Rect| from.rect.bottom() > rect.top() + 0.5 && rect.bottom() > from.rect.top() + 0.5;
+    let row = |rect: Rect| here.bottom() > rect.top() + 0.5 && rect.bottom() > here.top() + 0.5;
+    let current = state.cell;
     let target = directional(
-        from.rect,
-        spots
-            .iter()
-            .filter(|spot| spot.card == card && spot.key != key)
-            .filter(|spot| !horizontal || row(spot.rect))
-            .map(|spot| (spot, spot.rect)),
+        here,
+        stops
+            .filter(|(spot, cell, _)| !(spot.key == key && *cell == current))
+            .filter(|(_, _, rect)| !horizontal || row(*rect))
+            .map(|(spot, cell, rect)| ((spot, cell), rect)),
         dir,
     );
-    if let Some(spot) = target {
-        state.settle(spot);
+    if let Some((spot, cell)) = target {
+        state.settle_cell(spot, cell);
         state.moved = true;
     }
 }
@@ -985,13 +1039,16 @@ mod tests {
 
     fn spot(card: u64, key: &str, x: f32, y: f32) -> Spot {
         let id = Id::new((card, key));
+        let rect = Rect::from_min_size(Pos2::new(x, y), egui::vec2(40.0, 40.0));
         Spot {
             card,
             key: key.to_owned(),
-            rect: Rect::from_min_size(Pos2::new(x, y), egui::vec2(40.0, 40.0)),
+            rect,
             id,
             focus_ids: vec![id],
+            cells: vec![rect],
             pointed: false,
+            pointed_cell: 0,
         }
     }
 
