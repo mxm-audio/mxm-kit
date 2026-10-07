@@ -104,6 +104,9 @@ measurement rulers (`mxm-measure`), the checks every plugin's tests share (`mxm-
 the bundling every repository's `xtask` shares (`mxm-xtask`). Beside them: the normative design
 system and control map, and the collection's filter, oscillator and modulation theory, in `docs/`.
 
+*Moved from AGENTS.md (2026-10-07), a status rather than a rule:* shipping mxm-tools'
+`apps/mxm-listener-hud` is deferred.
+
 ## The crate rules in full
 
 The ten rules as the root AGENTS.md stated them until 2026-10-06, with the evidence each crate was

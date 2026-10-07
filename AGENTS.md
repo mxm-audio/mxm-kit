@@ -58,11 +58,10 @@ The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.
 - `crates/mxm-control-map` is **the control-map standard and its schema**: the data and how a file is
   read and validated, never how a host applies a map.
 - **The unshipped measurement crates** — `crates/mxm-measure` here, `dsp-lab` and `mxm-listening` in
-  `mxm-tools` — are **not shared DSP and not an exception**: no shipped DSP moves in and none appears
-  in a shipped graph (`crates/mxm-measure/AGENTS.md`'s Verification). `dsp-lab` holds harnesses and
-  their policy, `mxm-measure` rulers (never a threshold or verdict), `mxm-listening` interpretation.
-  A harness that verifies one plugin stays with it. Shipping mxm-tools' `apps/mxm-listener-hud` is
-  deferred.
+  `mxm-tools` — are **not shared DSP and not an exception**: no shipped DSP moves in and none
+  appears in a shipped graph (`crates/mxm-measure/AGENTS.md`'s Verification). `dsp-lab` holds
+  harnesses and their policy, `mxm-measure` rulers (never a threshold or verdict), `mxm-listening`
+  interpretation. A harness that verifies one plugin stays with it.
 - `crates/mxm-xtask` is **the build tooling every repository's `xtask` shares** — bundling,
   control-map staging and `fetch`; mxm-player's root `xtask` adds only `fixtures`.
 - `crates/mxm-plugin-test` is **the checks every plugin's tests share** — neither shared DSP nor
@@ -77,7 +76,7 @@ The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.
 
 ## DOX
 
-The full wording: [NOTES.md § The DOX framework in full](NOTES.md#the-dox-framework-in-full).
+The full wording, with the hierarchy and a child doc's shape: [NOTES.md § The DOX framework in full](NOTES.md#the-dox-framework-in-full).
 
 - **AGENTS.md files are binding work contracts for their subtrees.** Work products, sources,
   instructions, records, assets and durable docs stay understandable from the nearest AGENTS.md plus
@@ -88,14 +87,10 @@ The full wording: [NOTES.md § The DOX framework in full](NOTES.md#the-dox-frame
   detail, but no child may weaken DOX.
 - **Every meaningful change gets a DOX pass.** Update the closest owning AGENTS.md when purpose,
   scope, ownership, structure, contracts, workflows, inputs, outputs, permissions, constraints, side
-  effects, artifacts, the owner's preferences, or AGENTS.md files and indexes change, and the parents
-  and children it affects; correct stale or contradictory text at once, moving its history to `NOTES.md` rather than deleting it. A small edit that changes no
-  behaviour may leave docs unchanged, but the pass still happens.
-- **Hierarchy**: the root is the rail; a child owns its domain and its own Child DOX Index; a parent
-  says what its children cover and what it keeps; the closer to the work, the more concrete.
-- **A child AGENTS.md** is made when a folder becomes a durable boundary. Sections, in order:
-  Purpose · Ownership · Local Contracts · Work Guidance · Verification · Child DOX Index. Work
-  Guidance and Verification stay empty until a current standard or an existing check fills them.
+  effects, artifacts, the owner's preferences, or AGENTS.md files and indexes change, and the
+  parents and children it affects; correct stale or contradictory text at once, moving its history
+  to `NOTES.md` rather than deleting it. A small edit that changes no behaviour may leave docs
+  unchanged, but the pass still happens.
 - **An AGENTS.md is the contract and stays under about 200 lines.** History, measurements, rationale
   and worked examples go in the `NOTES.md` beside it, linked from the rule they explain.
 
@@ -159,27 +154,30 @@ implemented. A dependency that does not support all three cannot be taken.
 
 - **Style**: concise, current, operational; stable contracts, not diary entries; broad rules in
   parents, concrete detail in children; direct bullets with explicit names; no rule repeated across
-  files unless each scope needs it; stale, obvious and misplaced text deleted, not explained.
+  files unless each scope needs it; stale or misplaced text corrected and its history moved to
+  `NOTES.md`, never just deleted (the owner, 2026-10-06).
 - **A value the code holds is named, not copied** (the owner, 2026-09-24): a size a test derives or a
   constant the code declares is stated as its rule, its constant and the test that holds it, never
   its number. Two exceptions: the design system's own tokens and rules, and a plan's dated revision
   history.
 - **Closeout**: re-check changed paths against the DOX chain; update the nearest owning docs and any
-  affected parents or children; refresh every affected Child DOX Index; correct (never just delete) stale or contradictory
-  text; run existing verification when relevant; report any docs intentionally left unchanged and why.
+  affected parents or children; refresh every affected Child DOX Index; correct (never just delete)
+  stale or contradictory text; run existing verification when relevant; report any docs
+  intentionally left unchanged and why.
 
 # Verification
 
 ```bash
 cargo fmt --all -- --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
+cargo clippy -p <crate> --all-targets -- -D warnings   # each crate the change reaches
+cargo test -p <crate>                                   # likewise; the workspace only when it reaches all
 ```
 
-CI runs the same on Windows, macOS and Linux, but only on a `v*` tag or when started by hand
-(the owner, 2026-10-06); before a push, run it on Windows and on Linux (WSL). Each crate's own `AGENTS.md` names its narrower
-checks; the check that no test-only crate (`mxm-measure`, `mxm-plugin-test`) reaches a shipped
-graph runs in the product repositories, over their own shipped packages.
+Test a minimum, on Windows, before a push (the owner, 2026-10-06); Linux and macOS are checked
+later, together. CI runs the workspace on all three on a `v*` tag or when started by hand.
+Each crate's own `AGENTS.md` names its narrower checks; the check that no test-only crate
+(`mxm-measure`, `mxm-plugin-test`) reaches a shipped graph runs in the product repositories, over
+their own shipped packages.
 
 # Child DOX Index
 
