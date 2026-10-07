@@ -2,7 +2,7 @@
 # row, step sizes on the bottom row. Keys are positions, named after a US keyboard's legends.
 #
 #   Q  .          W  MOVE       E  EXTENT     R  VALUE
-#   A  ADD        S  SELECT     D  DUPLICATE  F  .
+#   A  ADD        S  SELECT     D  DUPLICATE  F  VIEW
 #   Z  MUSICAL    X  COARSE     C  FINE       V  MICRO
 #
 # A starting point to try, not a choice: the bindings are chosen from usage.
@@ -28,7 +28,9 @@ open = Enter
 back = Escape
 # Provisional: Tab, Caps Lock and a tapped Shift are the candidates, and usage decides.
 out = Tab
-view = Shift
+# VIEW is on a key as well as Shift: Shift is only ever held, so a key is what makes VIEW tapped
+# in sequence, as every other job is (the user, 2026-10-07).
+view = F, Shift
 
 tap-arms = yes
 one-arrow = no

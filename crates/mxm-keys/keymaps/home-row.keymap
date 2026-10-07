@@ -2,7 +2,7 @@
 # fingers, and the actions on the top row: the first comparison the notes ask for.
 #
 #   Q  SELECT     W  ADD        E  DUPLICATE  R  .
-#   A  EXTENT     S  MOVE       D  VALUE      F  .
+#   A  EXTENT     S  MOVE       D  VALUE      F  VIEW
 #   Z  MUSICAL    X  COARSE     C  FINE       V  MICRO
 #
 # A starting point to try, not a choice: the bindings are chosen from usage.
@@ -27,7 +27,9 @@ ripple = Backspace
 open = Enter
 back = Escape
 out = Tab
-view = Shift
+# VIEW is on a key as well as Shift: Shift is only ever held, so a key is what makes VIEW tapped
+# in sequence, as every other job is (the user, 2026-10-07).
+view = F, Shift
 
 tap-arms = yes
 one-arrow = no

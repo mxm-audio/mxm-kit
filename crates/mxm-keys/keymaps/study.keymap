@@ -5,7 +5,7 @@
 #
 #   Q  SELECT     W  VALUE      E  MOVE       R  EXTENT
 #   A  MUSICAL    S  COARSE     D  FINE       F  MICRO
-#   Z  ADD        X  DUPLICATE  C  .          V  .
+#   Z  ADD        X  DUPLICATE  C  VIEW       V  .
 #
 # A starting point, tuned by practice. The first keys to try swapping, which the study's variants
 # moved: MOVE and EXTENT (E, R), and VALUE and SELECT (W, Q).
@@ -32,7 +32,9 @@ back = Escape
 # The study put OUT on Caps Lock, which comes out 0.6 points cheaper, but a toolkit that reports
 # Caps Lock only as a modifier can't see it pressed: Tab until the host reads it as a key.
 out = Tab
-view = Shift
+# VIEW is on a key as well as Shift: Shift is only ever held, so a key is what makes VIEW tapped
+# in sequence, as every other job is (the user, 2026-10-07).
+view = C, Shift
 
 tap-arms = yes
 one-arrow = no

@@ -6,7 +6,7 @@
 //! name = Verbs on the top row
 //! move = W
 //! delete = Delete Backspace
-//! view = Shift
+//! view = F, Shift
 //! out =               # left unbound
 //! tap-arms = yes
 //! timeout = off       # or seconds: 4, 2.5

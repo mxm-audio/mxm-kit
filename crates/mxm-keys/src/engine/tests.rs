@@ -2,7 +2,7 @@
 //!
 //! ```text
 //! W MOVE      E EXTENT    R VALUE         Tab OUT      Escape BACK
-//! A ADD       S SELECT    D DUPLICATE     Shift VIEW
+//! A ADD       S SELECT    D DUPLICATE     F or Shift VIEW
 //! Z MUSICAL   X COARSE    C FINE    V MICRO
 //! ```
 
@@ -447,7 +447,7 @@ fn view_on_shift_moves_between_views_and_finishes_the_gesture_first() {
 #[test]
 fn view_on_a_key_is_held_or_tapped_like_coarse() {
     let mut board =
-        Board::with(Keymap::parse(&notes_text().replace("view = Shift", "view = F")).unwrap());
+        Board::with(Keymap::parse(&notes_text().replace("view = F, Shift", "view = F")).unwrap());
     board.press(Key::F).tap(&[Key::Right]).release(Key::F);
     board.tap(&[Key::F, Key::Left, Key::Left]);
     assert_eq!(
