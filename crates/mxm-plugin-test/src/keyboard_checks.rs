@@ -7,7 +7,8 @@
 //! and the parameter is quietly unreachable from the keyboard. Painting the panel and reading back
 //! what registered is the only honest test of that, because the registry is built by drawing.
 //!
-//! It proves reachability and that a bare arrow reaches the host, at one width, headless. It does
+//! It proves reachability and that a value key reaches the host (a bare arrow, or VALUE + an
+//! arrow where the editor pilots the keyboard language), at one width, headless. It does
 //! not prove the feel, native-window behaviour, or a DAW.
 //! `Coverage` has two variants and most editors construct one of them. Keep both: trimming per
 //! consumer is how one shared check quietly becomes twelve different ones.
@@ -228,26 +229,50 @@ fn operates(
         session.frame(panel, Vec::new());
     }
 
+    // Where the editor pilots the keyboard language (`mxm_ui::pilot`), the edit is VALUE + an
+    // arrow kept with OUT, and the card step is COARSE + an arrow: W, ↑, Tab and S, → in the
+    // default keymap. Elsewhere, design system §11: a bare arrow, and Shift + an arrow.
+    let language = mxm_ui::pilot::enabled(session.context());
+    let none = egui::Modifiers::NONE;
+    let (edit, card, edit_name, card_name) = if language {
+        let taps = |keys: &[egui::Key]| -> Vec<egui::Event> {
+            keys.iter().flat_map(|&k| press(k, none)).collect()
+        };
+        (
+            taps(&[egui::Key::W, egui::Key::ArrowUp, egui::Key::Tab]),
+            taps(&[egui::Key::S, egui::Key::ArrowRight]),
+            "VALUE + an arrow",
+            "COARSE + an arrow",
+        )
+    } else {
+        (
+            press(egui::Key::ArrowUp, none),
+            press(egui::Key::ArrowRight, egui::Modifiers::SHIFT),
+            "a bare arrow",
+            "Shift+arrow",
+        )
+    };
+
     let (begins, sets, ends) = (host.begins(), host.sets(), host.ends());
-    session.frame(panel, press(egui::Key::ArrowUp, egui::Modifiers::NONE));
+    session.frame(panel, edit);
     session.frame(panel, Vec::new());
     assert!(
         host.sets() > sets,
-        "a bare arrow on the landed cursor set nothing"
+        "{edit_name} on the landed cursor set nothing"
     );
     assert_eq!(
         host.begins() - begins,
         host.ends() - ends,
-        "the arrow left an unbalanced host gesture"
+        "{edit_name} left an unbalanced host gesture"
     );
 
     let sets = host.sets();
-    session.frame(panel, press(egui::Key::ArrowRight, egui::Modifiers::SHIFT));
+    session.frame(panel, card);
     session.frame(panel, Vec::new());
     assert_eq!(
         host.sets(),
         sets,
-        "Shift+arrow edited a value; it selects a card"
+        "{card_name} edited a value; it selects a card"
     );
 }
 

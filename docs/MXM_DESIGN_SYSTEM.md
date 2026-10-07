@@ -884,7 +884,14 @@ Theme quality is judged by hierarchy, not by whether all colors were mathematica
 - Mouse, trackpad, and pen behavior should be equivalent. Touch support is desirable but not a v1
   requirement unless explicitly scoped.
 
-Keyboard behavior:
+Keyboard behavior (the table is §11 as it binds the editors today; **the keyboard language
+replaces it**, the owner decided on 2026-10-07, keys first in newDAWn and the collection, and is
+piloted on mxm-mono-08 through `mxm_ui::pilot`: the arrows go to the nearest parameter, COARSE +
+arrows card to card, VALUE + arrows change the value in the steps below — FINE the fine one,
+COARSE and MUSICAL the coarse, MICRO the finer — as one gesture that OUT keeps and BACK cancels,
+DELETE resets to the default, and VIEW + arrows move between the cards and the bars above them,
+never out of the window, which is the window manager's; in the default keymap W is VALUE, S
+COARSE, D FINE, F MICRO, A MUSICAL, C VIEW and Tab OUT):
 
 | Key | Behavior |
 |---|---|

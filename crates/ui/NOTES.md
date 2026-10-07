@@ -826,6 +826,19 @@ on a pointer click, so a press in a menu closes it unless another menu opened on
 containers, scroll bars and unlabelled painted areas (canvases with cursors of their own) are left
 out.
 
+## The keyboard language, piloted
+
+Where `pilot` is on (mxm-mono-08, from 2026-10-07), `navigation::run` reads the keys through the
+`mxm-keys` engine instead of §11's modifiers, before any control is drawn: a bare arrow goes to the
+nearest parameter on any card (`Step::Any`), COARSE + an arrow is the old card step, VIEW + an arrow
+moves between the cards and the bars `navigation::bar` recorded (the view bar, then the app bar),
+where `reach` walks their widgets. VALUE's presses, OUT's keep, BACK's cancel and DELETE's reset are
+published as `ValueKeys` for the one control the cursor is on, which takes them in
+`control::language_edit` (or `segmented_keyboard`, one cell a press): one host gesture until it is
+kept or cancelled, chaining each press from where the last one landed, as a held arrow did. Enter,
+Escape, Home, End and every chord with `Command` or `Alt` stay in egui's queue for the controls.
+`mxm-plugin-test`'s coverage check presses the language's keys where the editor pilots it.
+
 ## Selectors and menus
 
 ### A selector is one row, and §7.4 finally has a shared one

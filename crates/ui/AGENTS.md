@@ -121,6 +121,7 @@ Does **not** own labels, parameter bindings, or data. Plugins and the player sup
 - **`reach` walks every widget egui describes to screen readers** (the owner, 2026-10-07; the editors
   convert to it, keys first in newDAWn and the collection): nothing registers; a painted control
   names itself or stays out; a value in its own units reads `reach::edit`; menus `reach::context_menu`.
+  **Under `pilot`, the cursor reads the keyboard language** (`navigation/language.rs`, design system §11).
 
 - **`Shift`+arrows card to card, `Command`+arrows parameter to parameter, bare arrows the value**;
   left/right fine, up/down coarse, `Alt` the finer layer.
