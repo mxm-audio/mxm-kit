@@ -295,6 +295,17 @@ fn raising_one_note_then_the_next() {
 }
 
 #[test]
+fn shift_with_add_takes_away() {
+    let mut board = Board::new();
+    board.press_with(Key::A, Mods::SHIFT).release(Key::A);
+    board.tap(&[Key::A]);
+    assert_eq!(
+        board.take(),
+        [Output::Action(Action::Remove), Output::Action(Action::Add)]
+    );
+}
+
+#[test]
 fn back_cancels_the_whole_gesture() {
     let mut board = Board::new();
     board.tap(&[Key::W, Key::Right, Key::Right, Escape, Key::Right]);

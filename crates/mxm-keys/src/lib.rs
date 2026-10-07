@@ -2,7 +2,7 @@
 //!
 //! The left hand says *what*, the right hand *where*. Navigate with the arrows; then choose a verb
 //! (MOVE, EXTENT, VALUE, SELECT), optionally a step size (COARSE, FINE, MICRO, MUSICAL), and a
-//! direction. Actions (ADD, DUPLICATE, DELETE, RIPPLE, OPEN) work on their own, OUT finishes whatever is
+//! direction. Actions (ADD, and Shift + ADD to take away, DUPLICATE, DELETE, RIPPLE, OPEN) work on their own, OUT finishes whatever is
 //! armed, and BACK cancels it. A key means the same in every view and every instrument; only the
 //! object it acts on changes.
 //!

@@ -17,6 +17,7 @@
 //!   its own job; letting go of a held verb ends it the same way. BACK, or `Command+Z`, cancels it.
 //! - A gesture's steps are one change: one [`Output::Finish`] or [`Output::Cancel`] follows them.
 //!   A gesture with no steps ends without a word.
+//! - Shift with ADD's key is REMOVE: ADD gives, Shift + ADD takes away.
 //! - A key held down is pressed once: the operating system's repeat is ignored, except on the
 //!   arrows, where holding one repeats it.
 //!
@@ -222,6 +223,11 @@ impl Engine {
             Some(Job::Action(action)) => {
                 self.end(true, &mut out);
                 self.navigation = None;
+                let action = if mods.shift && action == Action::Add {
+                    Action::Remove
+                } else {
+                    action
+                };
                 out.push(Output::Action(action));
             }
             Some(Job::Out) => {

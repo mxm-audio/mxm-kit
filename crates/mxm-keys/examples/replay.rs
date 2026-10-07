@@ -125,6 +125,7 @@ fn step_name(step: Step) -> &'static str {
 fn action_name(action: Action) -> &'static str {
     match action {
         Action::Add => "add",
+        Action::Remove => "remove",
         Action::Duplicate => "duplicate",
         Action::Delete => "delete",
         Action::Ripple => "ripple",

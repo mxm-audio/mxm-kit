@@ -53,6 +53,9 @@ pub enum Step {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Action {
     Add,
+    /// Takes away what ADD gives. Shift with ADD's key does it, so it needs no key of its own:
+    /// Z gives, Shift+Z takes away (the owner, 2026-10-07).
+    Remove,
     /// Duplicates, and selects the copy so it can be moved straight away.
     Duplicate,
     Delete,
@@ -78,7 +81,7 @@ pub enum Job {
 
 impl Job {
     /// Every job, in the order a keymap file lists them.
-    pub const ALL: [Job; 16] = [
+    pub const ALL: [Job; 17] = [
         Job::Verb(Verb::Move),
         Job::Verb(Verb::Extent),
         Job::Verb(Verb::Value),
@@ -88,6 +91,7 @@ impl Job {
         Job::Step(Step::Micro),
         Job::Step(Step::Musical),
         Job::Action(Action::Add),
+        Job::Action(Action::Remove),
         Job::Action(Action::Duplicate),
         Job::Action(Action::Delete),
         Job::Action(Action::Ripple),
@@ -109,6 +113,7 @@ impl Job {
             Job::Step(Step::Micro) => "micro",
             Job::Step(Step::Musical) => "musical",
             Job::Action(Action::Add) => "add",
+            Job::Action(Action::Remove) => "remove",
             Job::Action(Action::Duplicate) => "duplicate",
             Job::Action(Action::Delete) => "delete",
             Job::Action(Action::Ripple) => "ripple",
@@ -381,8 +386,10 @@ mod tests {
             let keymap = Keymap::parse(text).unwrap_or_else(|error| panic!("{stem}: {error}"));
             assert!(!keymap.name().is_empty(), "{stem} has a name");
             for job in Job::ALL {
+                // REMOVE is Shift with ADD's key; a keymap may give it a key of its own too.
                 let bound = keymap.keys(job).next().is_some()
-                    || (job == Job::View && keymap.view_modifier().is_some());
+                    || (job == Job::View && keymap.view_modifier().is_some())
+                    || job == Job::Action(Action::Remove);
                 assert!(bound, "{stem} binds {}", job.name());
             }
             assert_eq!(keymap.settings(), Settings::default(), "{stem}'s settings");
