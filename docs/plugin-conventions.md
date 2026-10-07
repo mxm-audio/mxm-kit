@@ -60,8 +60,8 @@ host with [`mxm_player_harness`](https://github.com/mxm-audio/mxm-player/blob/ma
 (`<plugin>-host-tests`) so the plugin's own `cargo test -p <plugin>` — the fast tier — never builds
 the player; `cargo xtask bundle <plugin> --release` and then `cargo test -p <plugin>-host-tests` is
 the slow tier, which the merge gate runs once, after the bundle. *Since the split* there is no merge
-gate: run the slow tier once, after the bundle, before a push, and CI runs it the same way on a `v*`
-release tag.
+gate: run the slow tier on purpose, for an audible change, once, after the bundle, and CI runs it
+the same way when started by hand.
 
 The checks every plugin's tests share live in **`crates/mxm-plugin-test`**, a `[dev-dependencies]`
 entry of each plugin and compiled into no bundle: `mxm_plugin_test::paging_checks` for the dynamic

@@ -118,8 +118,8 @@ cargo test -p mxm-audio-file-decode    # the round trips through every target li
 
 **Status (2026-09-15, Windows):** 16 tests pass on stable and on 1.87; clippy is silent; the round trips in the
 decode crate pass for every target. Linux and macOS are not verified here.
-*Since the split (2026-10-06):* CI runs this crate's tests on Windows, macOS and Linux on every `v*`
-tag; otherwise Linux and macOS are checked later, together.
+*Since the split (2026-10-06):* CI runs this crate's tests on Windows, macOS and Linux when started by
+hand; otherwise Linux and macOS are checked later, together.
 
 # Child DOX Index
 

@@ -13,7 +13,7 @@ collection's filter, oscillator and modulation theory ([NOTES.md § What the kit
 
 The MXM products — the instruments and effects, MXM Player, newDAWn — are GPL-3.0, each in its own
 repository under [github.com/mxm-audio](https://github.com/mxm-audio), and take this kit as a git
-dependency at a tag. Until 2026-10 all of it was one repository (`mxm-collection`); references
+dependency on its `main`, locked to a commit. Until 2026-10 all of it was one repository (`mxm-collection`); references
 to `plans/` name its design history, which stays in a private archive.
 
 Reference-quality open source: clarity beats cleverness, and every nontrivial algorithm names the
@@ -174,7 +174,7 @@ cargo test -p <crate>                                   # likewise; the workspac
 ```
 
 Test a minimum, on Windows, before a push (the owner, 2026-10-06); Linux and macOS are checked
-later, together. CI runs the workspace on all three on a `v*` tag or when started by hand.
+later, together. CI runs the workspace on all three only when started by hand.
 Each crate's own `AGENTS.md` names its narrower checks; the check that no test-only crate
 (`mxm-measure`, `mxm-plugin-test`) reaches a shipped graph runs in the product repositories, over
 their own shipped packages.

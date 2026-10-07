@@ -415,7 +415,7 @@ Then, in order:
   AGENTS.md are what runs, by hand, on the development machine. If you add a standalone harness,
   run the `cargo tree` boundary check on your plugin too.
   *Since the split (2026-10-06):* CI runs the root `AGENTS.md`'s verification on Windows, macOS
-  and Linux, but only on a `v*` release tag or when started by hand (the owner, 2026-10-06). Copy
+  and Linux, only when started by hand (the owner, 2026-10-07: no tags). Copy
   `.github/workflows/ci.yml` from an existing product repository with your plugin's name, and
   before a push run the verification yourself on Windows and on Linux (WSL); only CI reaches macOS.
 - **The DOX pass.** Update `plugins/AGENTS.md`, the root Child DOX Index if a new AGENTS.md
@@ -685,8 +685,8 @@ Not "ought to". Anything platform-specific is `cfg`-gated with **every arm imple
 arm and a silent nothing elsewhere. A dependency that does not support all three cannot be taken,
 whatever else it offers. There is no CI: the development machine is Windows, and Linux and macOS
 are unverified — say so rather than implying a change was tried on three platforms.
-*Since the split (2026-10-06):* CI tests on all three, but only on a `v*` release tag or when started
-by hand. Before that, check Windows and Linux (WSL) yourself; macOS is reached only by CI. Say which
+*Since the split (2026-10-06):* CI tests on all three, only when started by hand. During the work,
+check Windows only; Linux and macOS are checked later, together (the owner, 2026-10-06). Say which
 ran rather than implying a change was tried on three platforms.
 
 ---

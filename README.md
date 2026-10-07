@@ -26,17 +26,17 @@ DSP.
 
 ## Using it
 
-Take the crates as git dependencies at a tag, and patch nice-plug with the fork every MXM plugin
+Take the crates as git dependencies on `main` (your `Cargo.lock` pins the commit), and patch nice-plug with the fork every MXM plugin
 builds with:
 
 ```toml
 [dependencies]
-mxm-ui = { git = "https://github.com/mxm-audio/mxm-kit", tag = "v0.4.1" }
-mxm-preset = { git = "https://github.com/mxm-audio/mxm-kit", tag = "v0.4.1" }
+mxm-ui = { git = "https://github.com/mxm-audio/mxm-kit", branch = "main" }
+mxm-preset = { git = "https://github.com/mxm-audio/mxm-kit", branch = "main" }
 
 [patch.crates-io]
-nice-plug = { git = "https://github.com/mxm-audio/nice-plug", tag = "0.4.2-mxm.1" }
-egui-baseview = { git = "https://github.com/mxm-audio/egui-baseview", tag = "0.7.2-mxm.1" }
+nice-plug = { git = "https://github.com/mxm-audio/nice-plug", branch = "main" }
+egui-baseview = { git = "https://github.com/mxm-audio/egui-baseview", branch = "main" }
 ```
 
 Any MXM instrument repository under [github.com/mxm-audio](https://github.com/mxm-audio) is a

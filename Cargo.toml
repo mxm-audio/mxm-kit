@@ -62,4 +62,4 @@ strip = "none"
 # nice-plug 0.3.0 as published plus the patches in its fork's PATCHES.md. (A plugin repository also
 # patches egui-baseview, which only its editor's nice-plug-egui pulls in; no crate here does.)
 [patch.crates-io]
-nice-plug = { git = "https://github.com/mxm-audio/nice-plug", tag = "0.4.2-mxm.1" }
+nice-plug = { git = "https://github.com/mxm-audio/nice-plug", branch = "main" }
