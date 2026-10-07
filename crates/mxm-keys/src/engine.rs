@@ -35,6 +35,9 @@ use crate::keymap::{Action, Job, Keymap, Modifier, Step, Verb};
 pub enum Output {
     /// Move the focus to the nearest item that way; `coarse`, one structural level up.
     Navigate { direction: Direction, coarse: bool },
+    /// MICRO with bare arrows: one level down, within the focused item. In an editor, its start
+    /// edge (←) or its end edge (→), which MOVE then moves on its own.
+    Within { direction: Direction },
     /// Move the focus to the neighbouring view.
     View { direction: Direction },
     /// One arrow press of a gesture.
@@ -99,6 +102,8 @@ pub enum Arrows {
     Navigate,
     /// One structural level up.
     Coarse,
+    /// One level down, within the focused item.
+    Micro,
     View,
     /// A gesture's verb and step, *MOVE · COARSE*.
     Edit {
@@ -123,10 +128,12 @@ struct Gesture {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Layer {
     Coarse,
+    Micro,
     View,
 }
 
-/// COARSE or VIEW without a verb, on a key: held for its arrows, or tapped for the next one.
+/// COARSE, MICRO or VIEW without a verb, on a key: held for its arrows, or tapped for the next
+/// one.
 #[derive(Clone, Copy, Debug)]
 struct Navigation {
     layer: Layer,
@@ -186,6 +193,7 @@ impl Engine {
         }
         match self.navigation.map(|navigation| navigation.layer) {
             Some(Layer::Coarse) => Arrows::Coarse,
+            Some(Layer::Micro) => Arrows::Micro,
             Some(Layer::View) => Arrows::View,
             None => Arrows::Navigate,
         }
@@ -354,6 +362,7 @@ impl Engine {
                     direction,
                     coarse: true,
                 },
+                Layer::Micro => Output::Within { direction },
                 Layer::View => Output::View { direction },
             });
             if navigation.held {
@@ -398,15 +407,27 @@ impl Engine {
         self.last_step = Some((key, step));
         if let Some(gesture) = &mut self.gesture {
             gesture.step = step;
-        } else if step == Step::Coarse {
-            self.navigation = Some(Navigation {
-                layer: Layer::Coarse,
-                key,
-                held: true,
-                used_while_held: false,
-            });
+            return;
         }
-        // FINE, MICRO and MUSICAL with nothing armed have nothing to size.
+        // COARSE and MICRO with nothing armed move the focus a level up or down; FINE and
+        // MUSICAL have nothing to size, and forget either.
+        let layer = match step {
+            Step::Coarse => Some(Layer::Coarse),
+            Step::Micro => Some(Layer::Micro),
+            Step::Fine | Step::Musical => None,
+        };
+        if self
+            .navigation
+            .is_some_and(|navigation| navigation.layer == Layer::View)
+        {
+            return;
+        }
+        self.navigation = layer.map(|layer| Navigation {
+            layer,
+            key,
+            held: true,
+            used_while_held: false,
+        });
     }
 
     /// A key the language doesn't use: the next command, so anything armed finishes first.
@@ -427,7 +448,8 @@ impl Engine {
         }
     }
 
-    /// Finishes a tapped verb, and forgets a tapped COARSE or VIEW, once the timeout has passed.
+    /// Finishes a tapped verb, and forgets a tapped COARSE, MICRO or VIEW, once the timeout has
+    /// passed.
     fn expire(&mut self, at: Duration, out: &mut Outputs) {
         let (Some(timeout), Some(last)) = (self.keymap.settings().timeout, self.last_press) else {
             return;

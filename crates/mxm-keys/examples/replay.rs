@@ -63,6 +63,7 @@ fn describe(output: Output) -> String {
             };
             format!("{kind} {}", direction_name(direction))
         }
+        Output::Within { direction } => format!("within {}", direction_name(direction)),
         Output::View { direction } => format!("view {}", direction_name(direction)),
         Output::Step {
             verb,

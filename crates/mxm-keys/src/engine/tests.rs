@@ -108,7 +108,7 @@ fn coarse_nav(direction: Direction) -> Output {
     }
 }
 
-use crate::keymap::Step::{Coarse, Fine, Musical};
+use crate::keymap::Step::{Coarse, Fine, Micro, Musical};
 use crate::keymap::Verb::{Extent, Move, Select, Value};
 use Key::{Escape, Tab};
 
@@ -410,8 +410,29 @@ fn back_or_out_forgets_a_tapped_coarse() {
 #[test]
 fn the_other_steps_alone_do_nothing() {
     let mut board = Board::new();
-    board.tap(&[Key::C, Key::V, Key::Z, Key::Left]);
+    board.tap(&[Key::C, Key::Z, Key::Left]);
     assert_eq!(board.take(), [nav(Left)]);
+    // FINE or MUSICAL forgets a tapped MICRO.
+    board.tap(&[Key::V, Key::C, Key::Left]);
+    assert_eq!(board.take(), [nav(Left)]);
+}
+
+#[test]
+fn micro_alone_goes_one_level_down_held_or_tapped() {
+    let mut board = Board::new();
+    board.press(Key::V).tap(&[Key::Left]).release(Key::V);
+    assert_eq!(board.take(), [Output::Within { direction: Left }]);
+    board.tap(&[Key::V]);
+    assert_eq!(board.engine.arrows(), Arrows::Micro);
+    board.tap(&[Key::Right, Key::Right]);
+    assert_eq!(
+        board.take(),
+        [Output::Within { direction: Right }, nav(Right)]
+    );
+    // Held with a verb, it's the verb's step, as before.
+    board.press(Key::V).press(Key::W).tap(&[Key::Right]);
+    board.release(Key::W).release(Key::V);
+    assert_eq!(board.take(), [step(Move, Micro, Right), Output::Finish]);
 }
 
 #[test]
