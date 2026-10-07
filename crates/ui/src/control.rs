@@ -7123,6 +7123,19 @@ mod tests {
         );
     }
 
+    /// OUT keeps the edit and the cursor where it is: Tab is the language's, not egui's focus.
+    #[test]
+    fn under_the_language_out_leaves_the_cursor_on_its_parameter() {
+        let mut asked = [None, None];
+        let mut rig = language_rig(&mut asked);
+        for key in [Key::W, Key::ArrowUp, Key::Tab] {
+            rig.frame(tap(key), |ui| two_knobs(ui, &mut asked));
+        }
+        rig.frame(Vec::new(), |ui| two_knobs(ui, &mut asked));
+        assert!(asked[0].is_some(), "the edit was made");
+        assert_eq!(rig.nav.parameter(), Some("a"), "and the cursor stayed");
+    }
+
     /// BACK cancels the gesture back to where it began, and DELETE puts the default back.
     #[test]
     fn under_the_language_back_cancels_and_delete_resets() {

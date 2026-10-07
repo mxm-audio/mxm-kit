@@ -92,6 +92,7 @@ pub(super) fn read(ctx: &Context, state: &mut State) -> Vec<Step> {
         .get_or_insert_with(|| Engine::new(Keymap::default()));
     let at = Duration::from_secs_f64(ctx.input(|input| input.time).max(0.0));
     let mut outputs = Vec::new();
+    let mut taken = false;
     ctx.input_mut(|input| {
         if input.pointer.any_pressed() {
             outputs.extend(engine.interrupt());
@@ -128,9 +129,16 @@ pub(super) fn read(ctx: &Context, state: &mut State) -> Vec<Step> {
             } else {
                 engine.release(key)
             });
-            shared(engine, key)
+            let keep = shared(engine, key);
+            taken |= !keep;
+            keep
         });
     });
+    // Tab and the arrows are the language's here: egui has already read them for moving its own
+    // focus, which would take the cursor off its parameter (OUT is Tab), so that's undone.
+    if taken {
+        ctx.memory_mut(|memory| memory.move_focus(egui::FocusDirection::None));
+    }
     outputs.extend(engine.poll(at));
     if !outputs.is_empty() {
         super::reveal(ctx);
