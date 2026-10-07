@@ -7,6 +7,9 @@ rust-version.workspace = true
 license.workspace = true
 authors.workspace = true
 repository.workspace = true
+# Taken from git, never crates.io, so its path dependency on mxm-keys passes cargo-deny's wildcard
+# rule in the repositories that use it.
+publish = false
 
 [dependencies]
 # No windowing crate, no host crate, no plugin framework: this crate is called by the player as a
@@ -29,6 +32,9 @@ egui_taffy = "=0.14.0"
 # resolves, so the tree gains nothing it did not have.
 serde_json = "=1.0.145"
 dirs       = "=5.0.1"
+
+# The keyboard language's engine, for `reach`: zero dependencies, so it brings no window either.
+mxm-keys.workspace = true
 
 [dev-dependencies]
 egui_kittest = "=0.36.1"

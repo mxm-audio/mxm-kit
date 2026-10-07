@@ -810,6 +810,22 @@ shared coverage check in `mxm_plugin_test::keyboard_checks`, which is a check of
 scopes rather than of this crate. Headless all of them; **the feel is not proved by any**, and is
 judged in `apps/mxm-mono-01-standalone`.
 
+## Reach
+
+`reach` came from newDAWn (2026-10-07), where the owner ruled that **everything on screen is
+reachable and editable by the keyboard**, and moved here so the collection's editors can share it
+when they convert to the keyboard language. Rather than a registry each control writes into, as
+`navigation`'s cards and marks are, it reads the AccessKit tree egui builds every frame (enabled by
+`State::begin`), through a plugin's `output_hook`: every widget's bounds, role, label and the
+actions it takes. The arrows go to the nearest widget that way (one overlapping the cursor across
+the way counts as in line, however wide), OPEN asks for `Click` (or `Focus`, from the next frame's
+input, for a text field), VALUE asks for `Increment`/`Decrement`, ten for COARSE, unless the widget
+reads its own steps with `reach::edit`. A host names its views with any key and gives each the
+`Ui::unique_id` its widgets are drawn in; an open popup takes the keys first. egui closes a popup only
+on a pointer click, so a press in a menu closes it unless another menu opened on top. Labels,
+containers, scroll bars and unlabelled painted areas (canvases with cursors of their own) are left
+out.
+
 ## Selectors and menus
 
 ### A selector is one row, and §7.4 finally has a shared one

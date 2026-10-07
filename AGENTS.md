@@ -69,8 +69,9 @@ The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.
 - `crates/mxm-keys` is **the shared keyboard language's engine**, an owner-approved exception to
   evidence-first extraction (2026-10-05: the keyboard library is built here from the start, so the
   DAW and the instruments share one): keys in, gestures out, and the keymap format. It never knows
-  what a gesture changes. The editors keep design system §11's cursor until the owner's later
-  conversion pass (2026-10-06). Zero dependencies and MSRV 1.87.
+  what a gesture changes. The editors keep design system §11's cursor until they convert, which
+  the owner decided on 2026-10-07 (keys first in newDAWn and the collection; `mxm_ui::reach` is the
+  first shared part). Zero dependencies and MSRV 1.87.
 
 # Local Contracts
 

@@ -8,8 +8,8 @@ Parent: [`../../AGENTS.md`](../../AGENTS.md)
 [`docs/MXM_DESIGN_SYSTEM.md`](../../docs/MXM_DESIGN_SYSTEM.md): semantic theme tokens with
 Dark/Light resolution, bundled typography, the app-bar / view-bar / module-card shell, and the basic
 parameter controls. Modules: `theme`, `typography`, `space`, `visual`, `control`, `shell`,
-`browser`, `tree` (a card body as data), `flow`, `paging` and `navigation` (the keyboard cursor in
-every collection editor) — [NOTES.md § The modules](NOTES.md#the-modules). Each rule below has its
+`browser`, `tree` (a card body as data), `flow`, `paging`, `navigation` (the keyboard cursor in
+every collection editor) and `reach` (the cursor over every widget, newDAWn's so far) — [NOTES.md § The modules](NOTES.md#the-modules). Each rule below has its
 reasoning, history, measurements and holding tests in [NOTES.md](NOTES.md), under the same topic.
 
 # Ownership
@@ -22,7 +22,7 @@ Does **not** own labels, parameter bindings, or data. Plugins and the player sup
 
 ## Dependencies and threads — [NOTES.md § Dependencies and threads](NOTES.md#dependencies-and-threads)
 
-- **`egui` and nothing else**: no windowing crate, host crate or plugin framework; nothing may
+- **`egui` and nothing else** but `mxm-keys` (no dependencies): no windowing crate, host crate or plugin framework; nothing may
   assume it owns a window, an event loop or a swapchain. `lib.rs`'s `the_crate_is_windowing_free`
   reads the manifest — check what a new dependency pulls in before adding it. `egui_taffy` (pure
   flexbox rectangles) and `serde_json`/`dirs` (the theme file) fit the rule: none assumes a window.
@@ -116,7 +116,11 @@ Does **not** own labels, parameter bindings, or data. Plugins and the player sup
 - **Reserve a row's body floor before drawing** — egui 0.36's `set_min_height` is cursor-relative.
   `ViewBar` wraps rather than shrinks and reports `ViewBarGeometry`.
 
-## The keyboard cursor — [NOTES.md § The keyboard cursor](NOTES.md#the-keyboard-cursor)
+## The keyboard cursor — [NOTES.md § The keyboard cursor](NOTES.md#the-keyboard-cursor), [§ Reach](NOTES.md#reach)
+
+- **`reach` walks every widget egui describes to screen readers** (the owner, 2026-10-07; the editors
+  convert to it, keys first in newDAWn and the collection): nothing registers; a painted control
+  names itself or stays out; a value in its own units reads `reach::edit`; menus `reach::context_menu`.
 
 - **`Shift`+arrows card to card, `Command`+arrows parameter to parameter, bare arrows the value**;
   left/right fine, up/down coarse, `Alt` the finer layer.

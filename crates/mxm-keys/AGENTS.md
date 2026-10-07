@@ -12,8 +12,9 @@ like the M8, or tapped one key at a time like Blender. Zero dependencies, no egu
 
 **The language is newDAWn's keyboard design** (its `docs/keyboard.md`, in newDAWn's repository,
 private until it is ready), which the owner made the law for the whole collection on 2026-10-06.
-The instruments' editors still run `mxm_ui::navigation`'s cursor, design system §11, until a later
-pass converts them; until then §11 binds them, and nothing here changes an editor.
+The instruments' editors still run `mxm_ui::navigation`'s cursor, design system §11, until they
+convert, as the owner decided on 2026-10-07; until then §11 binds them. The cursor over every
+widget, `mxm_ui::reach`, is built on this engine.
 
 # Ownership
 
@@ -38,6 +39,9 @@ keys from a toolkit, and where a keymap file lives. Those are the host's.
   and the engine passes every `Command` press through as `Raw`; only `Command+Z` during a gesture
   that has stepped is taken, to cancel it. `standard_shortcuts_reach_the_panel_in_every_shipped_keymap`
   holds this.
+- **The keys must work in newDAWn and the collection's own editors; other hosts are secondary**
+  (the owner, 2026-10-07: "Other daws are secondary. They can use the mouse if the host does not
+  send the keys"). Nothing works around a host that keeps a key from a plugin's window.
 - **A gesture's steps end in exactly one `Finish` or `Cancel`**, and a gesture with no steps ends
   silently, so a host can preview steps and commit them as one undo step.
 - **The shipped keymaps are starting points, tuned by the owner's practice.** The default,

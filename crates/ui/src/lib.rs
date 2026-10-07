@@ -7,7 +7,8 @@
 //!
 //! # What this crate may depend on
 //!
-//! **`egui` and nothing else.** Not the player, not `clack`, not a plugin framework, and above
+//! **`egui` and nothing else**, but for `mxm-keys`, the keyboard language's engine, which has no
+//! dependencies at all. Not the player, not `clack`, not a plugin framework, and above
 //! all **no windowing crate**. The same controls are drawn by the player as a pane today and by
 //! mxm-mono-01's editor inside a DAW's window later, so nothing here may assume it owns a window, an
 //! event loop or a swapchain. A dependency that pulled in a platform backend would foreclose that
@@ -28,6 +29,7 @@ pub mod navigation;
 pub mod offthread;
 pub mod paging;
 pub mod pilot;
+pub mod reach;
 pub mod shell;
 pub mod space;
 pub mod theme;

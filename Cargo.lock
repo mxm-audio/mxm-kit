@@ -1611,6 +1611,7 @@ dependencies = [
  "egui_kittest",
  "egui_taffy",
  "kittest",
+ "mxm-keys",
  "serde_json",
 ]
 
