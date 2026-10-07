@@ -182,6 +182,7 @@ pub(super) fn read(ctx: &Context, state: &mut State) -> Vec<Step> {
 /// from the lowest bar to the cards. Sideways, and past the top, there is nowhere to go.
 fn view(ctx: &Context, state: &mut State, direction: Direction) {
     let count = bars(ctx).len();
+    let before = state.bar;
     state.bar = match (direction, state.bar) {
         (Direction::Up, None) if count > 0 => Some(count - 1),
         (Direction::Up, Some(bar)) => Some(bar.saturating_sub(1)),
@@ -189,4 +190,18 @@ fn view(ctx: &Context, state: &mut State, direction: Direction) {
         (Direction::Down, Some(_)) => None,
         (_, bar) => bar,
     };
+    match (before, state.bar) {
+        // Into the bars: the parameter the cursor leaves gives up egui's focus, so its ring goes.
+        (None, Some(_)) => ctx.memory_mut(|memory| {
+            if let Some(id) = memory.focused() {
+                memory.surrender_focus(id);
+            }
+        }),
+        // Back to the cards: the cursor's parameter takes the focus again, on the page shown.
+        (Some(_), None) => {
+            state.home = true;
+            state.moved = true;
+        }
+        _ => {}
+    }
 }

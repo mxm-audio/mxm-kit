@@ -92,6 +92,10 @@ pub struct State {
     /// A card COARSE + an arrow asked the renderer to show from another page, and the frames left
     /// to wait for it before the cursor stops waiting.
     awaiting: Option<(u64, u8)>,
+    /// The cards the app bar draws (`paged_with_bar`): always on screen, never a page.
+    bar_cards: Vec<u64>,
+    /// VIEW + down just brought the cursor back from the bars to the cards.
+    home: bool,
     /// The cursor among a bar's widgets.
     reach: crate::reach::State<usize>,
 }
@@ -667,12 +671,14 @@ pub fn run(
             let arrived = cards.iter().any(|(key, _)| *key == card);
             state.awaiting = (!arrived && left > 0).then_some((card, left - 1));
         }
+        let home = std::mem::take(&mut state.home);
         if state.awaiting.is_none()
             && let Some(card) = state.cursor.card
-            && !cards.iter().any(|(key, _)| *key == card)
-            && let Some(first) = order
-                .iter()
-                .find(|key| cards.iter().any(|(visible, _)| visible == *key))
+            && (!cards.iter().any(|(key, _)| *key == card)
+                || (home && state.bar_cards.contains(&card)))
+            && let Some(first) = order.iter().find(|key| {
+                !state.bar_cards.contains(key) && cards.iter().any(|(visible, _)| visible == *key)
+            })
         {
             enter(state, &spots, *first);
         }
@@ -681,7 +687,17 @@ pub fn run(
     // A cursor that has never landed starts on the first thing drawn, so the first keystroke is
     // never spent arriving.
     if state.cursor.key.is_none() {
-        if let Some(first) = spots.first() {
+        // Under the language, on the page's first card rather than a parameter in the app bar,
+        // which VIEW reaches (the owner, 2026-10-07: it started on Output).
+        let page = spots
+            .iter()
+            .find(|spot| !state.bar_cards.contains(&spot.card));
+        let first = if pilot {
+            page.or(spots.first())
+        } else {
+            spots.first()
+        };
+        if let Some(first) = first {
             state.settle(first);
             state.moved = true;
         }
@@ -810,8 +826,10 @@ fn move_card(
 
     // Geometry exists only for the selected page. At an edge, the adjacent canonical card is the
     // bridge to another page; do not use that fallback when it is visible in the wrong direction.
+    // From a card in the app bar there is no page to bridge to: it is on every page.
+    let bridge = !state.bar_cards.contains(&current);
     let target = geometric.or_else(|| {
-        let target = sequence_target(order, current, dir)?;
+        let target = sequence_target(order, current, dir).filter(|_| bridge)?;
         (!cards.iter().any(|(key, _)| *key == target)).then_some(target)
     })?;
 
@@ -829,8 +847,19 @@ fn enter(state: &mut State, spots: &[Spot], card: u64) {
         .get(&card)
         .filter(|key| spots.iter().any(|s| s.card == card && s.key == **key))
         .cloned();
-    state.cursor.key =
-        resumed.or_else(|| spots.iter().find(|s| s.card == card).map(|s| s.key.clone()));
+    // Else the card's top-left parameter, as it is read, rather than whichever drew first.
+    state.cursor.key = resumed.or_else(|| {
+        spots
+            .iter()
+            .filter(|s| s.card == card)
+            .min_by(|a, b| {
+                (a.rect.top(), a.rect.left())
+                    .partial_cmp(&(b.rect.top(), b.rect.left()))
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .map(|s| s.key.clone())
+    });
+    state.cell = 0;
     if let Some(key) = state.cursor.key.clone() {
         state.remembered.insert(card, key);
     }
@@ -1007,6 +1036,7 @@ pub fn paged_with_bar(ctx: &egui::Context, state: &mut State, inert: bool, bar: 
         ),
         None => (Vec::new(), Vec::new()),
     };
+    state.bar_cards = bar.to_vec();
     for (index, &key) in bar.iter().enumerate() {
         order.insert(index, key);
         if let Some(rect) = ctx.data(|d| d.get_temp::<Rect>(bar_rect_id(key))) {
