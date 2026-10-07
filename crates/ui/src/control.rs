@@ -1177,6 +1177,39 @@ fn segmented_keyboard(
 ) -> bool {
     let mut target = None;
     let cursor = crate::navigation::running(ui);
+    // The keyboard language, where the pilot runs it: VALUE's presses step one cell each, and
+    // DELETE goes back to the default cell.
+    if cursor && crate::pilot::on(ui) {
+        let keys = crate::navigation::take_value_keys(ui.ctx());
+        for press in &keys.presses {
+            let from = target.unwrap_or(*selected);
+            target = Some(if from >= count {
+                if press.up { 0 } else { count - 1 }
+            } else if press.up {
+                (from + 1).min(count - 1)
+            } else {
+                from.saturating_sub(1)
+            });
+        }
+        if keys.reset {
+            target = default_cell;
+        }
+        ui.input_mut(|input| {
+            if input.consume_key(Modifiers::NONE, Key::Home) {
+                target = Some(0);
+            }
+            if input.consume_key(Modifiers::NONE, Key::End) {
+                target = Some(count - 1);
+            }
+        });
+        return match target {
+            Some(target) if target != *selected => {
+                *selected = target;
+                true
+            }
+            _ => false,
+        };
+    }
     let arrow_modifiers = if cursor {
         Modifiers::NONE
     } else {
@@ -3285,6 +3318,9 @@ fn keyboard_edit(
     // the focused control as they always did, and nothing is taken away before its replacement
     // arrives. See [`crate::navigation::running`].
     let cursor = crate::navigation::running(ui);
+    if cursor && crate::pilot::on(ui) {
+        return language_edit(ui, gesture_id, param, normalised);
+    }
 
     let (mut presses, mut reset, mut absolute) = (Vec::new(), false, None);
     ui.input_mut(|i| {
@@ -3391,6 +3427,92 @@ fn keyboard_edit(
         gesture_started: !active,
         changed: true,
         gesture_ended: !still_held,
+        reset: false,
+    }
+}
+
+/// The keyboard language's value keys, where the pilot runs it: VALUE's presses, each from where
+/// the one before landed, as one gesture until it is kept or cancelled; DELETE the default, and
+/// Home and End the ends, as before.
+fn language_edit(
+    ui: &Ui,
+    gesture_id: egui::Id,
+    param: &ParamView<'_>,
+    normalised: &mut f64,
+) -> ControlOutcome {
+    let origin_id = gesture_id.with("origin");
+    let anchor = ui.data(|data| data.get_temp::<f64>(gesture_id));
+    let active = anchor.is_some();
+    let keys = crate::navigation::take_value_keys(ui.ctx());
+    let absolute = ui.input_mut(|input| {
+        if input.consume_key(Modifiers::NONE, Key::Home) {
+            Some(0.0)
+        } else if input.consume_key(Modifiers::NONE, Key::End) {
+            Some(1.0)
+        } else {
+            None
+        }
+    });
+    let forget = |ui: &Ui| {
+        ui.data_mut(|data| {
+            data.remove::<f64>(gesture_id);
+            data.remove::<f64>(origin_id);
+        });
+    };
+    if keys.reset || absolute.is_some() {
+        *normalised = absolute.unwrap_or(param.default).clamp(0.0, 1.0);
+        forget(ui);
+        return ControlOutcome {
+            gesture_started: !active,
+            changed: true,
+            gesture_ended: true,
+            reset: keys.reset,
+        };
+    }
+    if keys.cancel {
+        let origin = ui.data(|data| data.get_temp::<f64>(origin_id));
+        forget(ui);
+        return match origin {
+            Some(origin) => {
+                *normalised = origin;
+                ControlOutcome {
+                    gesture_started: false,
+                    changed: true,
+                    gesture_ended: true,
+                    reset: false,
+                }
+            }
+            None => ControlOutcome::default(),
+        };
+    }
+    if keys.presses.is_empty() {
+        if keys.keep && active {
+            forget(ui);
+            return ControlOutcome {
+                gesture_ended: true,
+                ..Default::default()
+            };
+        }
+        return ControlOutcome::default();
+    }
+    if !active {
+        let origin = *normalised;
+        ui.data_mut(|data| data.insert_temp(origin_id, origin));
+    }
+    let mut value = anchor.unwrap_or(*normalised).clamp(0.0, 1.0);
+    for press in keys.presses {
+        value = step_once(param, value, press);
+    }
+    *normalised = value;
+    if keys.keep {
+        forget(ui);
+    } else {
+        ui.data_mut(|data| data.insert_temp(gesture_id, value));
+    }
+    ControlOutcome {
+        gesture_started: !active,
+        changed: true,
+        gesture_ended: keys.keep,
         reset: false,
     }
 }
@@ -6939,5 +7061,85 @@ mod tests {
             draw(ui, &mut on);
         });
         assert!(!on, "left is off");
+    }
+
+    // ---- The keyboard language, where the pilot runs it (the owner, 2026-10-07) ----
+
+    /// A tap of one key: its press and its release, in one frame.
+    fn tap(key: Key) -> Vec<egui::Event> {
+        vec![key_event(key, true, false), key_event(key, false, false)]
+    }
+
+    fn taps(keys: &[Key]) -> Vec<egui::Event> {
+        keys.iter().flat_map(|&key| tap(key)).collect()
+    }
+
+    /// Two knobs side by side, under the pilot; returns the rig after the cursor has landed on `a`.
+    fn language_rig(asked: &mut [Option<f64>; 2]) -> Cursor {
+        let mut rig = Cursor::new();
+        crate::pilot::enable(&rig.ctx);
+        for _ in 0..3 {
+            rig.frame(Vec::new(), |ui| two_knobs(ui, asked));
+        }
+        *asked = [None, None];
+        rig
+    }
+
+    fn two_knobs(ui: &mut Ui, asked: &mut [Option<f64>; 2]) {
+        let [a, b] = asked;
+        ui.horizontal(|ui| {
+            cursor_knob(ui, "a", 0.5, None, a);
+            cursor_knob(ui, "b", 0.5, None, b);
+        });
+    }
+
+    /// VALUE + arrows change the knob the cursor is on, in its own steps: FINE by default, COARSE
+    /// with S; the bare arrows go to the next parameter instead of editing.
+    #[test]
+    fn under_the_language_value_and_the_arrows_edit_and_bare_arrows_move() {
+        let mut asked = [None, None];
+        let mut rig = language_rig(&mut asked);
+        assert_eq!(rig.nav.parameter(), Some("a"));
+
+        rig.frame(taps(&[Key::W, Key::ArrowUp, Key::Tab]), |ui| {
+            two_knobs(ui, &mut asked)
+        });
+        assert!(
+            asked[0].is_some_and(|value| (value - 0.51).abs() < 1e-9),
+            "VALUE + ↑ is a fine step: {asked:?}"
+        );
+
+        asked = [None, None];
+        rig.frame(tap(Key::ArrowRight), |ui| two_knobs(ui, &mut asked));
+        assert_eq!(rig.nav.parameter(), Some("b"), "→ is the next parameter");
+        assert_eq!(asked, [None, None], "a bare arrow edits nothing");
+
+        rig.frame(taps(&[Key::W, Key::S, Key::ArrowUp, Key::Tab]), |ui| {
+            two_knobs(ui, &mut asked)
+        });
+        assert!(
+            asked[1].is_some_and(|value| (value - 0.6).abs() < 1e-9),
+            "VALUE COARSE + ↑ is a coarse step: {asked:?}"
+        );
+    }
+
+    /// BACK cancels the gesture back to where it began, and DELETE puts the default back.
+    #[test]
+    fn under_the_language_back_cancels_and_delete_resets() {
+        let mut asked = [None, None];
+        let mut rig = language_rig(&mut asked);
+        rig.frame(taps(&[Key::W, Key::ArrowUp, Key::ArrowUp]), |ui| {
+            two_knobs(ui, &mut asked)
+        });
+        assert!(asked[0].is_some_and(|value| (value - 0.52).abs() < 1e-9));
+        rig.frame(tap(Key::Escape), |ui| two_knobs(ui, &mut asked));
+        assert!(
+            asked[0].is_some_and(|value| (value - 0.5).abs() < 1e-9),
+            "BACK sent the value it began at: {asked:?}"
+        );
+
+        asked = [None, None];
+        rig.frame(tap(Key::Delete), |ui| two_knobs(ui, &mut asked));
+        assert_eq!(asked[0], Some(0.0), "DELETE is the default");
     }
 }

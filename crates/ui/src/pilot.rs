@@ -6,7 +6,12 @@
 //! judged shows it and every other editor draws exactly as it did. Once the owner approves the
 //! pilot, rolling a rule out is deleting its `on` check; the collection then behaves as one again.
 //!
-//! **Nothing is piloted now.** The first three rules — a slider's reading never drawing over its
+//! **Piloted now: the keyboard language** (newDAWn's `docs/keyboard.md`; the owner, 2026-10-07:
+//! the editors convert to it, keys first in newDAWn and the collection). Where the pilot is on,
+//! [`crate::navigation`] reads the language's keys: arrows to the nearest parameter, COARSE +
+//! arrows card to card, VALUE + arrows the value, DELETE the default, VIEW the bars.
+//!
+//! The first three rules — a slider's reading never drawing over its
 //! name, a route stack's target line titling its box with each row naming only its source, and a
 //! route's minimum track — were piloted on mxm-mono-08 and rolled out to every editor on 2026-09-24
 //! (`plans/plan-editor-standard.md` R1, in the private archive). mxm-mono-08 keeps the pilot on: it
@@ -27,7 +32,12 @@ pub fn enable(ctx: &Context) {
 /// Whether the editor drawing into `ui` is the pilot.
 #[must_use]
 pub fn on(ui: &Ui) -> bool {
-    ui.ctx()
-        .data(|data| data.get_temp::<bool>(key()))
+    enabled(ui.ctx())
+}
+
+/// [`on`], for code that runs before anything is drawn, such as the keyboard cursor.
+#[must_use]
+pub fn enabled(ctx: &Context) -> bool {
+    ctx.data(|data| data.get_temp::<bool>(key()))
         .unwrap_or(false)
 }

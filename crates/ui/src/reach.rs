@@ -286,6 +286,7 @@ fn steps(size: Step) -> usize {
 
 /// The keyboard's cursor among the widgets: one place in each of the host's views `K`, and one in
 /// an open menu.
+#[derive(Clone, Debug)]
 pub struct State<K> {
     ctx: Option<Context>,
     at: HashMap<K, NodeId>,

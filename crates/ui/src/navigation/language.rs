@@ -1,0 +1,192 @@
+//! The keyboard language (newDAWn's `docs/keyboard.md`, the collection's law since 2026-10-06), as
+//! the cursor reads it where [`crate::pilot`] is on. The owner decided on 2026-10-07 that the
+//! editors convert to it: **the keys work in newDAWn and the collection, other hosts are
+//! secondary** and fall back to the mouse where they keep a key from the window.
+//!
+//! - The arrows go to the nearest parameter that way, across cards; COARSE + arrows to the next
+//!   card. VIEW + arrows leave the cards for the bars above them (the view bar, then the app bar)
+//!   and come back, never out of the window: an editor is its own window, and moving between
+//!   windows is the window manager's.
+//! - VALUE + arrows change the parameter the cursor is on: FINE (or no step key) its fine step,
+//!   COARSE and MUSICAL its coarse one, MICRO the finer layer. The change is one gesture, ended by
+//!   OUT, by letting go of a held VALUE or by the next command, and BACK cancels it.
+//! - DELETE (and RIPPLE) put the parameter back to its default. OPEN (Enter) and BACK (Escape)
+//!   stay in egui's queue too, for typing a value and closing what is open; Home and End and every
+//!   chord with `Command` or `Alt` are left for the controls, as they were.
+//! - In a bar, the cursor walks its widgets with [`crate::reach`]: OPEN presses one.
+
+use std::time::Duration;
+
+use egui::{Context, Key as E};
+use mxm_keys::{Action, Direction, Engine, Job, Key, Keymap, Mods, Output, Step as Size, Verb};
+
+use super::{Dir, State, Step, ValueKeys, bars};
+use crate::control::Press;
+use crate::reach;
+
+/// The physical key egui reports, as the language names it.
+fn to_key(key: E) -> Option<Key> {
+    Some(match key {
+        E::A => Key::A,
+        E::B => Key::B,
+        E::C => Key::C,
+        E::D => Key::D,
+        E::E => Key::E,
+        E::F => Key::F,
+        E::G => Key::G,
+        E::H => Key::H,
+        E::I => Key::I,
+        E::J => Key::J,
+        E::K => Key::K,
+        E::L => Key::L,
+        E::M => Key::M,
+        E::N => Key::N,
+        E::O => Key::O,
+        E::P => Key::P,
+        E::Q => Key::Q,
+        E::R => Key::R,
+        E::S => Key::S,
+        E::T => Key::T,
+        E::U => Key::U,
+        E::V => Key::V,
+        E::W => Key::W,
+        E::X => Key::X,
+        E::Y => Key::Y,
+        E::Z => Key::Z,
+        E::ArrowUp => Key::Up,
+        E::ArrowDown => Key::Down,
+        E::ArrowLeft => Key::Left,
+        E::ArrowRight => Key::Right,
+        E::Tab => Key::Tab,
+        E::Escape => Key::Escape,
+        E::Enter => Key::Enter,
+        E::Backspace => Key::Backspace,
+        E::Delete => Key::Delete,
+        _ => return None,
+    })
+}
+
+fn dir(direction: Direction) -> Dir {
+    match direction {
+        Direction::Left => Dir::Left,
+        Direction::Right => Dir::Right,
+        Direction::Up => Dir::Up,
+        Direction::Down => Dir::Down,
+    }
+}
+
+/// Whether a key's events stay in egui's queue as well: OPEN and BACK, for typing a value and
+/// closing a menu, which the controls and egui already do.
+fn shared(engine: &Engine, key: Key) -> bool {
+    matches!(
+        engine.keymap().job(key),
+        Some(Job::Action(Action::Open) | Job::Back)
+    )
+}
+
+/// The language's keys this frame, read before any control is drawn: the moves for the cursor,
+/// and the value keys published for the parameter it is on.
+pub(super) fn read(ctx: &Context, state: &mut State) -> Vec<Step> {
+    let engine = state
+        .language
+        .get_or_insert_with(|| Engine::new(Keymap::default()));
+    let at = Duration::from_secs_f64(ctx.input(|input| input.time).max(0.0));
+    let mut outputs = Vec::new();
+    ctx.input_mut(|input| {
+        if input.pointer.any_pressed() {
+            outputs.extend(engine.interrupt());
+        }
+        input.events.retain(|event| {
+            let egui::Event::Key {
+                key,
+                physical_key,
+                pressed,
+                modifiers,
+                ..
+            } = event
+            else {
+                return true;
+            };
+            // Chords with Command or Alt are the controls' and the host's, as before.
+            if modifiers.command || modifiers.alt {
+                return true;
+            }
+            let Some(key) = to_key(physical_key.unwrap_or(*key)) else {
+                return true;
+            };
+            let ours = key.direction().is_some() || engine.keymap().job(key).is_some();
+            if !ours {
+                return true;
+            }
+            let mods = Mods {
+                shift: modifiers.shift,
+                alt: false,
+                command: false,
+            };
+            outputs.extend(if *pressed {
+                engine.press(key, mods, at)
+            } else {
+                engine.release(key)
+            });
+            shared(engine, key)
+        });
+    });
+    outputs.extend(engine.poll(at));
+    if !outputs.is_empty() {
+        super::reveal(ctx);
+    }
+
+    let mut steps = Vec::new();
+    let mut keys = ValueKeys::default();
+    for output in outputs {
+        // VIEW moves between the cards and the bars above them.
+        if let Output::View { direction } = output {
+            view(ctx, state, direction);
+            continue;
+        }
+        if let Some(bar) = state.bar {
+            let ui = bars(ctx).get(bar).map(|&(ui, _)| ui);
+            if let Some(ui) = ui {
+                state.reach.key(bar, reach::Region::Inside(ui), output);
+            }
+            continue;
+        }
+        match output {
+            Output::Navigate {
+                direction,
+                coarse: true,
+            } => steps.push(Step::Card(dir(direction))),
+            Output::Navigate { direction, .. } => steps.push(Step::Any(dir(direction))),
+            Output::Step {
+                verb: Verb::Value,
+                step,
+                direction,
+            } => keys.presses.push(Press {
+                up: matches!(direction, Direction::Up | Direction::Right),
+                coarse: matches!(step, Size::Coarse | Size::Musical),
+                finer: step == Size::Micro,
+            }),
+            Output::Finish => keys.keep = true,
+            Output::Cancel => keys.cancel = true,
+            Output::Action(Action::Delete | Action::Ripple) => keys.reset = true,
+            _ => {}
+        }
+    }
+    if keys != ValueKeys::default() {
+        super::publish_value_keys(ctx, keys);
+    }
+    steps
+}
+
+/// VIEW + ↑ from the cards goes to the lowest bar above them, and on up; ↓ comes back down, and
+/// from the lowest bar to the cards. Sideways, and past the top, there is nowhere to go.
+fn view(ctx: &Context, state: &mut State, direction: Direction) {
+    let count = bars(ctx).len();
+    state.bar = match (direction, state.bar) {
+        (Direction::Up, None) if count > 0 => Some(count - 1),
+        (Direction::Up, Some(bar)) => Some(bar.saturating_sub(1)),
+        (Direction::Down, Some(bar)) if bar + 1 < count => Some(bar + 1),
+        (Direction::Down, Some(_)) => None,
+        (_, bar) => bar,
+    };
+}

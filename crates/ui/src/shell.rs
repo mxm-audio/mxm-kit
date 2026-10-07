@@ -297,6 +297,7 @@ impl<'a> AppBar<'a> {
                     .stroke(Stroke::new(HAIRLINE, tokens.border)),
             )
             .show(ui, |ui| {
+                crate::navigation::bar(ui);
                 ui.horizontal_centered(|ui| {
                     let ctx = ui.ctx().clone();
                     let widths: BarWidths = ctx
@@ -804,6 +805,7 @@ impl<'a> ViewBar<'a> {
                     .inner_margin(egui::Margin::symmetric(SPACE_5 as i8, SPACE_2 as i8)),
             )
             .show(ui, |ui| {
+                crate::navigation::bar(ui);
                 ui.spacing_mut().item_spacing = Vec2::splat(SPACE_2);
                 for (row, views) in self.views.chunks(geometry.columns).enumerate() {
                     ui.horizontal(|ui| {

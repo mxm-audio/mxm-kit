@@ -28,8 +28,11 @@ use std::collections::HashMap;
 
 use egui::{Id, Key, Pos2, Rect, Response, Stroke, StrokeKind, Ui};
 
+use crate::control::Press;
 use crate::space::{HAIRLINE, RADIUS};
 use crate::theme::Tokens;
+
+mod language;
 
 /// One control, as the frame painted it.
 #[derive(Clone, Debug, PartialEq)]
@@ -74,6 +77,12 @@ pub struct State {
     /// text field, an open menu — so the focus that move owes the control has not been handed over
     /// yet. The first frame free to hand it over does; a newer cursor move supersedes it.
     owed: bool,
+    /// The keyboard language's engine, where the pilot reads keys through it ([`language`]).
+    language: Option<mxm_keys::Engine>,
+    /// VIEW + arrows left the cards for a bar: which, counted from the top.
+    bar: Option<usize>,
+    /// The cursor among a bar's widgets.
+    reach: crate::reach::State<usize>,
 }
 
 impl State {
@@ -88,6 +97,11 @@ impl State {
 
     pub fn parameter(&self) -> Option<&str> {
         self.cursor.key.as_deref()
+    }
+
+    /// The bar the cursor is in, counted from the top, when VIEW took it out of the cards.
+    pub fn bar(&self) -> Option<usize> {
+        self.bar
     }
 
     fn settle(&mut self, spot: &Spot) {
@@ -123,6 +137,55 @@ fn target_id() -> Id {
 }
 fn shown_id() -> Id {
     registry_id().with("shown")
+}
+fn bars_current_id() -> Id {
+    registry_id().with("bars current")
+}
+fn bars_last_id() -> Id {
+    registry_id().with("bars last")
+}
+fn value_keys_id() -> Id {
+    registry_id().with("value keys")
+}
+
+/// Records a bar drawn above the cards — the app bar, the view bar — so the keyboard language's
+/// VIEW can reach its widgets. The shell calls it inside each bar's panel.
+pub fn bar(ui: &Ui) {
+    let entry = (ui.unique_id(), ui.max_rect());
+    ui.ctx().data_mut(|d| {
+        d.get_temp_mut_or_default::<Vec<(Id, Rect)>>(bars_current_id())
+            .push(entry);
+    });
+}
+
+/// The bars the last frame drew, from the top.
+fn bars(ctx: &egui::Context) -> Vec<(Id, Rect)> {
+    let mut bars = ctx.data(|d| {
+        d.get_temp::<Vec<(Id, Rect)>>(bars_last_id())
+            .unwrap_or_default()
+    });
+    bars.sort_by(|a, b| a.1.top().total_cmp(&b.1.top()));
+    bars
+}
+
+/// What the keyboard language asks of the parameter the cursor is on, this frame: VALUE's steps,
+/// the end of the gesture (kept or cancelled), and DELETE's reset to the default.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(crate) struct ValueKeys {
+    pub presses: Vec<Press>,
+    pub keep: bool,
+    pub cancel: bool,
+    pub reset: bool,
+}
+
+fn publish_value_keys(ctx: &egui::Context, keys: ValueKeys) {
+    ctx.data_mut(|d| d.insert_temp(value_keys_id(), keys));
+}
+
+/// Takes this frame's value keys, for the control the cursor is on.
+pub(crate) fn take_value_keys(ctx: &egui::Context) -> ValueKeys {
+    ctx.data_mut(|d| d.remove_temp::<ValueKeys>(value_keys_id()))
+        .unwrap_or_default()
 }
 
 /// Whether the cursor is currently *shown*, as opposed to merely positioned.
@@ -346,6 +409,8 @@ pub fn spots(ctx: &egui::Context) -> Vec<Spot> {
 enum Step {
     Card(Dir),
     Param(Dir),
+    /// The keyboard language's bare arrow: the nearest parameter that way, on any card.
+    Any(Dir),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -434,7 +499,16 @@ pub fn run(
             d.insert_temp(last_id(), current);
         }
         d.insert_temp(current_id(), Vec::<Spot>::new());
+        let bars = d
+            .get_temp::<Vec<(Id, Rect)>>(bars_current_id())
+            .unwrap_or_default();
+        d.insert_temp(bars_last_id(), bars);
+        d.insert_temp(bars_current_id(), Vec::<(Id, Rect)>::new());
     });
+    let pilot = crate::pilot::enabled(ctx);
+    if pilot {
+        state.reach.begin(ctx);
+    }
 
     // Declared even while inert: the editor still has a cursor, it is merely suspended, and the
     // controls must not fall back to their pre-cursor arrow handling for one frame because the
@@ -479,13 +553,17 @@ pub fn run(
     // egui's memory keeps a menu's open state from frame to frame.
     let inert = inert || ctx.text_edit_focused() || egui::Popup::is_any_open(ctx);
     if inert {
+        if let Some(engine) = state.language.as_mut() {
+            let _ = engine.interrupt();
+        }
         clear_target(ctx);
         return None;
     }
 
     // And a key brings it back — *after* the inert check, because while the browser is open or a
-    // value is being typed the arrows are that surface's and say nothing about this cursor.
-    if keyboard_gesture(ctx) {
+    // value is being typed the arrows are that surface's and say nothing about this cursor. The
+    // keyboard language reveals it as it reads its keys.
+    if !pilot && keyboard_gesture(ctx) {
         reveal(ctx);
     }
 
@@ -512,7 +590,36 @@ pub fn run(
         state.moved = true;
     }
 
-    let steps = requested(ctx);
+    let steps = if pilot {
+        language::read(ctx, state)
+    } else {
+        requested(ctx)
+    };
+
+    // In a bar, the cards keep their place but give up the keyboard, and the bar's own cursor is
+    // outlined over it while the keyboard is in use.
+    if let Some(bar) = state.bar {
+        clear_target(ctx);
+        let region = bars(ctx)
+            .get(bar)
+            .map(|&(ui, _)| crate::reach::Region::Inside(ui));
+        state.reach.show(bar, region);
+        if shown(ctx)
+            && let Some((widget, _)) = &state.reach.now
+        {
+            ctx.layer_painter(egui::LayerId::new(
+                egui::Order::Tooltip,
+                registry_id().with("bar cursor"),
+            ))
+            .rect_stroke(
+                widget.rect.expand(2.0),
+                RADIUS,
+                Stroke::new(2.0, ctx.global_style().visuals.selection.stroke.color),
+                StrokeKind::Outside,
+            );
+        }
+        return None;
+    }
 
     // A cursor that has never landed starts on the first thing drawn, so the first keystroke is
     // never spent arriving.
@@ -537,6 +644,7 @@ pub fn run(
                 }
             }
             Step::Param(dir) => move_param(state, &spots, dir),
+            Step::Any(dir) => move_any(state, &spots, dir),
         }
     }
     focus(ctx, state, &spots);
@@ -576,6 +684,8 @@ pub fn stop(ctx: &egui::Context) {
         d.remove::<Vec<Spot>>(last_id());
         d.remove::<(u64, String)>(target_id());
         d.remove::<u64>(outline_id());
+        d.remove::<Vec<(Id, Rect)>>(bars_current_id());
+        d.remove::<Vec<(Id, Rect)>>(bars_last_id());
     });
 }
 
@@ -693,6 +803,31 @@ fn move_param(state: &mut State, spots: &[Spot], dir: Dir) {
     }
 }
 
+/// The keyboard language's bare arrow: the nearest parameter painted that way, on any card.
+fn move_any(state: &mut State, spots: &[Spot], dir: Dir) {
+    let (Some(card), Some(key)) = (state.cursor.card, state.cursor.key.as_deref()) else {
+        return;
+    };
+    let Some(from) = spots
+        .iter()
+        .find(|spot| spot.card == card && spot.key == key)
+    else {
+        return;
+    };
+    let target = directional(
+        from.rect,
+        spots
+            .iter()
+            .filter(|spot| !(spot.card == card && spot.key == key))
+            .map(|spot| (spot, spot.rect)),
+        dir,
+    );
+    if let Some(spot) = target {
+        state.settle(spot);
+        state.moved = true;
+    }
+}
+
 fn sequence_target(order: &[u64], current: u64, dir: Dir) -> Option<u64> {
     let at = order.iter().position(|key| *key == current)?;
     let next = if dir.forward() {
@@ -796,7 +931,7 @@ pub fn paged_with_bar(ctx: &egui::Context, state: &mut State, inert: bool, bar: 
     {
         crate::paging::editor::request_card(ctx, crate::paging::Key(wanted));
     }
-    outline(ctx, state.card());
+    outline(ctx, state.card().filter(|_| state.bar.is_none()));
 }
 
 /// Tells the renderer which card outline to paint. Set by the editor, read by the paging renderer.
@@ -1348,5 +1483,65 @@ mod tests {
         output.textures_delta.clear();
         assert_ne!(state.parameter(), Some("b"), "the field's keys are its own");
         assert!(!shown(&ctx));
+    }
+
+    /// **The keyboard language, where the pilot runs it**: VIEW + ↑ leaves the cards for the bar
+    /// above them, where OPEN presses the widget the cursor is on, and VIEW + ↓ comes back.
+    #[test]
+    fn under_the_language_view_reaches_the_bar_where_open_presses() {
+        let ctx = egui::Context::default();
+        crate::pilot::enable(&ctx);
+        let mut state = State::default();
+        let mut pressed = false;
+        let tap = |key| {
+            [true, false].map(|down| egui::Event::Key {
+                key,
+                physical_key: None,
+                pressed: down,
+                repeat: false,
+                modifiers: egui::Modifiers::NONE,
+            })
+        };
+        let frame = |state: &mut State, events: Vec<egui::Event>, pressed: &mut bool| {
+            let input = egui::RawInput {
+                screen_rect: Some(Rect::from_min_size(Pos2::ZERO, egui::vec2(400.0, 300.0))),
+                events,
+                ..Default::default()
+            };
+            let mut output = ctx.run_ui(input, |ui| {
+                let cards = [(
+                    0,
+                    Rect::from_min_size(Pos2::new(0.0, 60.0), egui::vec2(400.0, 240.0)),
+                )];
+                let _ = run(ui.ctx(), state, &[0], &cards, false);
+                egui::Panel::top("a bar").show(ui, |ui| {
+                    bar(ui);
+                    if ui.button("Presets").clicked() {
+                        *pressed = true;
+                    }
+                });
+                egui::CentralPanel::default().show(ui, |ui| {
+                    card(ui, 0, |ui| {
+                        at(ui, "a", |ui| {
+                            let response = ui.button("a");
+                            mark(ui, &response, response.rect);
+                        });
+                    });
+                });
+            });
+            output.textures_delta.clear();
+        };
+        for _ in 0..3 {
+            frame(&mut state, Vec::new(), &mut pressed);
+        }
+        let view_up: Vec<_> = tap(Key::C).into_iter().chain(tap(Key::ArrowUp)).collect();
+        frame(&mut state, view_up, &mut pressed);
+        assert_eq!(state.bar(), Some(0), "VIEW + up is the bar");
+        frame(&mut state, Vec::new(), &mut pressed);
+        frame(&mut state, tap(Key::Enter).to_vec(), &mut pressed);
+        assert!(pressed, "OPEN pressed the bar's button");
+        let view_down: Vec<_> = tap(Key::C).into_iter().chain(tap(Key::ArrowDown)).collect();
+        frame(&mut state, view_down, &mut pressed);
+        assert_eq!(state.bar(), None, "VIEW + down is the cards again");
     }
 }
