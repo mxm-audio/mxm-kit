@@ -92,6 +92,10 @@ pub(super) fn read(ctx: &Context, state: &mut State) -> Vec<Step> {
     let engine = state
         .language
         .get_or_insert_with(|| Engine::new(Keymap::default()));
+    // BACK during a mouse drag cancels the drag and does nothing else (`crate::drag`). egui has
+    // already ended a drag on `Escape` by now, so where BACK is on `Escape` that drag is marked.
+    let mut back_spent =
+        engine.keymap().job(Key::Escape) == Some(Job::Back) && crate::drag::notice_escape(ctx);
     let at = Duration::from_secs_f64(ctx.input(|input| input.time).max(0.0));
     let mut outputs = Vec::new();
     let mut taken = false;
@@ -154,6 +158,12 @@ pub(super) fn read(ctx: &Context, state: &mut State) -> Vec<Step> {
     let mut steps = Vec::new();
     let mut keys = ValueKeys::default();
     for output in outputs {
+        // BACK that ended a mouse drag, or ends one now, is spent on it.
+        if matches!(output, Output::Cancel | Output::Back)
+            && (std::mem::take(&mut back_spent) || crate::drag::cancel(ctx))
+        {
+            continue;
+        }
         // VIEW moves between the cards and the bars above them.
         if let Output::View { direction } = output {
             view(ctx, state, direction);

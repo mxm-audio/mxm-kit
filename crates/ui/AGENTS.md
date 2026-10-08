@@ -125,7 +125,10 @@ Does **not** own labels, parameter bindings, or data. Plugins and the player sup
   mxm-mono-08, rolled out 2026-10-08): arrows parameter to parameter, COARSE + arrows card to card,
   VALUE + arrows the value (fine, COARSE coarse, MICRO the finer layer), one gesture OUT keeps and
   BACK cancels, DELETE the default, VIEW + arrows the bars. BACK alone never reveals the cursor
-  (`escape_is_not_a_reveal`).
+  (`escape_is_not_a_reveal`). **BACK during a mouse drag cancels it** (the owner, 2026-10-08, as
+  newDAWn): `drag` marks it before the keys are read, and a knob or slider whose drag stops
+  cancelled puts back the value it began at (`back_during_a_drag_puts_the_knob_back`); an editor's
+  own dragged widget asks `drag::cancelled` when its drag stops.
 - **The map is drawn, not declared**: `navigation::mark` inside the `card` and `at` scopes;
   `navigation::aside` for an editor-only control. Editors drive it with `navigation::paged` (never
   a second card order), or `paged_with_bar` + `navigation::bar_card` for an app-bar parameter.

@@ -24,6 +24,7 @@
 
 pub mod browser;
 pub mod control;
+pub mod drag;
 pub mod flow;
 pub mod navigation;
 pub mod offthread;

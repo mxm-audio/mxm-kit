@@ -3130,12 +3130,47 @@ fn drag_edit(
 
     if response.drag_stopped() {
         outcome.gesture_ended = true;
-        ui.data_mut(|d| d.remove_temp::<DragAnchor>(anchor_id(response)));
+        let anchor = ui.data_mut(|d| d.remove_temp::<DragAnchor>(anchor_id(response)));
+        outcome |= drag_cancelled(ui, response, anchor, normalised);
     }
 
     outcome |= keyboard_edit(ui, response, param, normalised);
     outcome |= wheel_edit(ui, response, normalised, wheel);
     outcome
+}
+
+/// A drag BACK cancelled (`crate::drag`): the control puts back the value the drag began at, in
+/// the gesture that is ending, so the host's undo sees nothing changed.
+fn drag_cancelled(
+    ui: &Ui,
+    response: &Response,
+    anchor: Option<DragAnchor>,
+    normalised: &mut f64,
+) -> ControlOutcome {
+    match anchor {
+        Some(anchor) if crate::drag::cancelled(ui.ctx(), response.id) => {
+            *normalised = anchor.start;
+            ControlOutcome {
+                changed: true,
+                ..Default::default()
+            }
+        }
+        _ => ControlOutcome::default(),
+    }
+}
+
+/// Remembers the value a slider's drag begins at, which only a cancelled drag reads: a slider is
+/// positional, so nothing else needs it.
+fn remember_drag_start(ui: &Ui, response: &Response, normalised: f64) {
+    ui.data_mut(|d| {
+        d.insert_temp(
+            anchor_id(response),
+            DragAnchor {
+                start: normalised,
+                travelled: 0.0,
+            },
+        )
+    });
 }
 
 /// A slider is **positional**: the handle goes where the pointer is along the track.
@@ -3164,6 +3199,7 @@ fn slider_edit(
 
     if response.drag_started() {
         outcome.gesture_started = true;
+        remember_drag_start(ui, response, *normalised);
     }
 
     if response.dragged() || response.clicked() {
@@ -3191,6 +3227,8 @@ fn slider_edit(
 
     if response.drag_stopped() {
         outcome.gesture_ended = true;
+        let anchor = ui.data_mut(|d| d.remove_temp::<DragAnchor>(anchor_id(response)));
+        outcome |= drag_cancelled(ui, response, anchor, normalised);
     }
 
     // A click with no drag is a complete edit on its own, so it brackets itself. Without this a
@@ -3224,6 +3262,7 @@ fn vertical_slider_edit(
     }
     if response.drag_started() {
         outcome.gesture_started = true;
+        remember_drag_start(ui, response, *normalised);
     }
     if response.dragged() || response.clicked() {
         if ui.input(|input| input.modifiers.shift) {
@@ -3246,6 +3285,8 @@ fn vertical_slider_edit(
     }
     if response.drag_stopped() {
         outcome.gesture_ended = true;
+        let anchor = ui.data_mut(|d| d.remove_temp::<DragAnchor>(anchor_id(response)));
+        outcome |= drag_cancelled(ui, response, anchor, normalised);
     }
     if response.clicked() && outcome.changed {
         outcome.gesture_started = true;
@@ -7149,5 +7190,97 @@ mod tests {
             draw(ui, &mut on);
         });
         assert!(!on, "left is off");
+    }
+
+    /// A press at `at`, the pointer moved `steps` times by `by`, then BACK (`Escape`) with the
+    /// button still down: the frames a person makes when they change their mind mid-drag.
+    fn drag_then_back(
+        rig: &mut Cursor,
+        at: egui::Pos2,
+        by: egui::Vec2,
+        steps: usize,
+        mut draw: impl FnMut(&mut Ui),
+    ) {
+        let press = egui::Event::PointerButton {
+            pos: at,
+            button: egui::PointerButton::Primary,
+            pressed: true,
+            modifiers: Modifiers::NONE,
+        };
+        rig.frame(vec![egui::Event::PointerMoved(at), press], &mut draw);
+        for step in 1..=steps {
+            rig.frame(
+                vec![egui::Event::PointerMoved(at + by * step as f32)],
+                &mut draw,
+            );
+        }
+        rig.frame(tap(Key::Escape), &mut draw);
+    }
+
+    /// **BACK during a mouse drag cancels it, as it cancels a keyboard edit** (the owner,
+    /// 2026-10-08: the plugins match newDAWn): the knob puts back the value the drag began at.
+    #[test]
+    fn back_during_a_drag_puts_the_knob_back() {
+        let mut rig = Cursor::new();
+        let mut asked = None;
+        for _ in 0..3 {
+            rig.frame(Vec::new(), |ui| cursor_knob(ui, "a", 0.5, None, &mut asked));
+        }
+        let at = rig.rect_of("a").center();
+        let mut moved = None;
+        drag_then_back(&mut rig, at, egui::vec2(0.0, -10.0), 4, |ui| {
+            cursor_knob(ui, "a", 0.5, None, &mut asked);
+            if asked.is_some_and(|value| value > 0.5) {
+                moved = asked;
+            }
+        });
+        assert!(moved.is_some(), "the drag turned the knob up");
+        assert_eq!(
+            asked,
+            Some(0.5),
+            "BACK put back the value the drag began at"
+        );
+    }
+
+    /// The same for a slider, which is positional and remembers its start only for this.
+    #[test]
+    fn back_during_a_drag_puts_the_slider_back() {
+        let mut rig = Cursor::new();
+        let mut asked = None;
+        let draw = |ui: &mut Ui, asked: &mut Option<f64>| {
+            crate::navigation::at(ui, "s", |ui| {
+                let view = ParamView::new("s", "text", "A parameter.");
+                let mut normalised = 0.5;
+                let mut entry = None;
+                let outcome = slider(
+                    ui,
+                    &crate::theme::LIGHT,
+                    &view,
+                    &mut normalised,
+                    200.0,
+                    &mut entry,
+                    Wheel::Off,
+                );
+                if outcome.changed {
+                    *asked = Some(normalised);
+                }
+            });
+        };
+        for _ in 0..3 {
+            rig.frame(Vec::new(), |ui| draw(ui, &mut asked));
+        }
+        let track = rig.rect_of("s");
+        let at = egui::pos2(track.center().x, track.bottom() - 4.0);
+        let mut moved = false;
+        drag_then_back(&mut rig, at, egui::vec2(15.0, 0.0), 4, |ui| {
+            draw(ui, &mut asked);
+            moved |= asked.is_some_and(|value| (value - 0.5).abs() > 1e-6);
+        });
+        assert!(moved, "the drag moved the slider");
+        assert_eq!(
+            asked,
+            Some(0.5),
+            "BACK put back the value the drag began at"
+        );
     }
 }

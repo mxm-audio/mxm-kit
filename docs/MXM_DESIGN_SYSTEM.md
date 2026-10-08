@@ -899,7 +899,7 @@ Tab OUT. The keys of a combination can be held together or pressed one after ano
 | VALUE + COARSE (or MUSICAL) + arrows | Adjust the selected parameter — **coarse**: 10 %, or an octave |
 | VALUE + MICRO + arrows | Adjust the selected parameter — **finer**: 0.1 %, or a cent |
 | OUT | Keep the edit, as one host gesture, and stay on the parameter |
-| BACK (`Escape`) | Cancel the edit back to where it began, or close transient UI |
+| BACK (`Escape`) | Cancel the edit back to where it began, a mouse drag included, or close transient UI |
 | DELETE | Return the selected parameter to its default |
 | OPEN (`Enter`) | Choose the segmented cell the cursor is on, or begin value entry |
 | `Home` / `End` | Minimum / maximum where safe |
