@@ -995,9 +995,8 @@ modules/cards, VALUE + arrows for the value (fine, COARSE coarse, MICRO the fine
 gesture that OUT keeps and BACK cancels, DELETE the default, VIEW + arrows the bars. BACK also
 cancels a mouse drag: the shared knobs and sliders put back the value it began at, and an editor's
 own dragged widget does the same by asking `mxm_ui::drag::cancelled` when its drag stops. A
-plugin's own
-key tests press the language's keys: W for VALUE, S for COARSE, F for MICRO and Tab for OUT in the
-default keymap. `mxm_ui::navigation::running` keeps a *surface* without a cursor — the developer
+plugin's own key tests press the language's keys: W for VALUE, S for COARSE, F for MICRO and Tab
+for OUT in the default keymap. `mxm_ui::navigation::running` keeps a *surface* without a cursor — the developer
 Parameters list — on its focused control's own bare-arrow editing.
 
 An editor is three things, and no new tables:
