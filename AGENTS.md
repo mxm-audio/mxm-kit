@@ -90,7 +90,8 @@ The full wording, with the hierarchy and a child doc's shape: [NOTES.md § The D
   scope, ownership, structure, contracts, workflows, inputs, outputs, permissions, constraints, side
   effects, artifacts, the owner's preferences, or AGENTS.md files and indexes change, and the
   parents and children it affects; correct stale or contradictory text at once, moving its history
-  to `NOTES.md` rather than deleting it. A small edit that changes no behaviour may leave docs
+  to `NOTES.md` rather than deleting it, but deleting a discarded idea or replaced design outright
+  (git keeps it; the owner, 2026-10-08). A small edit that changes no behaviour may leave docs
   unchanged, but the pass still happens.
 - **An AGENTS.md is the contract and stays under about 200 lines.** History, measurements, rationale
   and worked examples go in the `NOTES.md` beside it, linked from the rule they explain.
@@ -156,15 +157,18 @@ implemented. A dependency that does not support all three cannot be taken.
 - **Style**: concise, current, operational; stable contracts, not diary entries; broad rules in
   parents, concrete detail in children; direct bullets with explicit names; no rule repeated across
   files unless each scope needs it; stale or misplaced text corrected and its history moved to
-  `NOTES.md`, never just deleted (the owner, 2026-10-06).
+  `NOTES.md`, never just deleted (the owner, 2026-10-06). **What moves is the reasoning behind what
+  is still in force; a discarded idea is deleted, not archived** (the owner, 2026-10-08: "it is a
+  discarded idea that we are never gonna use again"): no copied old tables, no "until <date> it
+  was…" asides.
 - **A value the code holds is named, not copied** (the owner, 2026-09-24): a size a test derives or a
   constant the code declares is stated as its rule, its constant and the test that holds it, never
   its number. Two exceptions: the design system's own tokens and rules, and a plan's dated revision
   history.
 - **Closeout**: re-check changed paths against the DOX chain; update the nearest owning docs and any
   affected parents or children; refresh every affected Child DOX Index; correct (never just delete)
-  stale or contradictory text; run existing verification when relevant; report any docs
-  intentionally left unchanged and why.
+  stale or contradictory text, but delete a discarded idea outright; run existing verification
+  when relevant; report any docs intentionally left unchanged and why.
 
 # Verification
 
