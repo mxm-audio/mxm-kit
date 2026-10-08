@@ -905,6 +905,7 @@ Tab OUT. The keys of a combination can be held together or pressed one after ano
 | `Home` / `End` | Minimum / maximum where safe |
 | `Ctrl/Cmd+Z` | Undo |
 | `Ctrl/Cmd+Shift+Z` | Redo |
+| `F1` | Show or hide the sheet of the keys, named from the keymap in use; `Escape` closes it too |
 
 The edit is **one gesture**, however many presses it takes, and each press starts where the one
 before it landed. BACK alone never reveals the cursor: a panel must not light up because somebody

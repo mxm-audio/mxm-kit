@@ -32,6 +32,7 @@ use crate::space::{HAIRLINE, RADIUS};
 use crate::theme::Tokens;
 
 mod language;
+mod sheet;
 
 /// One control, as the frame painted it.
 #[derive(Clone, Debug, PartialEq)]
@@ -97,6 +98,8 @@ pub struct State {
     home: bool,
     /// The cursor among a bar's widgets.
     reach: crate::reach::State<usize>,
+    /// F1's sheet of the keys is open (`sheet`).
+    sheet: bool,
 }
 
 impl State {
@@ -508,6 +511,13 @@ pub fn run(
     // already ended a drag on `Escape` this frame, and a surface holding the keyboard — a focused
     // canvas — must not keep that drag's value either.
     let back_spent = language::escape_is_back(state) && crate::drag::notice_escape(ctx);
+
+    // **F1 shows and hides the keys** (`sheet`), whatever holds the keyboard, and `Escape` closes
+    // the sheet before anything else hears it.
+    let mut open = state.sheet;
+    sheet::keys(ctx, &mut open);
+    sheet::show(ctx, &mut open, language::engine(state).keymap());
+    state.sheet = open;
     if inert {
         if let Some(engine) = state.language.as_mut() {
             let _ = engine.interrupt();

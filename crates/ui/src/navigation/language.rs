@@ -86,14 +86,16 @@ fn shared(engine: &Engine, key: Key) -> bool {
     )
 }
 
-/// Whether the keymap puts BACK on `Escape`, which egui itself uses to end a mouse drag.
-pub(super) fn escape_is_back(state: &mut State) -> bool {
+/// The language's engine, made with the default keymap the first time it is asked for.
+pub(super) fn engine(state: &mut State) -> &mut Engine {
     state
         .language
         .get_or_insert_with(|| Engine::new(Keymap::default()))
-        .keymap()
-        .job(Key::Escape)
-        == Some(Job::Back)
+}
+
+/// Whether the keymap puts BACK on `Escape`, which egui itself uses to end a mouse drag.
+pub(super) fn escape_is_back(state: &mut State) -> bool {
+    engine(state).keymap().job(Key::Escape) == Some(Job::Back)
 }
 
 /// The language's keys this frame, read before any control is drawn: the moves for the cursor,
