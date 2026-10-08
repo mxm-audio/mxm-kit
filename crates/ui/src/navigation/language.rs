@@ -1,7 +1,8 @@
 //! The keyboard language (newDAWn's `docs/keyboard.md`, the collection's law since 2026-10-06), as
-//! the cursor reads it where [`crate::pilot`] is on. The owner decided on 2026-10-07 that the
-//! editors convert to it: **the keys work in newDAWn and the collection, other hosts are
-//! secondary** and fall back to the mouse where they keep a key from the window.
+//! the cursor reads it in every editor (piloted on mxm-mono-08, rolled out 2026-10-08). The owner
+//! decided on 2026-10-07 that the editors convert to it: **the keys work in newDAWn and the
+//! collection, other hosts are secondary** and fall back to the mouse where they keep a key from
+//! the window.
 //!
 //! - The arrows go to the nearest parameter that way, across cards; COARSE + arrows to the next
 //!   card. VIEW + arrows leave the cards for the bars above them (the view bar, then the app bar)
@@ -140,7 +141,12 @@ pub(super) fn read(ctx: &Context, state: &mut State) -> Vec<Step> {
         ctx.memory_mut(|memory| memory.move_focus(egui::FocusDirection::None));
     }
     outputs.extend(engine.poll(at));
-    if !outputs.is_empty() {
+    // Any of the language's keys reveal the cursor but BACK alone: it closes and cancels, and a
+    // panel must not light up because somebody dismissed a menu (`escape_is_not_a_reveal`).
+    if outputs
+        .iter()
+        .any(|output| !matches!(output, Output::Cancel | Output::Back))
+    {
         super::reveal(ctx);
     }
 

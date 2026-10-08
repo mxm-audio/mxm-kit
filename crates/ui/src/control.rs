@@ -179,14 +179,14 @@ pub struct ParamView<'a> {
     pub quiet_label: bool,
 }
 
-/// One keyboard press on a value: which way, whether it is the fine or the coarse axis, and
-/// whether `Alt` asked for the finer layer.
+/// One keyboard press on a value: which way, whether it is the coarse step, and whether it is the
+/// finer layer.
 ///
-/// Left/right is fine and up/down coarse under the cursor (see [`crate::navigation`]); the owner
-/// of the parameter decides what either means in its own units. **`Alt` is a finer layer, and in
-/// each layer up/down is the larger step** (the owner, 2026-09-24): 10 % and 1 % of the travel
-/// without it, 1 % and 0.1 % with it — an octave and a semitone, or ten cents and a cent, on a
-/// pitch.
+/// Under the cursor's keyboard language (see [`crate::navigation`]), VALUE + an arrow is the fine
+/// step, COARSE (or MUSICAL) the coarse one and MICRO the finer layer; the arrow gives only the
+/// direction. The owner of the parameter decides what each means in its own units: 10 %, 1 % and
+/// 0.1 % of the travel, or an octave, a semitone and a cent on a pitch. `coarse` and `finer`
+/// together, the old `Alt` + up/down (ten cents on a pitch), has no key in the language.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Press {
     pub up: bool,
@@ -1176,10 +1176,9 @@ fn segmented_keyboard(
     default_cell: Option<usize>,
 ) -> bool {
     let mut target = None;
-    let cursor = crate::navigation::running(ui);
-    // The keyboard language, where the pilot runs it: VALUE's presses step one cell each, and
-    // DELETE goes back to the default cell.
-    if cursor && crate::pilot::on(ui) {
+    // Under the cursor, the keyboard language (rolled out from the pilot on 2026-10-08): VALUE's
+    // presses step one cell each, and DELETE goes back to the default cell.
+    if crate::navigation::running(ui) {
         let keys = crate::navigation::take_value_keys(ui.ctx());
         for press in &keys.presses {
             let from = target.unwrap_or(*selected);
@@ -1210,23 +1209,11 @@ fn segmented_keyboard(
             _ => false,
         };
     }
-    let arrow_modifiers = if cursor {
-        Modifiers::NONE
-    } else {
-        Modifiers::COMMAND
-    };
+    // Where no cursor runs, the pre-cursor grammar: `Command` + arrows.
     ui.input_mut(|input| {
         // In the order they were pressed: Right-then-Left at the last cell ends one cell back,
         // Left-then-Right ends on it.
-        // `Alt` too: an option list has nothing finer than the adjacent option, so the finer
-        // layer moves one, as a bare arrow does.
-        let admits = |pressed: Modifiers| {
-            if cursor {
-                pressed == Modifiers::NONE || pressed == Modifiers::ALT
-            } else {
-                pressed.matches_logically(arrow_modifiers)
-            }
-        };
+        let admits = |pressed: Modifiers| pressed.matches_logically(Modifiers::COMMAND);
         for (key, _) in take_arrows(input, admits) {
             let from = target.unwrap_or(*selected);
             let forward = matches!(key, Key::ArrowRight | Key::ArrowUp);
@@ -3314,29 +3301,19 @@ fn keyboard_edit(
         return ControlOutcome::default();
     }
 
-    // Where no cursor runs — an editor this rollout has not reached — the bare arrows still edit
-    // the focused control as they always did, and nothing is taken away before its replacement
-    // arrives. See [`crate::navigation::running`].
-    let cursor = crate::navigation::running(ui);
-    if cursor && crate::pilot::on(ui) {
+    // Under the cursor, the keyboard language (rolled out from the pilot on 2026-10-08). Where no
+    // cursor runs — a surface without one — the bare arrows still edit the focused control as they
+    // always did. See [`crate::navigation::running`].
+    if crate::navigation::running(ui) {
         return language_edit(ui, gesture_id, param, normalised);
     }
 
     let (mut presses, mut reset, mut absolute) = (Vec::new(), false, None);
     ui.input_mut(|i| {
-        // Under the cursor, the owner's physical hierarchy: unmodified arrows edit the lowest
-        // tier, the value, and **`Alt` arrows edit it finer** — `Shift` and `Command` arrows were
-        // taken by the cursor before any control was drawn. Without a cursor, the pre-cursor
-        // grammar, unchanged: bare arrows, and `Shift` to refine. `matches_logically` ignores an
-        // extra `Shift` (and `Alt`), so that one pattern admits both, and each press carries
+        // The pre-cursor grammar: bare arrows, and `Shift` to refine. `matches_logically` ignores
+        // an extra `Shift` (and `Alt`), so that one pattern admits both, and each press carries
         // which it was.
-        presses = take_arrows(i, |pressed| {
-            if cursor {
-                pressed == Modifiers::NONE || pressed == Modifiers::ALT
-            } else {
-                pressed.matches_logically(Modifiers::NONE)
-            }
-        });
+        presses = take_arrows(i, |pressed| pressed.matches_logically(Modifiers::NONE));
         // The M8's `EDIT` + `OPTION`: back to the default. Double-click already means this.
         if i.consume_key(Modifiers::COMMAND, Key::Backspace) {
             reset = true;
@@ -3361,15 +3338,14 @@ fn keyboard_edit(
     }
 
     let still_held = ui.input(|input| {
-        let arrow_down = [
+        [
             Key::ArrowLeft,
             Key::ArrowRight,
             Key::ArrowUp,
             Key::ArrowDown,
         ]
         .into_iter()
-        .any(|key| input.key_down(key));
-        arrow_down && (!cursor || !(input.modifiers.shift || input.modifiers.command))
+        .any(|key| input.key_down(key))
     });
 
     if presses.is_empty() {
@@ -3387,33 +3363,22 @@ fn keyboard_edit(
     // landed. A frame can carry several repeats; all of them apply, inside one host gesture.
     let mut value = anchor.unwrap_or(*normalised).clamp(0.0, 1.0);
     for (key, modifiers) in presses {
-        value = if cursor {
-            // Left/right is fine and up/down coarse, the M8's axis orientation; `Alt` is the
-            // finer layer of both.
-            let press = Press {
-                up: matches!(key, Key::ArrowRight | Key::ArrowUp),
-                coarse: matches!(key, Key::ArrowUp | Key::ArrowDown),
-                finer: modifiers.alt,
-            };
-            step_once(param, value, press)
-        } else {
-            // Up and right increase, both on the fine axis; `Shift` is a tenth of a fine step.
-            let press = Press {
-                up: matches!(key, Key::ArrowRight | Key::ArrowUp),
-                coarse: false,
-                finer: false,
-            };
-            if modifiers.shift {
-                let steps = param.steps;
-                let fine = if press.up {
-                    steps.fine_up
-                } else {
-                    -steps.fine_down
-                };
-                (value + fine * 0.1).clamp(0.0, 1.0)
+        // Up and right increase, both on the fine axis; `Shift` is a tenth of a fine step.
+        let press = Press {
+            up: matches!(key, Key::ArrowRight | Key::ArrowUp),
+            coarse: false,
+            finer: false,
+        };
+        value = if modifiers.shift {
+            let steps = param.steps;
+            let fine = if press.up {
+                steps.fine_up
             } else {
-                step_once(param, value, press)
-            }
+                -steps.fine_down
+            };
+            (value + fine * 0.1).clamp(0.0, 1.0)
+        } else {
+            step_once(param, value, press)
         };
     }
 
@@ -3431,7 +3396,7 @@ fn keyboard_edit(
     }
 }
 
-/// The keyboard language's value keys, where the pilot runs it: VALUE's presses, each from where
+/// The keyboard language's value keys, under the cursor: VALUE's presses, each from where
 /// the one before landed, as one gesture until it is kept or cancelled; DELETE the default, and
 /// Home and End the ends, as before.
 fn language_edit(
@@ -3518,7 +3483,7 @@ fn language_edit(
 }
 
 /// Where one press lands from `value`: the owner's law when it gave one, its fixed [`Steps`] when
-/// it did not — under `Alt`, fine for up/down and a tenth of fine for left/right.
+/// it did not — the finer layer a tenth of fine (and, with `coarse`, fine).
 fn step_once(param: &ParamView<'_>, value: f64, press: Press) -> f64 {
     if let Some(Next(law)) = param.next {
         return law.next_value(value, press).clamp(0.0, 1.0);
@@ -6866,13 +6831,9 @@ mod tests {
         assert_eq!(rig.nav.parameter(), Some("b"), "the click moved the cursor");
 
         (asked_a, asked_b) = (None, None);
-        rig.frame(
-            vec![
-                key_event(Key::ArrowUp, true, false),
-                key_event(Key::ArrowUp, false, false),
-            ],
-            |ui| draw(ui, &mut asked_a, &mut asked_b),
-        );
+        rig.frame(taps(&[Key::W, Key::S, Key::ArrowUp, Key::Tab]), |ui| {
+            draw(ui, &mut asked_a, &mut asked_b)
+        });
         assert_eq!(asked_a, None, "the knob the cursor left is not edited");
         assert!(
             asked_b.is_some_and(|value| (value - 0.6).abs() < 1e-9),
@@ -6910,118 +6871,6 @@ mod tests {
         assert_eq!(rig.nav.parameter(), Some("a"));
     }
 
-    /// Two presses in one frame each start where the one before landed, in the order pressed.
-    #[test]
-    fn same_frame_presses_chain_through_the_law_in_the_order_pressed() {
-        let mut rig = Cursor::new();
-        let mut asked = None;
-        for _ in 0..3 {
-            rig.frame(Vec::new(), |ui| {
-                cursor_knob(ui, "a", 0.1, Some(&Doubling), &mut asked);
-            });
-        }
-        let up = key_event(Key::ArrowUp, true, false);
-        rig.frame(vec![up.clone(), up], |ui| {
-            cursor_knob(ui, "a", 0.1, Some(&Doubling), &mut asked);
-        });
-        assert!(
-            asked.is_some_and(|value| (value - 0.4).abs() < 1e-9),
-            "0.1 doubled twice is 0.4, not two first steps: {asked:?}"
-        );
-
-        // Left-then-Right from 0.9 ends at 0.9; Right-then-Left would end at 0.7.
-        let mut rig = Cursor::new();
-        let mut asked = None;
-        for _ in 0..3 {
-            rig.frame(Vec::new(), |ui| {
-                cursor_knob(ui, "a", 0.9, Some(&Doubling), &mut asked);
-            });
-        }
-        rig.frame(
-            vec![
-                key_event(Key::ArrowLeft, true, false),
-                key_event(Key::ArrowRight, true, false),
-            ],
-            |ui| cursor_knob(ui, "a", 0.9, Some(&Doubling), &mut asked),
-        );
-        assert!(
-            asked.is_some_and(|value| (value - 0.9).abs() < 1e-9),
-            "left then right from 0.9 is 0.6 then 0.9: {asked:?}"
-        );
-    }
-
-    /// **A held key chains from what it last sent, not from a readback the host has not applied.**
-    /// The host here applies nothing at all, which is the worst case of a late one.
-    #[test]
-    fn a_held_key_advances_once_per_repeat_while_the_host_lags() {
-        let mut rig = Cursor::new();
-        let applied = 0.1;
-        let mut asked = None;
-        for _ in 0..3 {
-            rig.frame(Vec::new(), |ui| {
-                cursor_knob(ui, "a", applied, Some(&Doubling), &mut asked);
-            });
-        }
-        let mut sent = Vec::new();
-        for repeat in [false, true, true] {
-            asked = None;
-            rig.frame(vec![key_event(Key::ArrowRight, true, repeat)], |ui| {
-                cursor_knob(ui, "a", applied, Some(&Doubling), &mut asked);
-            });
-            sent.push(asked.expect("each repeat sends"));
-        }
-        for (sent, expected) in sent.iter().zip([0.4, 0.7, 1.0]) {
-            assert!(
-                (sent - expected).abs() < 1e-9,
-                "sent {sent}, expected {expected}"
-            );
-        }
-
-        // Released, the anchor is gone: a new press starts from what the host reads back.
-        rig.frame(vec![key_event(Key::ArrowRight, false, false)], |ui| {
-            cursor_knob(ui, "a", applied, Some(&Doubling), &mut asked);
-        });
-        asked = None;
-        rig.frame(
-            vec![
-                key_event(Key::ArrowRight, true, false),
-                key_event(Key::ArrowRight, false, false),
-            ],
-            |ui| cursor_knob(ui, "a", applied, Some(&Doubling), &mut asked),
-        );
-        assert!(
-            asked.is_some_and(|value| (value - 0.4).abs() < 1e-9),
-            "a new gesture starts from the readback: {asked:?}"
-        );
-    }
-
-    /// `Alt` is the finer layer under the cursor (the owner, 2026-09-24): `Alt` + right moves a
-    /// tenth of fine, `Alt` + up moves fine — in each layer up/down is the larger step.
-    #[test]
-    fn an_alt_arrow_is_the_finer_layer_under_the_cursor() {
-        for (key, expected) in [(Key::ArrowRight, 0.501), (Key::ArrowUp, 0.51)] {
-            let mut rig = Cursor::new();
-            let mut asked = None;
-            for _ in 0..3 {
-                rig.frame(Vec::new(), |ui| cursor_knob(ui, "a", 0.5, None, &mut asked));
-            }
-            rig.frame(
-                vec![egui::Event::Key {
-                    key,
-                    physical_key: None,
-                    pressed: true,
-                    repeat: false,
-                    modifiers: Modifiers::ALT,
-                }],
-                |ui| cursor_knob(ui, "a", 0.5, None, &mut asked),
-            );
-            assert!(
-                asked.is_some_and(|value| (value - expected).abs() < 1e-9),
-                "Alt + {key:?} landed on {asked:?}, not {expected}"
-            );
-        }
-    }
-
     /// While a menu is open the cursor is inert, and a knob that kept egui focus from it must not
     /// answer the arrows meant for the menu.
     #[test]
@@ -7034,36 +6883,13 @@ mod tests {
         let focused = rig.ctx.memory(|m| m.focused());
         assert!(focused.is_some(), "the cursor handed the knob focus");
         egui::Popup::open_id(&rig.ctx, egui::Id::new("a menu"));
-        rig.frame(vec![key_event(Key::ArrowRight, true, false)], |ui| {
+        rig.frame(taps(&[Key::W, Key::ArrowRight, Key::Tab]), |ui| {
             cursor_knob(ui, "a", 0.5, None, &mut asked);
         });
-        assert_eq!(asked, None, "the arrow was the menu's");
+        assert_eq!(asked, None, "the keys were the menu's");
     }
 
-    /// A toggle under the cursor is a two-cell control: right is on, left is off.
-    #[test]
-    fn a_toggle_under_the_cursor_answers_the_arrows() {
-        let mut rig = Cursor::new();
-        let mut on = false;
-        let draw = |ui: &mut Ui, on: &mut bool| {
-            crate::navigation::at(ui, "sync", |ui| {
-                let _ = toggle(ui, &crate::theme::LIGHT, "Sync", on, false, "A switch.");
-            });
-        };
-        for _ in 0..3 {
-            rig.frame(Vec::new(), |ui| draw(ui, &mut on));
-        }
-        rig.frame(vec![key_event(Key::ArrowRight, true, false)], |ui| {
-            draw(ui, &mut on);
-        });
-        assert!(on, "right is on");
-        rig.frame(vec![key_event(Key::ArrowLeft, true, false)], |ui| {
-            draw(ui, &mut on);
-        });
-        assert!(!on, "left is off");
-    }
-
-    // ---- The keyboard language, where the pilot runs it (the owner, 2026-10-07) ----
+    // ---- The keyboard language under the cursor (2026-10-07, rolled out 2026-10-08) ----
 
     /// A tap of one key: its press and its release, in one frame.
     fn tap(key: Key) -> Vec<egui::Event> {
@@ -7074,10 +6900,9 @@ mod tests {
         keys.iter().flat_map(|&key| tap(key)).collect()
     }
 
-    /// Two knobs side by side, under the pilot; returns the rig after the cursor has landed on `a`.
+    /// Two knobs side by side; returns the rig after the cursor has landed on `a`.
     fn language_rig(asked: &mut [Option<f64>; 2]) -> Cursor {
         let mut rig = Cursor::new();
-        crate::pilot::enable(&rig.ctx);
         for _ in 0..3 {
             rig.frame(Vec::new(), |ui| two_knobs(ui, asked));
         }
@@ -7163,7 +6988,6 @@ mod tests {
     #[test]
     fn under_the_language_the_arrows_stop_on_each_cell_and_open_chooses_it() {
         let mut rig = Cursor::new();
-        crate::pilot::enable(&rig.ctx);
         let mut selected = 0usize;
         let draw = |ui: &mut Ui, selected: &mut usize| {
             crate::navigation::at(ui, "length", |ui| {
@@ -7195,5 +7019,135 @@ mod tests {
             selected, 2,
             "VALUE + right is the next cell from the chosen one"
         );
+    }
+
+    /// Two presses in one frame each start where the one before landed, in the order pressed.
+    #[test]
+    fn same_frame_presses_chain_through_the_law_in_the_order_pressed() {
+        let mut rig = Cursor::new();
+        let mut asked = None;
+        for _ in 0..3 {
+            rig.frame(Vec::new(), |ui| {
+                cursor_knob(ui, "a", 0.1, Some(&Doubling), &mut asked);
+            });
+        }
+        rig.frame(
+            taps(&[Key::W, Key::ArrowUp, Key::ArrowUp, Key::Tab]),
+            |ui| cursor_knob(ui, "a", 0.1, Some(&Doubling), &mut asked),
+        );
+        assert!(
+            asked.is_some_and(|value| (value - 0.7).abs() < 1e-9),
+            "0.1 and two fine steps of 0.3 is 0.7, not two first steps: {asked:?}"
+        );
+
+        // Left-then-Right from 0.9 ends at 0.9; Right-then-Left would end at 0.7.
+        let mut rig = Cursor::new();
+        let mut asked = None;
+        for _ in 0..3 {
+            rig.frame(Vec::new(), |ui| {
+                cursor_knob(ui, "a", 0.9, Some(&Doubling), &mut asked);
+            });
+        }
+        rig.frame(
+            taps(&[Key::W, Key::ArrowLeft, Key::ArrowRight, Key::Tab]),
+            |ui| cursor_knob(ui, "a", 0.9, Some(&Doubling), &mut asked),
+        );
+        assert!(
+            asked.is_some_and(|value| (value - 0.9).abs() < 1e-9),
+            "left then right from 0.9 is 0.6 then 0.9: {asked:?}"
+        );
+    }
+
+    /// **A held edit chains from what it last sent, not from a readback the host has not
+    /// applied.** The host here applies nothing at all, which is the worst case of a late one.
+    #[test]
+    fn a_held_edit_advances_once_per_repeat_while_the_host_lags() {
+        let mut rig = Cursor::new();
+        let applied = 0.1;
+        let mut asked = None;
+        for _ in 0..3 {
+            rig.frame(Vec::new(), |ui| {
+                cursor_knob(ui, "a", applied, Some(&Doubling), &mut asked);
+            });
+        }
+        let mut sent = Vec::new();
+        for (index, repeat) in [false, true, true].into_iter().enumerate() {
+            asked = None;
+            let mut events = Vec::new();
+            if index == 0 {
+                events.push(key_event(Key::W, true, false));
+            }
+            events.push(key_event(Key::ArrowRight, true, repeat));
+            rig.frame(events, |ui| {
+                cursor_knob(ui, "a", applied, Some(&Doubling), &mut asked);
+            });
+            sent.push(asked.expect("each repeat sends"));
+        }
+        for (sent, expected) in sent.iter().zip([0.4, 0.7, 1.0]) {
+            assert!(
+                (sent - expected).abs() < 1e-9,
+                "sent {sent}, expected {expected}"
+            );
+        }
+
+        // Kept, the anchor is gone: a new edit starts from what the host reads back.
+        rig.frame(
+            vec![
+                key_event(Key::ArrowRight, false, false),
+                key_event(Key::W, false, false),
+            ],
+            |ui| cursor_knob(ui, "a", applied, Some(&Doubling), &mut asked),
+        );
+        asked = None;
+        rig.frame(taps(&[Key::W, Key::ArrowRight, Key::Tab]), |ui| {
+            cursor_knob(ui, "a", applied, Some(&Doubling), &mut asked)
+        });
+        assert!(
+            asked.is_some_and(|value| (value - 0.4).abs() < 1e-9),
+            "a new gesture starts from the readback: {asked:?}"
+        );
+    }
+
+    /// MICRO is the finer layer (the old `Alt`, the owner, 2026-09-24): a tenth of the fine step,
+    /// whichever arrow.
+    #[test]
+    fn micro_is_the_finer_layer() {
+        for key in [Key::ArrowRight, Key::ArrowUp] {
+            let mut rig = Cursor::new();
+            let mut asked = None;
+            for _ in 0..3 {
+                rig.frame(Vec::new(), |ui| cursor_knob(ui, "a", 0.5, None, &mut asked));
+            }
+            rig.frame(taps(&[Key::W, Key::F, key, Key::Tab]), |ui| {
+                cursor_knob(ui, "a", 0.5, None, &mut asked)
+            });
+            assert!(
+                asked.is_some_and(|value| (value - 0.501).abs() < 1e-9),
+                "VALUE MICRO + {key:?} landed on {asked:?}, not 0.501"
+            );
+        }
+    }
+
+    /// A toggle under the cursor is a two-cell control: VALUE + right is on, VALUE + left off.
+    #[test]
+    fn a_toggle_under_the_cursor_answers_value_and_the_arrows() {
+        let mut rig = Cursor::new();
+        let mut on = false;
+        let draw = |ui: &mut Ui, on: &mut bool| {
+            crate::navigation::at(ui, "sync", |ui| {
+                let _ = toggle(ui, &crate::theme::LIGHT, "Sync", on, false, "A switch.");
+            });
+        };
+        for _ in 0..3 {
+            rig.frame(Vec::new(), |ui| draw(ui, &mut on));
+        }
+        rig.frame(taps(&[Key::W, Key::ArrowRight, Key::Tab]), |ui| {
+            draw(ui, &mut on);
+        });
+        assert!(on, "right is on");
+        rig.frame(taps(&[Key::W, Key::ArrowLeft, Key::Tab]), |ui| {
+            draw(ui, &mut on);
+        });
+        assert!(!on, "left is off");
     }
 }

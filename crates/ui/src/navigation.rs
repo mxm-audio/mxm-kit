@@ -26,7 +26,7 @@
 
 use std::collections::HashMap;
 
-use egui::{Id, Key, Pos2, Rect, Response, Stroke, StrokeKind, Ui};
+use egui::{Id, Pos2, Rect, Response, Stroke, StrokeKind, Ui};
 
 use crate::control::Press;
 use crate::space::{HAIRLINE, RADIUS};
@@ -82,7 +82,7 @@ pub struct State {
     /// text field, an open menu — so the focus that move owes the control has not been handed over
     /// yet. The first frame free to hand it over does; a newer cursor move supersedes it.
     owed: bool,
-    /// The keyboard language's engine, where the pilot reads keys through it ([`language`]).
+    /// The keyboard language's engine, which the cursor reads keys through ([`language`]).
     language: Option<mxm_keys::Engine>,
     /// The cell of the parameter the cursor is on, of its `focus_ids`: the keyboard language stops
     /// on each cell of a segmented control, and OPEN presses the one the cursor is on.
@@ -242,35 +242,6 @@ fn conceal(ctx: &egui::Context) {
 /// Shows the cursor. Called when a key that drives it is pressed.
 fn reveal(ctx: &egui::Context) {
     ctx.data_mut(|d| d.insert_temp(shown_id(), true));
-}
-
-/// Whether this frame carries a press of a key that operates the cursor.
-///
-/// **Peeked, never consumed**: [`requested`] and [`crate::control`] both still need these events,
-/// and this only asks whether somebody has reached for the keyboard. The set is §11's table minus
-/// `Escape` — which cancels and closes rather than navigating — and minus undo, which is not this
-/// interface at all.
-fn keyboard_gesture(ctx: &egui::Context) -> bool {
-    ctx.input(|input| {
-        input.events.iter().any(|event| {
-            matches!(
-                event,
-                egui::Event::Key {
-                    key: Key::ArrowLeft
-                        | Key::ArrowRight
-                        | Key::ArrowUp
-                        | Key::ArrowDown
-                        | Key::Home
-                        | Key::End
-                        | Key::Tab
-                        | Key::Enter
-                        | Key::Backspace,
-                    pressed: true,
-                    ..
-                }
-            )
-        })
-    })
 }
 
 /// Whether a cursor is driving this context, set by [`run`] and read by [`crate::control`].
@@ -439,7 +410,6 @@ pub fn spots(ctx: &egui::Context) -> Vec<Spot> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Step {
     Card(Dir),
-    Param(Dir),
     /// The keyboard language's bare arrow: the next parameter that way in the card, ← → only along
     /// its row.
     Any(Dir),
@@ -457,54 +427,6 @@ impl Dir {
     const fn forward(self) -> bool {
         matches!(self, Self::Right | Self::Down)
     }
-}
-
-/// Reads the navigation keys, **before any control is drawn**, and consumes them.
-///
-/// Consumed rather than merely read, and read first, for the reason `crate::browser` records: a
-/// bare arrow that reaches egui also walks its own focus ring, and the cursor and the ring then
-/// disagree about where the keyboard is.
-fn requested(ctx: &egui::Context) -> Vec<Step> {
-    let mut steps = Vec::new();
-    ctx.input_mut(|input| {
-        // Walk the queue itself rather than calling `consume_key`: egui's method removes *all*
-        // matching repeats at once and returns only a bool, which cannot preserve count or order.
-        input.events.retain(|event| {
-            let egui::Event::Key {
-                key,
-                pressed: true,
-                modifiers,
-                ..
-            } = event
-            else {
-                return true;
-            };
-            let dir = match key {
-                Key::ArrowLeft => Dir::Left,
-                Key::ArrowRight => Dir::Right,
-                Key::ArrowUp => Dir::Up,
-                Key::ArrowDown => Dir::Down,
-                _ => return true,
-            };
-            // The owner's physical hierarchy: Shift is the highest tier (cards/modules), Command
-            // is the middle tier (parameters), and an unmodified arrow is left for the value.
-            // Explicit fields make Shift win if both modifiers happen to be held.
-            let step = if modifiers.shift {
-                Some(Step::Card(dir))
-            } else if modifiers.command {
-                Some(Step::Param(dir))
-            } else {
-                None
-            };
-            if let Some(step) = step {
-                steps.push(step);
-                false
-            } else {
-                true
-            }
-        });
-    });
-    steps
 }
 
 /// Moves the cursor, and hands egui's focus to where it lands.
@@ -537,10 +459,7 @@ pub fn run(
         d.insert_temp(bars_last_id(), bars);
         d.insert_temp(bars_current_id(), Vec::<(Id, Rect)>::new());
     });
-    let pilot = crate::pilot::enabled(ctx);
-    if pilot {
-        state.reach.begin(ctx);
-    }
+    state.reach.begin(ctx);
 
     // Declared even while inert: the editor still has a cursor, it is merely suspended, and the
     // controls must not fall back to their pre-cursor arrow handling for one frame because the
@@ -595,12 +514,9 @@ pub fn run(
         return None;
     }
 
-    // And a key brings it back — *after* the inert check, because while the browser is open or a
+    // A key brings it back — *after* the inert check, because while the browser is open or a
     // value is being typed the arrows are that surface's and say nothing about this cursor. The
     // keyboard language reveals it as it reads its keys.
-    if !pilot && keyboard_gesture(ctx) {
-        reveal(ctx);
-    }
 
     if spots.is_empty() {
         clear_target(ctx);
@@ -631,11 +547,7 @@ pub fn run(
         state.moved = true;
     }
 
-    let steps = if pilot {
-        language::read(ctx, state)
-    } else {
-        requested(ctx)
-    };
+    let steps = language::read(ctx, state);
 
     // In a bar, the cards keep their place but give up the keyboard, and the bar's own cursor is
     // outlined over it while the keyboard is in use.
@@ -666,37 +578,30 @@ pub fn run(
     // so its card is not drawn any more: it goes to the first card of the page shown, where it was
     // last on it. Not while a card COARSE asked for is on its way (the owner, 2026-10-07: back from
     // the tabs the cursor was on nothing, and COARSE + an arrow started from a card off screen).
-    if pilot {
-        if let Some((card, left)) = state.awaiting {
-            let arrived = cards.iter().any(|(key, _)| *key == card);
-            state.awaiting = (!arrived && left > 0).then_some((card, left - 1));
-        }
-        let home = std::mem::take(&mut state.home);
-        if state.awaiting.is_none()
-            && let Some(card) = state.cursor.card
-            && (!cards.iter().any(|(key, _)| *key == card)
-                || (home && state.bar_cards.contains(&card)))
-            && let Some(first) = order.iter().find(|key| {
-                !state.bar_cards.contains(key) && cards.iter().any(|(visible, _)| visible == *key)
-            })
-        {
-            enter(state, &spots, *first);
-        }
+    if let Some((card, left)) = state.awaiting {
+        let arrived = cards.iter().any(|(key, _)| *key == card);
+        state.awaiting = (!arrived && left > 0).then_some((card, left - 1));
+    }
+    let home = std::mem::take(&mut state.home);
+    if state.awaiting.is_none()
+        && let Some(card) = state.cursor.card
+        && (!cards.iter().any(|(key, _)| *key == card) || (home && state.bar_cards.contains(&card)))
+        && let Some(first) = order.iter().find(|key| {
+            !state.bar_cards.contains(key) && cards.iter().any(|(visible, _)| visible == *key)
+        })
+    {
+        enter(state, &spots, *first);
     }
 
     // A cursor that has never landed starts on the first thing drawn, so the first keystroke is
     // never spent arriving.
     if state.cursor.key.is_none() {
-        // Under the language, on the page's first card rather than a parameter in the app bar,
-        // which VIEW reaches (the owner, 2026-10-07: it started on Output).
-        let page = spots
+        // On the page's first card rather than a parameter in the app bar, which VIEW reaches (the
+        // owner, 2026-10-07: it started on Output).
+        let first = spots
             .iter()
-            .find(|spot| !state.bar_cards.contains(&spot.card));
-        let first = if pilot {
-            page.or(spots.first())
-        } else {
-            spots.first()
-        };
+            .find(|spot| !state.bar_cards.contains(&spot.card))
+            .or(spots.first());
         if let Some(first) = first {
             state.settle(first);
             state.moved = true;
@@ -717,7 +622,6 @@ pub fn run(
                     state.awaiting = Some((wanted, 4));
                 }
             }
-            Step::Param(dir) => move_param(state, &spots, dir),
             Step::Any(dir) => move_any(state, &spots, dir),
         }
     }
@@ -862,32 +766,6 @@ fn enter(state: &mut State, spots: &[Spot], card: u64) {
     state.cell = 0;
     if let Some(key) = state.cursor.key.clone() {
         state.remembered.insert(card, key);
-    }
-}
-
-/// Moves inside one card in the direction painted on the key.
-fn move_param(state: &mut State, spots: &[Spot], dir: Dir) {
-    let (Some(card), Some(key)) = (state.cursor.card, state.cursor.key.as_deref()) else {
-        return;
-    };
-    let Some(from) = spots
-        .iter()
-        .find(|spot| spot.card == card && spot.key == key)
-    else {
-        return;
-    };
-    let target = directional(
-        from.rect,
-        spots
-            .iter()
-            .filter(|spot| spot.card == card && spot.key != key)
-            .map(|spot| (spot, spot.rect)),
-        dir,
-    );
-
-    if let Some(spot) = target {
-        state.settle(spot);
-        state.moved = true;
     }
 }
 
@@ -1090,6 +968,7 @@ pub fn paint_card(ui: &Ui, tokens: &Tokens, card: u64, rect: Rect) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use egui::Key;
 
     fn spot(card: u64, key: &str, x: f32, y: f32) -> Spot {
         let id = Id::new((card, key));
@@ -1154,7 +1033,7 @@ mod tests {
     }
 
     #[test]
-    fn parameter_arrows_follow_painted_direction_instead_of_wrapping_reading_order() {
+    fn arrows_follow_painted_direction_instead_of_wrapping_reading_order() {
         let spots = vec![
             spot(0, "a", 0.0, 0.0),
             spot(0, "b", 60.0, 0.0),
@@ -1163,19 +1042,19 @@ mod tests {
         let mut state = State::default();
         state.settle(&spots[0]);
 
-        move_param(&mut state, &spots, Dir::Right);
+        move_any(&mut state, &spots, Dir::Right);
         assert_eq!(state.parameter(), Some("b"));
 
-        move_param(&mut state, &spots, Dir::Right);
+        move_any(&mut state, &spots, Dir::Right);
         assert_eq!(
             state.parameter(),
             Some("b"),
             "Right must not wrap to a control painted down and left"
         );
 
-        move_param(&mut state, &spots, Dir::Down);
+        move_any(&mut state, &spots, Dir::Down);
         assert_eq!(state.parameter(), Some("c"));
-        move_param(&mut state, &spots, Dir::Up);
+        move_any(&mut state, &spots, Dir::Up);
         assert_eq!(state.parameter(), Some("a"));
     }
 
@@ -1253,7 +1132,7 @@ mod tests {
                 press(Key::ArrowUp, egui::Modifiers::NONE)
             ),
             Some(0),
-            "a bare value arrow is keyboard editing and reveals the cursor"
+            "a bare arrow is the language's navigation and reveals the cursor"
         );
         assert!(shown(&ctx));
 
@@ -1262,7 +1141,7 @@ mod tests {
             &ctx,
             &mut state,
             &spots,
-            press(Key::ArrowRight, egui::Modifiers::COMMAND),
+            press(Key::ArrowRight, egui::Modifiers::NONE),
         );
         assert_eq!(state.parameter(), Some("b"));
 
@@ -1309,59 +1188,6 @@ mod tests {
             None
         );
         assert!(!shown(&ctx));
-    }
-
-    #[test]
-    fn every_navigation_press_batched_into_one_frame_is_executed() {
-        let ctx = egui::Context::default();
-        let mut observed = Vec::new();
-        let mut bare_survived = false;
-        let key = |key, modifiers| egui::Event::Key {
-            key,
-            physical_key: None,
-            pressed: true,
-            repeat: false,
-            modifiers,
-        };
-        let mut output = ctx.run_ui(
-            egui::RawInput {
-                events: vec![
-                    key(Key::ArrowDown, egui::Modifiers::SHIFT),
-                    key(Key::ArrowRight, egui::Modifiers::COMMAND),
-                    key(Key::ArrowRight, egui::Modifiers::COMMAND),
-                    key(Key::ArrowUp, egui::Modifiers::NONE),
-                ],
-                ..Default::default()
-            },
-            |ui| {
-                observed = requested(ui.ctx());
-                bare_survived = ui.input(|input| {
-                    input.events.iter().any(|event| {
-                        matches!(
-                            event,
-                            egui::Event::Key {
-                                key: Key::ArrowUp,
-                                pressed: true,
-                                ..
-                            }
-                        )
-                    })
-                });
-            },
-        );
-        output.textures_delta.clear();
-        assert_eq!(
-            observed,
-            vec![
-                Step::Card(Dir::Down),
-                Step::Param(Dir::Right),
-                Step::Param(Dir::Right)
-            ]
-        );
-        assert!(
-            bare_survived,
-            "the unmodified value arrow reaches the control"
-        );
     }
 
     #[test]
@@ -1415,7 +1241,7 @@ mod tests {
         let order = [0_u64, 1];
         let mut state = State::default();
         state.settle(&spots[0]);
-        move_param(&mut state, &spots, Dir::Right);
+        move_any(&mut state, &spots, Dir::Right);
         assert_eq!(state.parameter(), Some("b"));
 
         move_card(&mut state, &spots, &order, &visible, Dir::Right);
@@ -1558,7 +1384,7 @@ mod tests {
             &ctx,
             &mut state,
             &spots,
-            press(Key::ArrowRight, egui::Modifiers::COMMAND),
+            press(Key::ArrowRight, egui::Modifiers::NONE),
         );
         assert_eq!(state.parameter(), Some("a"), "the menu's keys are its own");
         assert!(!shown(&ctx), "and the cursor does not appear behind it");
@@ -1568,7 +1394,7 @@ mod tests {
             &ctx,
             &mut state,
             &spots,
-            press(Key::ArrowRight, egui::Modifiers::COMMAND),
+            press(Key::ArrowRight, egui::Modifiers::NONE),
         );
         assert_eq!(
             state.parameter(),
@@ -1593,7 +1419,7 @@ mod tests {
         }
         assert!(ctx.text_edit_focused());
 
-        let mut output = ctx.run_ui(press(Key::ArrowRight, egui::Modifiers::COMMAND), |ui| {
+        let mut output = ctx.run_ui(press(Key::ArrowRight, egui::Modifiers::NONE), |ui| {
             ui.ctx()
                 .data_mut(|d| d.insert_temp(last_id(), spots.clone()));
             let order: Vec<u64> = cards(&spots).into_iter().map(|(key, _)| key).collect();
@@ -1605,12 +1431,11 @@ mod tests {
         assert!(!shown(&ctx));
     }
 
-    /// **The keyboard language, where the pilot runs it**: VIEW + ↑ leaves the cards for the bar
+    /// **The keyboard language**: VIEW + ↑ leaves the cards for the bar
     /// above them, where OPEN presses the widget the cursor is on, and VIEW + ↓ comes back.
     #[test]
     fn under_the_language_view_reaches_the_bar_where_open_presses() {
         let ctx = egui::Context::default();
-        crate::pilot::enable(&ctx);
         let mut state = State::default();
         let mut pressed = false;
         let tap = |key| {
@@ -1670,7 +1495,6 @@ mod tests {
     #[test]
     fn under_the_language_the_arrows_keep_to_the_card_and_the_row() {
         let ctx = egui::Context::default();
-        crate::pilot::enable(&ctx);
         let mut state = State::default();
         // Card 1: a row of two, and one below them; card 2 to the right, level with the first row.
         let spots = vec![
@@ -1746,7 +1570,6 @@ mod tests {
     #[test]
     fn under_the_language_a_new_page_takes_the_cursor_to_its_first_card() {
         let ctx = egui::Context::default();
-        crate::pilot::enable(&ctx);
         let mut state = State::default();
         let first_page = vec![spot(1, "a", 0.0, 0.0), spot(2, "b", 100.0, 0.0)];
         let second_page = vec![spot(3, "c", 0.0, 0.0), spot(4, "d", 100.0, 0.0)];

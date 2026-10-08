@@ -6,10 +6,9 @@
 //! judged shows it and every other editor draws exactly as it did. Once the owner approves the
 //! pilot, rolling a rule out is deleting its `on` check; the collection then behaves as one again.
 //!
-//! **Piloted now: the keyboard language** (newDAWn's `docs/keyboard.md`; the owner, 2026-10-07:
-//! the editors convert to it, keys first in newDAWn and the collection). Where the pilot is on,
-//! [`crate::navigation`] reads the language's keys: arrows to the nearest parameter, COARSE +
-//! arrows card to card, VALUE + arrows the value, DELETE the default, VIEW the bars.
+//! **Piloted now: nothing.** The keyboard language (newDAWn's `docs/keyboard.md`) was piloted here
+//! from 2026-10-07 and rolled out to every editor on 2026-10-08, the owner's word: "Roll out the
+//! keyboard language". [`crate::navigation`] now reads it wherever a cursor runs.
 //!
 //! The first three rules — a slider's reading never drawing over its
 //! name, a route stack's target line titling its box with each row naming only its source, and a

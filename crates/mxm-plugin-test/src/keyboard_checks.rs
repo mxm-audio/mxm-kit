@@ -229,29 +229,18 @@ fn operates(
         session.frame(panel, Vec::new());
     }
 
-    // Where the editor pilots the keyboard language (`mxm_ui::pilot`), the edit is VALUE + an
-    // arrow kept with OUT, and the card step is COARSE + an arrow: W, ↑, Tab and S, → in the
-    // default keymap. Elsewhere, design system §11: a bare arrow, and Shift + an arrow.
-    let language = mxm_ui::pilot::enabled(session.context());
+    // The keyboard language (every editor's since 2026-10-08): the edit is VALUE + an arrow kept
+    // with OUT, and the card step is COARSE + an arrow: W, ↑, Tab and S, → in the default keymap.
     let none = egui::Modifiers::NONE;
-    let (edit, card, edit_name, card_name) = if language {
-        let taps = |keys: &[egui::Key]| -> Vec<egui::Event> {
-            keys.iter().flat_map(|&k| press(k, none)).collect()
-        };
-        (
-            taps(&[egui::Key::W, egui::Key::ArrowUp, egui::Key::Tab]),
-            taps(&[egui::Key::S, egui::Key::ArrowRight]),
-            "VALUE + an arrow",
-            "COARSE + an arrow",
-        )
-    } else {
-        (
-            press(egui::Key::ArrowUp, none),
-            press(egui::Key::ArrowRight, egui::Modifiers::SHIFT),
-            "a bare arrow",
-            "Shift+arrow",
-        )
+    let taps = |keys: &[egui::Key]| -> Vec<egui::Event> {
+        keys.iter().flat_map(|&k| press(k, none)).collect()
     };
+    let (edit, card, edit_name, card_name) = (
+        taps(&[egui::Key::W, egui::Key::ArrowUp, egui::Key::Tab]),
+        taps(&[egui::Key::S, egui::Key::ArrowRight]),
+        "VALUE + an arrow",
+        "COARSE + an arrow",
+    );
 
     let (begins, sets, ends) = (host.begins(), host.sets(), host.ends());
     session.frame(panel, edit);
