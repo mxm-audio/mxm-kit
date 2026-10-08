@@ -996,8 +996,9 @@ gesture that OUT keeps and BACK cancels, DELETE the default, VIEW + arrows the b
 cancels a mouse drag: the shared knobs and sliders put back the value it began at, and an editor's
 own dragged widget does the same by asking `mxm_ui::drag::cancelled` when its drag stops. F1
 shows and hides a sheet of the keys in every editor, from the cursor, with nothing to wire. A
-plugin's own key tests press the language's keys: W for VALUE, S for COARSE, F for MICRO and Tab
-for OUT in the default keymap. `mxm_ui::navigation::running` keeps a *surface* without a cursor — the developer
+plugin's own key tests press jobs, not keys: `keyboard_checks::key_of(VALUE)` (and `COARSE`,
+`MICRO`, `OUT`) is the key the default keymap gives the job, so a remap of the default keymap
+changes no plugin's test (the owner, 2026-10-08). `mxm_ui::navigation::running` keeps a *surface* without a cursor — the developer
 Parameters list — on its focused control's own bare-arrow editing.
 
 An editor is three things, and no new tables:

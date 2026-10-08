@@ -124,6 +124,21 @@ impl Session {
     }
 }
 
+pub use mxm_keys::Job;
+
+/// The jobs a plugin's tests press, each on the key the default keymap gives it ([`key_of`]).
+pub const VALUE: Job = Job::Verb(mxm_keys::Verb::Value);
+pub const COARSE: Job = Job::Step(mxm_keys::Step::Coarse);
+pub const MICRO: Job = Job::Step(mxm_keys::Step::Micro);
+pub const OUT: Job = Job::Out;
+
+/// The key the default keymap gives a job. Tests press jobs, not keys, so a remap of the default
+/// keymap changes no plugin's test.
+pub fn key_of(job: Job) -> egui::Key {
+    mxm_ui::navigation::default_key(job)
+        .unwrap_or_else(|| panic!("the default keymap binds {}", job.name()))
+}
+
 pub fn key(key: egui::Key, modifiers: egui::Modifiers, pressed: bool) -> egui::Event {
     egui::Event::Key {
         key,
@@ -230,14 +245,14 @@ fn operates(
     }
 
     // The keyboard language (every editor's since 2026-10-08): the edit is VALUE + an arrow kept
-    // with OUT, and the card step is COARSE + an arrow: W, ↑, Tab and S, → in the default keymap.
+    // with OUT, and the card step is COARSE + an arrow.
     let none = egui::Modifiers::NONE;
     let taps = |keys: &[egui::Key]| -> Vec<egui::Event> {
         keys.iter().flat_map(|&k| press(k, none)).collect()
     };
     let (edit, card, edit_name, card_name) = (
-        taps(&[egui::Key::W, egui::Key::ArrowUp, egui::Key::Tab]),
-        taps(&[egui::Key::S, egui::Key::ArrowRight]),
+        taps(&[key_of(VALUE), egui::Key::ArrowUp, key_of(OUT)]),
+        taps(&[key_of(COARSE), egui::Key::ArrowRight]),
         "VALUE + an arrow",
         "COARSE + an arrow",
     );

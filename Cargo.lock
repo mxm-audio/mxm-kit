@@ -1577,6 +1577,7 @@ version = "0.4.1"
 dependencies = [
  "egui",
  "egui_kittest",
+ "mxm-keys",
  "mxm-modulation",
  "mxm-modulation-params",
  "mxm-ui",

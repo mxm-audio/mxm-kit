@@ -979,18 +979,20 @@ pub fn paint_card(ui: &Ui, tokens: &Tokens, card: u64, rect: Rect) {
     );
 }
 
-/// The egui key the default keymap puts a job on. Tests press jobs, not keys, so a remap of the
-/// default keymap changes no test.
+/// The egui key the default keymap puts a job on, if it binds one: what a test presses for the
+/// job, so a remap of the default keymap changes no test (`mxm_plugin_test::keyboard_checks`).
+pub fn default_key(job: mxm_keys::Job) -> Option<egui::Key> {
+    let bound = mxm_keys::Keymap::default().keys(job).next()?;
+    egui::Key::ALL
+        .iter()
+        .copied()
+        .find(|key| language::to_key(*key) == Some(bound))
+}
+
+/// [`default_key`], for this crate's tests.
 #[cfg(test)]
 pub(crate) fn key_of(job: mxm_keys::Job) -> egui::Key {
-    let bound = mxm_keys::Keymap::default()
-        .keys(job)
-        .next()
-        .unwrap_or_else(|| panic!("the default keymap binds {}", job.name()));
-    *egui::Key::ALL
-        .iter()
-        .find(|key| language::to_key(**key) == Some(bound))
-        .expect("egui names every key the language binds")
+    default_key(job).unwrap_or_else(|| panic!("the default keymap binds {}", job.name()))
 }
 
 #[cfg(test)]

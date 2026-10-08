@@ -16,6 +16,8 @@ egui.workspace = true
 # `wgpu` renders a frame to pixels for the layout-tree review pictures (`tree_checks::pictures`).
 egui_kittest = { version = "=0.36.1", features = ["wgpu"] }
 mxm-ui.workspace = true
+# The language's jobs, which the checks and every plugin's tests press (`keyboard_checks::key_of`).
+mxm-keys.workspace = true
 # The modulation standard's conformance (`routing_checks`). This crate is only ever a
 # `[dev-dependencies]` entry, so the feature never reaches a shipped graph.
 mxm-modulation = { workspace = true, features = ["conformance"] }
