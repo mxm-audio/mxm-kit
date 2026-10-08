@@ -25,6 +25,11 @@ pub use mxm_ui::control::Press;
 /// travel, or an octave or a semitone; with it, 1 % or 0.1 %, or ten cents or a cent. **A press
 /// never moves less than one of the parameter's own steps**: where a finer size cannot land on its
 /// grid — a whole-semitone tune, an option list — it moves one step.
+///
+/// **Since 2026-10-08 the keys are the keyboard language's**, and `Alt` in these docs names the
+/// finer layer, [`mxm_ui::control::Press`]'s `finer`: MICRO. VALUE + an arrow is the fine step and
+/// VALUE + COARSE the coarse one, whichever arrow; MICRO is the finer layer's fine half (0.1 %, a
+/// cent). Its coarse half (`Alt` + up/down: 1 %, ten cents) stays in every law but has no key.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum StepLaw {
     /// Fine is nice-plug's own step and coarse a tenth of the range snapped onto it — what
