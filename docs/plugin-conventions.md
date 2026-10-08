@@ -1011,7 +1011,8 @@ An editor is three things, and no new tables:
   half, and an open text entry is the editor's own. `paged` derives the plan's flattened
   category-first order — **never raw authored order** — asks the renderer for a card the cursor
   reached on another page, and sets the outline. It reads the language's keys before any control is
-  drawn and takes them out of egui's queue (OPEN and BACK stay for the controls), or one press is
+  drawn and takes them out of egui's queue (OPEN and BACK stay for the controls, OPEN not while a
+  verb is armed: it keeps the edit then and opens nothing), or one press is
   spent twice. It also publishes the selected parameter as the keyboard authority, because a custom-painted control may lose native egui focus while the visible
   cursor still names it. On every cardless surface, call `navigation::stop` so an invisible previous
   cursor cannot retain keyboard ownership.

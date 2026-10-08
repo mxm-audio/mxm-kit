@@ -119,6 +119,7 @@ pub(crate) fn sheet(keymap: &Keymap) -> Sheet {
             "Ending a change",
             vec![
                 (key(Job::Out), "keep it"),
+                (key(Job::Action(Action::Open)), "keep it, open nothing"),
                 (format!("let go of {value}"), "keep it, when it was held"),
                 (key(Job::Back), "cancel it, a mouse drag too"),
             ],

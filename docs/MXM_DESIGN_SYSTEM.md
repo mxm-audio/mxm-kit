@@ -901,7 +901,7 @@ Tab OUT. The keys of a combination can be held together or pressed one after ano
 | OUT | Keep the edit, as one host gesture, and stay on the parameter |
 | BACK (`Escape`) | Cancel the edit back to where it began, a mouse drag included, or close transient UI |
 | DELETE | Return the selected parameter to its default |
-| OPEN (`Enter`) | Choose the segmented cell the cursor is on, or begin value entry |
+| OPEN (`Enter`) | Choose the segmented cell the cursor is on, or begin value entry; while a verb is armed, keep the edit and open nothing, as in newDAWn |
 | `Home` / `End` | Minimum / maximum where safe |
 | `Ctrl/Cmd+Z` | Undo |
 | `Ctrl/Cmd+Shift+Z` | Redo |

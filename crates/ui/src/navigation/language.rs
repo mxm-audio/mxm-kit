@@ -14,13 +14,17 @@
 //!   OUT, by letting go of a held VALUE or by the next command, and BACK cancels it.
 //! - DELETE (and RIPPLE) put the parameter back to its default. OPEN (Enter) and BACK (Escape)
 //!   stay in egui's queue too, for typing a value and closing what is open; Home and End and every
-//!   chord with `Command` or `Alt` are left for the controls and the host.
+//!   chord with `Command` or `Alt` are left for the controls and the host. OPEN while a verb is
+//!   armed ends its gesture, keeping it, and opens nothing, as in newDAWn (the owner, 2026-10-08:
+//!   "if enter is not the end of the selection, what is?"): its Enter stays out of egui's queue.
 //! - In a bar, the cursor walks its widgets with [`crate::reach`]: OPEN presses one.
 
 use std::time::Duration;
 
 use egui::{Context, Key as E};
-use mxm_keys::{Action, Direction, Engine, Job, Key, Keymap, Mods, Output, Step as Size, Verb};
+use mxm_keys::{
+    Action, Arrows, Direction, Engine, Job, Key, Keymap, Mods, Output, Step as Size, Verb,
+};
 
 use super::{Dir, State, Step, ValueKeys, bars};
 use crate::control::Press;
@@ -142,12 +146,20 @@ pub(super) fn read(ctx: &Context, state: &mut State, back_spent: bool) -> Vec<St
                 alt: false,
                 command: false,
             };
-            outputs.extend(if *pressed {
-                engine.press(key, mods, at)
+            // OPEN with a verb armed: the engine ends the gesture, keeping it; nothing opens.
+            let armed_open = *pressed
+                && engine.keymap().job(key) == Some(Job::Action(Action::Open))
+                && matches!(engine.arrows(), Arrows::Edit { .. });
+            if *pressed {
+                let read = engine.press(key, mods, at);
+                outputs.extend(
+                    read.into_iter()
+                        .filter(|output| !armed_open || *output != Output::Action(Action::Open)),
+                );
             } else {
-                engine.release(key)
-            });
-            let keep = shared(engine, key);
+                outputs.extend(engine.release(key));
+            }
+            let keep = shared(engine, key) && !armed_open;
             taken |= !keep;
             keep
         });

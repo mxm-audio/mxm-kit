@@ -1504,6 +1504,64 @@ mod tests {
         assert_eq!(state.bar(), None, "VIEW + down is the cards again");
     }
 
+    /// **OPEN while a verb is armed ends its gesture, keeping it, and opens nothing**, as in
+    /// newDAWn (the owner, 2026-10-08): its Enter isn't left for a control to start typing a
+    /// value. With nothing armed, Enter is left for the control again.
+    #[test]
+    fn under_the_language_open_keeps_an_armed_edit_and_types_nothing() {
+        let ctx = egui::Context::default();
+        let mut state = State::default();
+        let key = |key, pressed| egui::Event::Key {
+            key,
+            physical_key: None,
+            pressed,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        };
+        let read_with = |state: &mut State, events: Vec<egui::Event>| {
+            let mut left = false;
+            let mut keys = ValueKeys::default();
+            let mut output = ctx.run_ui(
+                egui::RawInput {
+                    events,
+                    ..Default::default()
+                },
+                |ui| {
+                    let _ = language::read(ui.ctx(), state, false);
+                    left = ui.input(|input| {
+                        input.events.iter().any(|event| {
+                            matches!(
+                                event,
+                                egui::Event::Key {
+                                    key: Key::Enter,
+                                    pressed: true,
+                                    ..
+                                }
+                            )
+                        })
+                    });
+                    keys = take_value_keys(ui.ctx());
+                },
+            );
+            output.textures_delta.clear();
+            (left, keys)
+        };
+        // VALUE, →: armed and stepped. Enter keeps the edit, and no control sees it.
+        let value_right = vec![
+            key(Key::W, true),
+            key(Key::W, false),
+            key(Key::ArrowRight, true),
+            key(Key::ArrowRight, false),
+        ];
+        let _ = read_with(&mut state, value_right);
+        let enter = || vec![key(Key::Enter, true), key(Key::Enter, false)];
+        let (left, keys) = read_with(&mut state, enter());
+        assert!(keys.keep, "the edit is kept");
+        assert!(!left, "no value is typed");
+        let (left, _) = read_with(&mut state, enter());
+        assert!(left, "with nothing armed, Enter is the control's");
+    }
+
     /// **The keyboard language's bare arrows keep to the card**, and ← → to the row: at the end
     /// of either they stop, and COARSE + an arrow goes to the next card.
     #[test]
