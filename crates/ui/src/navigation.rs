@@ -503,6 +503,11 @@ pub fn run(
     // and the context's answer is built from the popups drawn so far in this pass — none yet.
     // egui's memory keeps a menu's open state from frame to frame.
     let inert = inert || ctx.text_edit_focused() || egui::Popup::is_any_open(ctx);
+
+    // **BACK during a mouse drag cancels it, before the inert return** (`crate::drag`): egui has
+    // already ended a drag on `Escape` this frame, and a surface holding the keyboard — a focused
+    // canvas — must not keep that drag's value either.
+    let back_spent = language::escape_is_back(state) && crate::drag::notice_escape(ctx);
     if inert {
         if let Some(engine) = state.language.as_mut() {
             let _ = engine.interrupt();
@@ -521,9 +526,10 @@ pub fn run(
     }
 
     // Follow egui's focus: a registered cell that took focus some other way moves the cursor to
-    // it, so the two never disagree about where the keyboard is. **Not in a frame the pointer claimed a control**: egui gives up
-    // focus on a click but not on a drag, so the knob the cursor was on can still hold it while
-    // another is dragged, and following it would undo the pointer's move.
+    // it, so the two never disagree about where the keyboard is. **Not in a frame the pointer
+    // claimed a control**: egui gives up focus on a click but not on a drag, so the knob the cursor
+    // was on can still hold it while another is dragged, and following it would undo the
+    // pointer's move.
     let focused = ctx.memory(|m| m.focused());
     if pointed.is_none()
         && let Some(id) = focused
@@ -544,7 +550,7 @@ pub fn run(
         state.moved = true;
     }
 
-    let steps = language::read(ctx, state);
+    let steps = language::read(ctx, state, back_spent);
 
     // In a bar, the cards keep their place but give up the keyboard, and the bar's own cursor is
     // outlined over it while the keyboard is in use.

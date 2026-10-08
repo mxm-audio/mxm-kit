@@ -86,16 +86,26 @@ fn shared(engine: &Engine, key: Key) -> bool {
     )
 }
 
+/// Whether the keymap puts BACK on `Escape`, which egui itself uses to end a mouse drag.
+pub(super) fn escape_is_back(state: &mut State) -> bool {
+    state
+        .language
+        .get_or_insert_with(|| Engine::new(Keymap::default()))
+        .keymap()
+        .job(Key::Escape)
+        == Some(Job::Back)
+}
+
 /// The language's keys this frame, read before any control is drawn: the moves for the cursor,
 /// and the value keys published for the parameter it is on.
-pub(super) fn read(ctx: &Context, state: &mut State) -> Vec<Step> {
+///
+/// `back_spent`: this frame's BACK already cancelled a mouse drag ([`escape_is_back`] and
+/// `crate::drag::notice_escape`, before the inert return), so it does nothing else.
+pub(super) fn read(ctx: &Context, state: &mut State, back_spent: bool) -> Vec<Step> {
+    let mut back_spent = back_spent;
     let engine = state
         .language
         .get_or_insert_with(|| Engine::new(Keymap::default()));
-    // BACK during a mouse drag cancels the drag and does nothing else (`crate::drag`). egui has
-    // already ended a drag on `Escape` by now, so where BACK is on `Escape` that drag is marked.
-    let mut back_spent =
-        engine.keymap().job(Key::Escape) == Some(Job::Back) && crate::drag::notice_escape(ctx);
     let at = Duration::from_secs_f64(ctx.input(|input| input.time).max(0.0));
     let mut outputs = Vec::new();
     let mut taken = false;
