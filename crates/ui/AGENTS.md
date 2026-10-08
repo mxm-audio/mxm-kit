@@ -121,10 +121,12 @@ Does **not** own labels, parameter bindings, or data. Plugins and the player sup
 - **`reach` walks every widget egui describes to screen readers** (the owner, 2026-10-07; the editors
   convert to it, keys first in newDAWn and the collection): nothing registers; a painted control
   names itself or stays out; a value in its own units reads `reach::edit`; menus `reach::context_menu`.
-  **Under `pilot`, the cursor reads the keyboard language** (`navigation/language.rs`, design system §11).
-
-- **`Shift`+arrows card to card, `Command`+arrows parameter to parameter, bare arrows the value**;
-  left/right fine, up/down coarse, `Alt` the finer layer.
+- **The cursor reads the keyboard language** (`navigation/language.rs`, design system §11; piloted on
+  mxm-mono-08, rolled out 2026-10-08): arrows parameter to parameter, COARSE + arrows card to card,
+  VALUE + arrows the value (fine, COARSE coarse, MICRO the finer layer), one gesture OUT keeps and
+  BACK cancels, DELETE the default, VIEW + arrows the bars. BACK alone never reveals the cursor
+  (`escape_is_not_a_reveal`). The `Shift`/`Command`/`Alt` table it replaced: [NOTES.md § The
+  keyboard language, piloted](NOTES.md#the-keyboard-language-piloted).
 - **The map is drawn, not declared**: `navigation::mark` inside the `card` and `at` scopes;
   `navigation::aside` for an editor-only control. Editors drive it with `navigation::paged` (never
   a second card order), or `paged_with_bar` + `navigation::bar_card` for an app-bar parameter.

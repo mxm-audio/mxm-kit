@@ -989,10 +989,14 @@ editor hosting tests. Do not invent a CLI protocol for private editor state.
 
 ## The keyboard cursor runs in every editor, and each one owes it three things
 
-`mxm_ui::navigation` is tracker-style keyboard editing — `Shift`+arrows between modules/cards,
-`Command`+arrows between the parameters inside one, bare arrows for the value, left/right fine and
-up/down coarse, and `Alt` for a finer layer of both (design system §11). `mxm_ui::navigation::running` keeps a *surface* without a cursor — the developer
-Parameters list — on bare-arrow editing.
+`mxm_ui::navigation` is the keyboard language (design system §11; every editor's since 2026-10-08,
+after a pilot on mxm-mono-08): arrows between the parameters, COARSE + arrows between the
+modules/cards, VALUE + arrows for the value (fine, COARSE coarse, MICRO the finer layer) as one
+gesture that OUT keeps and BACK cancels, DELETE the default, VIEW + arrows the bars. A plugin's own
+key tests press the language's keys: W for VALUE, S for COARSE, F for MICRO and Tab for OUT in the
+default keymap. Until 2026-10-08 it was `Shift`+arrows between cards, `Command`+arrows between
+parameters, bare arrows for the value and `Alt` a finer layer. `mxm_ui::navigation::running` keeps
+a *surface* without a cursor — the developer Parameters list — on bare-arrow editing.
 
 An editor is three things, and no new tables:
 

@@ -842,6 +842,58 @@ kept or cancelled, chaining each press from where the last one landed, as a held
 Escape, Home, End and every chord with `Command` or `Alt` stay in egui's queue for the controls.
 `mxm-plugin-test`'s coverage check presses the language's keys where the editor pilots it.
 
+**Rolled out on 2026-10-08** (the owner: "Roll out the keyboard language"): the pilot's checks
+were deleted, so every editor's cursor reads the language. BACK alone stopped revealing the cursor,
+as `Escape` never did under §11 (`escape_is_not_a_reveal`). The old `Alt` + up/down layer (ten cents
+on a pitch) has no key in the language. Design system §11's keyboard text before the rollout, as it
+was written:
+
+> Keyboard behavior (the table is §11 as it binds the editors today; **the keyboard language
+> replaces it**, the owner decided on 2026-10-07, keys first in newDAWn and the collection, and is
+> piloted on mxm-mono-08 through `mxm_ui::pilot`: the arrows go parameter to parameter inside the
+> card (← → along its row, stopping at either end), stopping on each cell of a segmented control,
+> whose cell OPEN chooses; COARSE + arrows card to card, VALUE + arrows change the value in the steps below — FINE the fine one,
+> COARSE and MUSICAL the coarse, MICRO the finer — as one gesture that OUT keeps and BACK cancels,
+> DELETE resets to the default, and VIEW + arrows move between the cards and the bars above them,
+> never out of the window, which is the window manager's; in the default keymap W is VALUE, S
+> COARSE, D FINE, F MICRO, A MUSICAL, C VIEW and Tab OUT):
+>
+> | Key | Behavior |
+> |---|---|
+> | `Shift` + arrows | Move the cursor from module/card to module/card |
+> | `Command` + arrows | Move between the parameters inside the selected card |
+> | `↑` `↓` | Adjust the selected parameter — **coarse**: 10 % of its travel, or an octave |
+> | `←` `→` | Adjust the selected parameter — **fine**: 1 %, or a semitone |
+> | `Alt` + `↑` `↓` | Adjust the selected parameter — **finer coarse**: 1 %, or ten cents |
+> | `Alt` + `←` `→` | Adjust the selected parameter — **finest**: 0.1 %, or a cent |
+> | `Command` + `Backspace` | Return the selected parameter to its default |
+> | `Tab` / `Shift+Tab` | Move focus forward/back |
+> | `Home` / `End` | Minimum / maximum where safe |
+> | `Enter` | Activate or begin value entry |
+> | `Escape` | Cancel edit or close transient UI |
+> | `Ctrl/Cmd+Z` | Undo |
+> | `Ctrl/Cmd+Shift+Z` | Redo |
+>
+> **The modifier height mirrors the selection level.** `Shift`, the higher key, moves the highest
+> level: modules/cards. `Command` moves parameters within one, and an unmodified arrow changes the
+> lowest level: the value. This is the owner's live-use correction to the first cursor build; it takes
+> precedence over that build's M8 modifier grammar. `Command` is `Ctrl` on Windows and Linux and `Cmd`
+> on macOS.
+>
+> **Left/right is the fine axis and up/down the coarse one.** That is the Dirtywave M8's orientation,
+> taken deliberately: the tracker is where this interaction comes from and a musician who knows one
+> should not have to learn the other backwards. **`Alt` is a finer layer of both, and in each layer
+> up/down is the larger step** (owner, 2026-09-24: *"Some of the sliders are getting small, so it is
+> important that there are enough fine control with the arrows"*; of `Alt` with up/down, *"Make it
+> make meaning"*). `Alt` is `Option` on macOS.
+>
+> How far one press moves is a share of the control's **travel** — 10 %, 1 %, and under `Alt` 1 % and
+> 0.1 % — snapped onto the parameter's own grid, so a skewed range keeps its skew: a press near 20 Hz
+> moves a few hertz and one near 20 kHz moves hundreds. **A pitch moves musically**: an octave, a
+> semitone, and under `Alt` ten cents and a cent (owner: *"octave, semitone, cent is the range"*), to
+> the next whole one in the direction pressed. **A press never moves less than one of the parameter's
+> own steps**: on an option list or a whole-semitone tune, every layer reaches the adjacent value.
+
 ## Selectors and menus
 
 ### A selector is one row, and §7.4 finally has a shared one
@@ -1175,7 +1227,7 @@ The rule is written once, in the shared code, and draws only where an editor has
 `pilot::enable` — mxm-mono-08 does, from its card dispatch — so every other editor draws exactly as
 before. When the owner approves, roll a rule out by deleting its `pilot::on` check; do not copy a
 piloted rule into a plugin. `pilot.rs`'s module comment lists what is piloted now: nothing, since
-the first three rules rolled out on 2026-09-24.
+the keyboard language rolled out on 2026-10-08 (the first three rules did on 2026-09-24).
 
 ### Only the design-system foundation is exempt from evidence-before-sharing
 
