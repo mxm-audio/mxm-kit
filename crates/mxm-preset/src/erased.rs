@@ -17,19 +17,18 @@ pub use mxm_ui::control::Press;
 /// parameters that have one, and everything else keeps [`StepLaw::Own`].
 ///
 /// Every law is computed in the parameter's plain units, from whatever value the press starts at,
-/// and clamped to the range; see [`ErasedParam::step_from`]. Fine is left/right and coarse up/down.
+/// and clamped to the range; see [`ErasedParam::step_from`]. A press is fine, coarse
+/// ([`mxm_ui::control::Press`]'s `coarse`: COARSE or MUSICAL in the keyboard language) or the finer
+/// layer (`finer`: MICRO), whichever arrow.
 ///
-/// **`Alt` is a finer layer, and in each layer up/down is the larger step** (the owner, 2026-09-24:
-/// *"So that 10%, 1% and 0,1% can be set precisely"*, and on a pitch *"octave, semitone, cent"*;
-/// of `Alt` with up/down, *"Make it make meaning"*). Without `Alt` a press moves 10 % or 1 % of the
-/// travel, or an octave or a semitone; with it, 1 % or 0.1 %, or ten cents or a cent. **A press
+/// **MICRO is the finer layer** (the owner, 2026-09-24: *"So that 10%, 1% and 0,1% can be set
+/// precisely"*, and on a pitch *"octave, semitone, cent"*). A press moves
+/// 10 % or 1 % of the travel, or an octave or a semitone; MICRO moves 0.1 %, or a cent. **A press
 /// never moves less than one of the parameter's own steps**: where a finer size cannot land on its
 /// grid — a whole-semitone tune, an option list — it moves one step.
 ///
-/// **Since 2026-10-08 the keys are the keyboard language's**, and `Alt` in these docs names the
-/// finer layer, [`mxm_ui::control::Press`]'s `finer`: MICRO. VALUE + an arrow is the fine step and
-/// VALUE + COARSE the coarse one, whichever arrow; MICRO is the finer layer's fine half (0.1 %, a
-/// cent). Its coarse half (`Alt` + up/down: 1 %, ten cents) stays in every law but has no key.
+/// With `coarse` and `finer` both set, each law gives the finer layer's coarse step (1 %, or ten
+/// cents); no key asks for it.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum StepLaw {
     /// Fine is nice-plug's own step and coarse a tenth of the range snapped onto it — what
@@ -41,15 +40,17 @@ pub enum StepLaw {
     /// range at 2.37 or at 2.5 reads "2" and moves to 3 or 1: the display always changes by one
     /// semitone or one octave. A parameter stepped in whole semitones moves exactly ±1 or ±12.
     ///
-    /// Under `Alt`: ten cents and a cent, onto the cent grid.
+    /// The finer layer (MICRO): a cent, onto the cent grid (ten cents with `coarse` as well).
     Semitones,
-    /// Exactly one cent fine, ten coarse, with no grid; under `Alt`, a cent and a tenth. The cents knobs are continuous and read
-    /// tenths, so snapping to whole cents would visibly move 7.9 by a tenth.
+    /// Exactly one cent fine, ten coarse, with no grid; the finer layer (MICRO) a tenth of a cent
+    /// (a cent with `coarse` as well). The cents knobs are continuous and read tenths, so snapping
+    /// to whole cents would visibly move 7.9 by a tenth.
     Cents,
     /// A semitone fine (×2^(1/12)) and an octave coarse (×2), for a pitch or a filter corner in
-    /// hertz, and under `Alt` ten cents and a cent. A ratio can neither leave 0 Hz nor reach it, and `mxm-fx-convolution`'s Low cut is
-    /// 0–4000 Hz with 0 meaning Open: up from 0 takes the parameter's own step, and a step down
-    /// that would land below the first own step above the minimum lands on the minimum.
+    /// hertz, and the finer layer (MICRO) a cent (ten cents with `coarse` as well). A ratio can
+    /// neither leave 0 Hz nor reach it, and `mxm-fx-convolution`'s Low cut is 0–4000 Hz with 0
+    /// meaning Open: up from 0 takes the parameter's own step, and a step down that would land
+    /// below the first own step above the minimum lands on the minimum.
     Hertz,
     /// A signed pitch **interval** whose plain value times `octaves_per_unit` is octaves — a
     /// modulation depth into pitch, read as `+0.30 oct` (the owner, 2026-09-23, for mxm-mono-08's
@@ -58,8 +59,9 @@ pub enum StepLaw {
     /// Such a reading is finer than a semitone, so a press goes **to the next whole semitone (fine)
     /// or the next whole octave (coarse) in the direction pressed**: +0.30 oct steps to +0.33 or
     /// +0.25, and to +1.00 or +0.00, and from a whole interval it moves exactly one. Two presses
-    /// always land on a musical interval. Under `Alt` the lattice is ten cents and a cent.
-    /// `octaves_per_unit` is the plugin's own reach, the same number its reading multiplies by.
+    /// always land on a musical interval. The finer layer (MICRO) steps on a lattice of cents (of
+    /// ten cents with `coarse` as well). `octaves_per_unit` is the plugin's own reach, the same
+    /// number its reading multiplies by.
     Interval { octaves_per_unit: f64 },
     /// A control **voltage** whose whole value, times `octaves_per_unit`, is octaves once a route
     /// turns it into pitch, and whose readout is not a pitch: mxm-mono-08's stage levels, read as
@@ -70,7 +72,8 @@ pub enum StepLaw {
     /// one-octave fader stepped by octaves has two positions, so coarse is the semitone and fine is
     /// 1 %). A fine press therefore detunes off a semitone, and the next coarse press lands back on
     /// one: 2 % up from 0 and then a coarse press up is exactly one semitone, not one and 2 %.
-    /// Under `Alt`, coarse goes to the next ten cents and fine moves a tenth of `fine`.
+    /// The finer layer (MICRO) moves a tenth of `fine` (with `coarse` as well, to the next ten
+    /// cents).
     Voltage { octaves_per_unit: f64, fine: f64 },
 }
 
@@ -134,8 +137,8 @@ pub trait ErasedParam {
     /// skew is honoured: a press near 20 Hz moves a few hertz and one near 20 kHz moves hundreds.
     /// **Never less than one step**: where the fraction rounds to nothing on a coarse grid it is
     /// `Param::next_step`'s one step, so on a parameter with ten or fewer values both axes mean
-    /// the adjacent value — there is nothing coarser than the next waveform. The `Alt` layer is
-    /// [`ErasedParam::step_from`]'s.
+    /// the adjacent value — there is nothing coarser than the next waveform. The finer layer
+    /// (MICRO) is [`ErasedParam::step_from`]'s.
     fn stepping(&self) -> (f64, f64, f64, f64);
     /// The normalised value one keyboard `press` lands on from `normalised`, under `law`.
     ///
@@ -146,8 +149,8 @@ pub trait ErasedParam {
     /// [`StepLaw`] for the laws.
     ///
     /// The default is `stepping()`'s own magnitudes added to `normalised`, for a hand-written
-    /// implementation with no plain value to compute in — under `Alt`, fine for up/down and a
-    /// tenth of fine for left/right; every nice-plug parameter takes the blanket implementation
+    /// implementation with no plain value to compute in — the finer layer (MICRO) a tenth of fine,
+    /// and fine with `coarse` as well; every nice-plug parameter takes the blanket implementation
     /// below.
     fn step_from(&self, normalised: f64, press: Press, law: StepLaw) -> f64 {
         let _ = law;
@@ -285,8 +288,8 @@ impl<P: Param> ErasedParam for P {
     }
 }
 
-/// A press's share of the travel: coarse, fine and — under `Alt` — the finest (the owner,
-/// 2026-09-24: *"10%, 1% and 0,1%"*).
+/// A press's share of the travel: coarse, fine and — in the finer layer (MICRO) — the finest (the
+/// owner, 2026-09-24: *"10%, 1% and 0,1%"*).
 const COARSE: f64 = 0.10;
 const FINE: f64 = 0.01;
 const FINEST: f64 = 0.001;
@@ -331,7 +334,8 @@ fn snapped<P: Param>(param: &P, normalised: f64) -> f64 {
     f64::from(param.preview_normalized(param.preview_plain(normalised as f32)))
 }
 
-/// A press's share of the travel: 10 % and 1 % without `Alt`, 1 % and 0.1 % with it.
+/// A press's share of the travel: 10 % coarse, 1 % fine, 0.1 % in the finer layer (MICRO), and 1 %
+/// with `coarse` and `finer` both set.
 fn fraction(press: Press) -> f64 {
     match (press.coarse, press.finer) {
         (true, false) => COARSE,
@@ -402,8 +406,9 @@ fn hertz_step<P: Param>(param: &P, from: f64, press: Press) -> f64 {
     }
     // No ratio reaches zero either, so a step that would land below the first own step above the
     // minimum lands on the minimum — where fx-convolution's Low cut reads Open. **The first step of
-    // this press's own layer**, the one that leaves the minimum, so the way down returns to it: under
-    // `Alt` a tenth of a percent, so a cent above it steps back onto it rather than to Open.
+    // this press's own layer**, the one that leaves the minimum, so the way down returns to it: in
+    // the finer layer (MICRO) a tenth of a percent, so a cent above it steps back onto it rather
+    // than to Open.
     let first = plain_of(param, own_magnitude(param, 0.0, fraction(press), true));
     let target = plain / ratio;
     // A ratio undone lands back on the step it left, give or take a float's rounding.
@@ -463,7 +468,7 @@ mod tests {
         coarse: true,
         finer: false,
     };
-    /// `Alt` + right, and `Alt` + up: the finer layer.
+    /// MICRO, upward, whichever arrow: the finer layer.
     const FINEST_UP: Press = Press {
         up: true,
         coarse: false,
@@ -474,6 +479,7 @@ mod tests {
         coarse: false,
         finer: true,
     };
+    /// `coarse` and `finer` both set: the finer layer's coarse step, which no key asks for.
     const ALT_COARSE_UP: Press = Press {
         up: true,
         coarse: true,
@@ -741,8 +747,8 @@ mod tests {
         close(lands(&level, 0.0, FINE_DOWN, law), 0.0, 1e-6);
     }
 
-    /// The owner's three sizes, 2026-09-24: *"10%, 1% and 0,1%"*, with `Alt` + up/down a percent —
-    /// in each layer up/down is the larger step.
+    /// The owner's three sizes, 2026-09-24: *"10%, 1% and 0,1%"*, and a percent with `coarse` and
+    /// `finer` both set.
     #[test]
     fn own_moves_ten_one_and_a_tenth_of_a_percent_of_the_travel() {
         let level = FloatParam::new(
@@ -782,8 +788,9 @@ mod tests {
         );
     }
 
-    /// fx-convolution's Low cut under `Alt`: the finest step leaves Open, a cent goes up from there,
-    /// and the way down undoes the cent before it returns to Open — the first step of its own layer.
+    /// fx-convolution's Low cut in the finer layer (MICRO): the finest step leaves Open, a cent goes
+    /// up from there, and the way down undoes the cent before it returns to Open — the first step of
+    /// its own layer.
     #[test]
     fn hertz_under_alt_leaves_a_zero_minimum_and_returns_by_its_own_layer() {
         let low_cut = FloatParam::new(
@@ -806,7 +813,8 @@ mod tests {
         assert_eq!(lands(&low_cut, first, FINEST_DOWN, StepLaw::Hertz), 0.0);
     }
 
-    /// On a pitch the finer layer is ten cents and a cent (the owner: *"octave, semitone, cent"*).
+    /// On a pitch the finer layer (MICRO) is a cent, and ten cents with `coarse` as well (the owner:
+    /// *"octave, semitone, cent"*).
     #[test]
     fn a_pitch_under_alt_moves_ten_cents_and_a_cent() {
         let cutoff = FloatParam::new(

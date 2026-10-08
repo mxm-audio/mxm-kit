@@ -869,9 +869,9 @@ Theme quality is judged by hierarchy, not by whether all colors were mathematica
   3:1.
 - **Keyboard focus is visible to whoever is using the keyboard**, and follows visual reading order.
   The cursor is always *positioned* — the last control touched, by mouse or by key, so the next
-  arrow press edits rather than arrives — but it is only *painted* once somebody reaches for the
+  VALUE press edits rather than arrives — but it is only *painted* once somebody reaches for the
   keyboard. An editor opens with nothing ringed, any pointer press anywhere puts the indication
-  away, and the next arrow, `Tab`, `Home`/`End` or `Enter` brings it back where it was. This is the
+  away, and the next key that operates the cursor brings it back where it was. This is the
   web's `:focus-visible` rule, and both halves of the cursor follow it together: the card outline
   and the parameter's focus ring. The owner ruled it on the grain-fx panel, 2026-09-11, against an
   earlier reading of this line that painted the cursor from the first frame of every session.
@@ -915,13 +915,12 @@ onto the parameter's own grid, so a skewed range keeps its skew: a press near 20
 hertz and one near 20 kHz moves hundreds. **A pitch moves musically**: an octave, a semitone and a
 cent (owner: *"octave, semitone, cent is the range"*), to the next whole one in the direction
 pressed. **A press never moves less than one of the parameter's own steps**: on an option list or a
-whole-semitone tune, every size reaches the adjacent value. The table this replaced, with its
-`Shift`, `Command` and `Alt` layers, is kept in `crates/ui/NOTES.md` § *The keyboard language,
-piloted*.
+whole-semitone tune, every size reaches the adjacent value.
 
 **Every editor in the collection runs the cursor**, so this table is the mapping, not one of two.
-The older bare-arrow mapping survives only where there is no cursor to run — a cardless developer
-surface — and an editor MUST NOT reintroduce it on a card surface. A control that edits a parameter
+Only where there is no cursor to run — a cardless developer surface — does a focused control edit
+its value with the bare arrows, and an editor MUST NOT let one do so on a card surface. A control
+that edits a parameter
 MUST be reachable by the cursor, whatever widget draws it: a knob, a switch, a segmented control
 and a selector are all parameters, and one that paints without joining the cursor's registry is a
 control a keyboard player can see and never touch. Movement follows painted geometry: a target MUST lie in the arrow's half-plane; horizontal movement prefers the same visual
@@ -933,8 +932,9 @@ previous card surface.
 The cursor's own state — selected card and selected parameter — MUST be visible, MUST NOT rely on
 hue alone, and MUST NOT occupy layout space, so arriving on a control cannot move anything. That
 visible target remains authoritative if a custom-painted control loses native widget focus between
-frames. A held continuous value edit is one balanced host automation gesture from initial press
-through release; repeat events update values inside it and MUST NOT be dropped.
+frames. A value edit is one balanced host automation gesture from its first press until it is kept
+(OUT, or letting go of a held VALUE) or cancelled (BACK); repeat events update values inside it and
+MUST NOT be dropped.
 
 The host owns global shortcuts. Plugin shortcuts MUST work only while the editor has appropriate
 focus and MUST not trap DAW transport input unexpectedly.

@@ -722,9 +722,9 @@ Use the current [design system](MXM_DESIGN_SYSTEM.md) §§3.3–4.3, 6–7 and 1
   nice-plug, so a `with_step_size` parameter reports itself continuous; anything that moves a value
   by a "step" must go through `next_step`/`previous_step`, which also carry the range's skew.
   Review any new increment arithmetic for which of the two it actually consulted.
-- **Re-spelling a shared input mapping is a change to every consumer, not one.** Moving the value
-  edit off the bare arrows fixed the converted editor and silently removed keyboard editing from the
-  eight that had not been converted. A shared re-mapping needs an explicit switch and a stated
+- **Re-spelling a shared input mapping is a change to every consumer, not one.** A re-mapping that
+  fixes the converted editor can silently remove keyboard editing from every editor that has not
+  been converted. A shared re-mapping needs an explicit switch and a stated
   behaviour for consumers that have not adopted it; "the rollout will reach them" is not a state the
   tree may be left in.
 - **Prove a pre-existing failure against a clean baseline before attributing it — but do not turn

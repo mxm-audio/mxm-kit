@@ -68,16 +68,13 @@ of GUI navigation; headless fit does not establish native-window or DAW quality.
 **§11 is the keyboard language, and it is normative** (every editor's since 2026-10-08, after a
 pilot on mxm-mono-08): arrows select parameters, COARSE + arrows modules/cards, VALUE + arrows edit
 values: FINE (or none) 1 % of the travel or a semitone, COARSE 10 % or an octave, MICRO 0.1 % or a
-cent, snapped to the parameter's grid and never less than one of its steps. Until 2026-10-08 the
-table was `Shift`+arrows for cards, `Command`+arrows for parameters and bare arrows for values,
-left/right fine and up/down coarse, with `Alt` a finer layer of both. Direction
-follows painted geometry; paging order bridges page
-edges; segmented controls are one parameter target; the visible target remains authoritative after
-native widget-focus loss; cardless surfaces relinquish the cursor; and a held continuous edit is one
-host gesture through release. Cardless developer surfaces have no cursor and retain their own
-bare-arrow editing. Every control that edits a parameter joins
-the cursor — knob, switch, segmented control and selector alike — and each editor proves its own
-coverage, because a control that paints without registering is silently unreachable. Adopting it
+cent, snapped to the parameter's grid and never less than one of its steps. Direction follows
+painted geometry; paging order bridges page edges; segmented controls are one parameter target; the
+visible target remains authoritative after native widget-focus loss; cardless surfaces relinquish
+the cursor; and an edit is one host gesture until it is kept or cancelled. Cardless
+developer surfaces have no cursor and retain their own bare-arrow editing. Every control that edits
+a parameter joins the cursor — knob, switch, segmented control and selector alike — and each editor
+proves its own coverage, because a control that paints without registering is silently unreachable. Adopting it
 was not a licence to change any parameter, page assignment or controller mapping, and none changed.
 The language's engine is [`crates/mxm-keys`](../crates/mxm-keys/AGENTS.md) (the owner, 2026-10-06:
 the collection moves to newDAWn's keyboard language; the pass ran 2026-10-07 to 2026-10-08).

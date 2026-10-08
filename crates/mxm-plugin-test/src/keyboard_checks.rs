@@ -7,9 +7,8 @@
 //! and the parameter is quietly unreachable from the keyboard. Painting the panel and reading back
 //! what registered is the only honest test of that, because the registry is built by drawing.
 //!
-//! It proves reachability and that a value key reaches the host (a bare arrow, or VALUE + an
-//! arrow where the editor pilots the keyboard language), at one width, headless. It does
-//! not prove the feel, native-window behaviour, or a DAW.
+//! It proves reachability and that a value key reaches the host (VALUE + an arrow, kept with OUT),
+//! at one width, headless. It does not prove the feel, native-window behaviour, or a DAW.
 //! `Coverage` has two variants and most editors construct one of them. Keep both: trimming per
 //! consumer is how one shared check quietly becomes twelve different ones.
 
@@ -84,8 +83,8 @@ impl Session {
 
     pub fn frame(&self, panel: &mut impl FnMut(&mut egui::Ui), events: Vec<egui::Event>) {
         // egui only reports a modifier through `Modifiers`, and `RawInput` carries the current
-        // state separately from the key events. Without this a `Shift`+arrow arrives as a bare
-        // arrow and the check silently measures the wrong tier.
+        // state separately from the key events. Without this a modified key arrives as a bare one
+        // and the check silently measures the wrong move.
         let modifiers = events
             .iter()
             .rev()
@@ -157,10 +156,11 @@ pub enum Coverage<'a> {
 /// Two properties, one call, because they fail for the same reason and an editor that declares
 /// them separately mostly declares the same eight lines of setup twice:
 ///
-/// 1. **It operates.** The cursor lands without being aimed, a bare arrow edits the parameter it
-///    landed on as one balanced host gesture, and `Shift`+arrow selects a card instead of
-///    editing. The edit is also what proves the binding filled `ParamView::stepping`: a control
-///    left with no step law moves by nothing and the host sees no set.
+/// 1. **It operates.** The cursor lands without being aimed, VALUE + an arrow, kept with OUT,
+///    edits the parameter it landed on as one balanced host gesture, and COARSE + an arrow
+///    selects a card instead of editing. The edit is also what proves the binding filled
+///    `ParamView::stepping`: a control left with no step law moves by nothing and the host sees
+///    no set.
 /// 2. **It reaches everything.** Each card is requested in turn — so a parameter on a page this
 ///    width does not show is still visited — with `reveal` opening whatever the editor keeps
 ///    behind a disclosure, and the registry is compared against `coverage`. A parameter missing

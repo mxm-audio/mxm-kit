@@ -254,14 +254,17 @@ only what is its own (mxm-creative-sampler's `layer_label`).
   control takes one as `panel` in its `_named` form.
 - **`Escape` cancels an open text entry** in every drawer — mxm-mono-08's, every editor's since.
 - **`Bound::stepped` outranks the keyboard law**: a whole-note grid a drag lands on while the
-  parameter holds anything between (the sampler's Root), and one `Alt` does not go under.
+  parameter holds anything between (the sampler's Root), and the finer layer (MICRO) does not go
+  under it.
 - Its tests hold the gesture bracketing, the stepped grid, the label split and the group write.
 
 **`StepLaw` and `step_from` are the musical laws** (owner, 2026-09-23: a pitch steps ±1 semitone
-and ±1 octave, not 10 % of its range). **Every law has an `Alt` layer** (`Press::finer`; the owner,
-2026-09-24: *"octave, semitone, cent is the range"*): `Own` 1 % and 0.1 %, the pitch laws ten cents
-and a cent, `Cents` a cent and a tenth, `Voltage` ten cents and a tenth of its fine step — and a
-finer press that rounds back onto its start moves one of the parameter's own steps instead. `step_from(normalised, press, law)` answers where one press
+and ±1 octave, not 10 % of its range). **Every law has the finer layer, MICRO** (`Press::finer`;
+the owner, 2026-09-24: *"octave, semitone, cent is the range"*): `Own` 0.1 %, the pitch laws a cent,
+`Cents` a tenth of a cent, `Voltage` a tenth of its fine step — and a finer press that rounds back
+onto its start moves one of the parameter's own steps instead. With `coarse` set as well, which no
+key asks for, each law gives the finer layer's coarse step: `Own` 1 %, the pitch laws and
+`Voltage` ten cents, `Cents` a cent. `step_from(normalised, press, law)` answers where one press
 lands from **any** value — not a magnitude at the current one, because a musical step depends on
 where it starts and several presses in a frame each start where the last landed. The laws, each in
 plain units and clamped to the range:

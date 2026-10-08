@@ -994,9 +994,8 @@ after a pilot on mxm-mono-08): arrows between the parameters, COARSE + arrows be
 modules/cards, VALUE + arrows for the value (fine, COARSE coarse, MICRO the finer layer) as one
 gesture that OUT keeps and BACK cancels, DELETE the default, VIEW + arrows the bars. A plugin's own
 key tests press the language's keys: W for VALUE, S for COARSE, F for MICRO and Tab for OUT in the
-default keymap. Until 2026-10-08 it was `Shift`+arrows between cards, `Command`+arrows between
-parameters, bare arrows for the value and `Alt` a finer layer. `mxm_ui::navigation::running` keeps
-a *surface* without a cursor — the developer Parameters list — on bare-arrow editing.
+default keymap. `mxm_ui::navigation::running` keeps a *surface* without a cursor — the developer
+Parameters list — on its focused control's own bare-arrow editing.
 
 An editor is three things, and no new tables:
 
@@ -1008,9 +1007,9 @@ An editor is three things, and no new tables:
   does another surface own this frame's keyboard? `PresetUi::holds_the_keyboard` answers the preset
   half, and an open text entry is the editor's own. `paged` derives the plan's flattened
   category-first order — **never raw authored order** — asks the renderer for a card the cursor
-  reached on another page, and sets the outline. A `Shift`/`Command` arrow must be consumed before a
-  control sees it, or one press is spent twice. It also publishes the selected parameter as the
-  keyboard authority, because a custom-painted control may lose native egui focus while the visible
+  reached on another page, and sets the outline. It reads the language's keys before any control is
+  drawn and takes them out of egui's queue (OPEN and BACK stay for the controls), or one press is
+  spent twice. It also publishes the selected parameter as the keyboard authority, because a custom-painted control may lose native egui focus while the visible
   cursor still names it. On every cardless surface, call `navigation::stop` so an invisible previous
   cursor cannot retain keyboard ownership.
 - **The binding wraps each control in `navigation::at(ui, id, …)`**, fills `ParamView::stepping`
@@ -1022,7 +1021,7 @@ An editor is three things, and no new tables:
   Parameters surface uses; `mxm-mono-01` does. The owner's scope (2026-09-23): semitone-stepped
   parameters (coarse tunes, transposes, Shift, every Bend range) take `Semitones`, pitch and filter
   corners in hertz `Hertz`, the ±100/±200-cent tunes `Cents`; continuous semitone tunes, route
-  amounts, rates and %-valued cutoffs keep `Own` — except `mxm-mono-08`'s pitch routes, which read in octaves and step by `StepLaw::Interval` through `mxm_modulation_params::ui::stack_with_law` (owner, same day, for that instrument only), and its five step levels, which step by `StepLaw::Voltage`: to the next semitone coarse, so a one-octave pitch route plays semitones, and by 1 % fine. **Every law has the `Alt` layer** (`mxm_preset::StepLaw`, 2026-09-24): `Own` 1 % and 0.1 %; the pitch laws ten cents and a cent; `Cents` a cent and a tenth; `Voltage` ten cents and a tenth of its fine step. A plugin declares nothing more for it.
+  amounts, rates and %-valued cutoffs keep `Own` — except `mxm-mono-08`'s pitch routes, which read in octaves and step by `StepLaw::Interval` through `mxm_modulation_params::ui::stack_with_law` (owner, same day, for that instrument only), and its five step levels, which step by `StepLaw::Voltage`: to the next semitone coarse, so a one-octave pitch route plays semitones, and by 1 % fine. **Every law has the finer layer, MICRO** (`mxm_preset::StepLaw`, 2026-09-24): `Own` 0.1 %; the pitch laws a cent; `Cents` a tenth of a cent; `Voltage` a tenth of its fine step. A plugin declares nothing more for it.
   **A law may follow another parameter's value**, because `Bound` is built every frame:
   `mxm-mono-08`'s modulation frequency is a rate in its low range and a pitch in its high one, and
   takes `Hertz` only while the high range is selected.
@@ -1033,7 +1032,7 @@ An editor is three things, and no new tables:
   the reachability check below.
   An editor-only control drawn *inside* a parameter's scope — a picker that chooses which parameter
   the control beside it edits — goes in `navigation::aside`, or it registers as a second cell of
-  that parameter and answers the same bare arrow.
+  that parameter and answers the keys meant for the parameter.
 
 **Do not build a parameter-to-card table for this.** The registry is assembled from what the frame
 paints, so it is right about disclosures, reflow and hidden cards by construction; a declared table
@@ -1042,9 +1041,9 @@ would be wrong the first time any of the three changed.
 **Every editor proves its own coverage**, with one call to
 `mxm_plugin_test::keyboard_checks::the_cursor_reaches_and_operates`, the shared check beside
 `mxm_plugin_test::paging_checks`. It paints the real panel: first that
-the cursor lands, that a bare arrow edits it as one balanced host gesture (which is also what proves
-the step law arrived), and that `Shift`+arrow selects instead; then that requesting each card in
-turn, with the editor's `REVEAL` opening whatever it keeps behind a disclosure, registers
+the cursor lands, that VALUE + an arrow, kept with OUT, edits it as one balanced host gesture (which
+is also what proves the step law arrived), and that COARSE + an arrow selects a card instead; then
+that requesting each card in turn, with the editor's `REVEAL` opening whatever it keeps behind a disclosure, registers
 `Coverage::Exactly` the editor's inventory — or `Coverage::Within` it, where some parameters are
 reached only through a card's own picker (mxm-mono-08's routing amounts). **A missed `at` scope is
 invisible to every other test**, which is the whole reason this one exists. An editor whose opening

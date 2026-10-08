@@ -147,11 +147,11 @@ depends on `mxm-tempo` ([NOTES.md § The binding](NOTES.md#the-binding-its-histo
 - **`Bound::panel` is the painted label** (§7.1); the parameter's own name stays the accessible and
   tooltip name (`labelled`, `unlabelled`, `painted`, and a stepped control's `_named` form).
 - **`Escape` cancels an open text entry** in every drawer. **`Bound::stepped` outranks the keyboard
-  law**, and one `Alt` does not go under. Its tests hold all four.
+  law**, and the finer layer (MICRO) does not go under it. Its tests hold all four.
 
 **`StepLaw` and `step_from` are the musical laws.** `step_from(normalised, press, law)` answers where
-one press lands from **any** value; **every law has an `Alt` layer** (`Press::finer`: MICRO in the
-keyboard language since 2026-10-08; its coarse half has no key there). The laws,
+one press lands from **any** value; **every law has the finer layer** (MICRO, `Press::finer`), and
+gives a coarser finer step when `coarse` is set as well, which no key asks for. The laws,
 in plain units and clamped to the range: `Own` (`stepping()` at the start value), `Semitones` (±1 and
 ±12 from the whole semitone shown), `Cents` (exactly ±1 and ±10, no grid), `Hertz` (×/÷ 2^(1/12) and
 ×/÷ 2), `Interval { octaves_per_unit }` (to the **next** whole semitone or octave) and

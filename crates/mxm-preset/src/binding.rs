@@ -70,7 +70,8 @@ pub struct Bound<'a> {
 impl control::NextValue for Bound<'_> {
     fn next_value(&self, normalised: f64, press: control::Press) -> f64 {
         if let Some((fine, coarse)) = self.stepped {
-            // `Alt` has nothing finer than the grid's own step, which a press never goes under.
+            // The finer layer (MICRO) has nothing finer than the grid's own step, which a press
+            // never goes under.
             let size = if press.coarse && !press.finer {
                 coarse
             } else {
@@ -1131,7 +1132,8 @@ mod tests {
         close(drag(&plain, 59.6 * note, None), 59.6, "an unstepped drag");
     }
 
-    /// A stepped grid outranks the keyboard law, and `Alt` goes no finer than the grid's own step.
+    /// A stepped grid outranks the keyboard law, and the finer layer (MICRO) goes no finer than the
+    /// grid's own step.
     #[test]
     fn a_stepped_grid_outranks_the_law_and_alt_keeps_its_step() {
         let root = FloatParam::new(

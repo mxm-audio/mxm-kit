@@ -662,13 +662,11 @@ border.
 
 ### The keyboard cursor is a card, a parameter and a value — and its map is drawn, not declared
 
-`navigation` is tracker-style editing with the owner's physical hierarchy
-(`plans/plan-keyboard-editing.md`). **`Shift`+arrows move module/card to module/card,
-`Command`+arrows move between parameters inside one, and bare arrows set the value** — `Command`
-being `Ctrl` on Windows and Linux, `Cmd` on macOS. The higher modifier selects the higher level.
+`navigation` is the keyboard cursor every editor runs: a card, a parameter inside it, and that
+parameter's value. It reads the keys through the keyboard language ([§ The keyboard
+language](#the-keyboard-language)): the arrows move parameter to parameter inside the card, COARSE +
+arrows card to card, and VALUE + arrows edit the value.
 
-- **Left/right is fine and up/down is coarse**, matching the M8 orientation. The plan §1 names the
-  Dirtywave manual pages; the manual gives no increments, so the ratio is ours.
 - **The parameter-to-card map is a by-product of painting.** A control calls `navigation::mark` as
   it draws, inside a `navigation::card` scope the paging renderer opens and a `navigation::at`
   scope the plugin's binding opens. There is no authored table: it would drift when disclosures or
@@ -676,8 +674,7 @@ being `Ctrl` on Windows and Linux, `Cmd` on macOS. The higher modifier selects t
   parameter unions all its cells into one spot and retains every cell's focus id.
   **`navigation::aside` closes the scope** for an editor-only control drawn inside a parameter's —
   a picker that chooses which parameter the control beside it edits. Without it the picker
-  registers as a second cell of that parameter and answers the same bare arrow, so one press both
-  steps the menu and moves the value.
+  registers as a second cell of that parameter and answers the keys meant for the parameter.
 - **`navigation::paged` is how an editor drives it, and the order is the plan's.** It reads the
   last frame's `paging::editor::report`, flattens the plan's category-first card order across
   pages, hands `run` the exact visible rectangles, requests a card the cursor reached on another
@@ -701,13 +698,13 @@ being `Ctrl` on Windows and Linux, `Cmd` on macOS. The higher modifier selects t
 - **The cursor drives egui's focus, but the cursor target remains the keyboard authority.** Custom
   painted controls can lose native egui focus between frames; value editing must still reach the
   parameter the visible cursor names. `EventFilter`'s arrow fields are `true`: in egui that means
-  exclusive to the focused widget, so one press is not also spent on egui's focus travel. `Tab`
-  onto any cell whose response retains focus moves the cursor there.
-- **The pointer moves the cursor: the parameter clicked or dragged is the next arrow's target**
+  exclusive to the focused widget, so one press is not also spent on egui's focus travel. Focus
+  that reaches a registered cell some other way moves the cursor there.
+- **The pointer moves the cursor: the parameter clicked or dragged is the next edit's target**
   (owner, 2026-09-23: *"When I click on a parameter, or move it with the mouse it should
   immediately be possible to edit that parameter with the arrow keys"*). egui 0.36 focuses no
   painted control on a click or a drag — only `TextEdit` and `DragValue` ask for focus — so a cursor
-  that followed focus alone stayed on the previous parameter, hidden, and the next arrow edited
+  that followed focus alone stayed on the previous parameter, hidden, and the next edit went to
   that one. `navigation::mark` therefore takes the control's `Response` and records whether this
   frame pressed or clicked it (`Spot::pointed`, OR-ed across a segmented control's cells); `run`
   settles on a pointed spot **before its `inert` return**, so a press followed by an inert frame is
@@ -715,59 +712,61 @@ being `Ctrl` on Windows and Linux, `Cmd` on macOS. The higher modifier selects t
   widget's own interaction, never a hit test of last frame's rectangles: a press on a popup over a
   knob is the popup's. Three edges:
   - **`remove_mark` never claims** (`mark_unclaimed`): its press deletes the row it sits on. It
-    stays a cursor target operated by `Enter`/`Space`, and answers no arrow.
+    stays a cursor target operated by `Enter`/`Space`, with no value to step.
   - **A pointer frame skips the focus-follow.** egui surrenders focus on a click but not on a
     drag, so the knob the cursor left can still hold focus while another is dragged, and following
     it would undo the pointer's move.
   - **Focus that could not be handed over is owed** (`State::owed`) and requested on the first
     frame that is not inert. egui sets the arrow lock only on a widget that already had focus last
-    frame, so the lock arrives one frame after the focus, as it does after a `Command`+arrow move.
+    frame, so the lock arrives one frame after the focus, as it does after any cursor move.
 - **A focused text field or any open popup makes the cursor inert**, exactly as the editor's own
-  `inert` does: no reveal, no consumed `Shift`/`Command` arrows, no target. A long selector's search
-  field edits its text with those keys, and any open list walks its rows. It reads
+  `inert` does: no reveal, no keys taken, no target. A long selector's search field takes the
+  arrows and the letters as text, and any open list walks its rows with the arrows. It reads
   `Context::text_edit_focused()` and `egui::Popup::is_any_open` — **not `Context::any_popup_open`**,
   which is built from the popups drawn so far in this pass, and `run` runs before anything is drawn.
-- **`Alt` is a finer layer of the value tier** (the owner, 2026-09-24). Under the cursor an
-  unmodified **or `Alt`** arrow edits the value, and `Press::finer` says which. In each layer up/down
-  is the larger step: 10 % and 1 % without `Alt`, 1 % and 0.1 % with it — a pitch's law makes those
-  an octave, a semitone, ten cents and a cent. A segmented control, a toggle and a selector take an
-  `Alt` arrow as a bare one, because an option list has nothing finer than the adjacent option.
-  `an_alt_arrow_is_the_finer_layer_under_the_cursor` holds it.
+- **MICRO is the finer layer** (the owner, 2026-09-24: *"Some of the sliders are getting small, so
+  it is important that there are enough fine control with the arrows"*). VALUE + an arrow is the
+  fine step (1 % of the travel), with COARSE (or MUSICAL) the coarse one (10 %) and with MICRO the
+  finer (0.1 %); a pitch's law makes those a semitone, an octave and a cent. The arrow gives only
+  the direction; `Press` carries the size, `Press::finer` for MICRO. A segmented control, a toggle
+  and a selector move one option for every size, because an option list has nothing finer or
+  coarser than the adjacent option. `micro_is_the_finer_layer` holds it.
 - **How far a press moves is the parameter's, not this crate's.** `control::Steps` carries four
   normalised magnitudes the plugin computes from its own parameter each frame, and
-  `Steps::DEFAULT` is 1 % fine and 10 % coarse for a control whose owner supplies none; under `Alt`
-  the fall-back is fine for up/down and a tenth of fine for left/right. An owner
-  with a law that depends on where a press starts — a semitone on a skewed hertz range, a step onto
+  `Steps::DEFAULT` is 1 % fine and 10 % coarse for a control whose owner supplies none; under MICRO
+  the fall-back is a tenth of fine. An owner with a law that depends on where a press starts — a semitone on a skewed hertz range, a step onto
   the whole semitone a readout shows — hands the control a `control::NextValue` through
   `ParamView::stepping_by`, asked once per press from any value. The plugin's binding implements
   it over `mxm_preset::StepLaw`; this crate still knows no parameter.
-- **Presses apply one at a time, in the order pressed.** `take_arrows` walks the event queue, as
-  `navigation::requested` does; `consume_key` returned presses grouped by key, which is harmless
-  for fixed magnitudes and wrong the moment a step depends on its start (Down-then-Up at the top of
-  a range must end at the top). Segmented controls read their arrows the same way.
-- **A held continuous edit is one host gesture, anchored as a drag is.** The first matching event
-  begins it, repeats only emit values, and release ends it. All matching events in a frame apply,
-  each from where the one before landed. **The gesture's memory carries the value its last press
-  sent**, and later-frame repeats chain from it rather than from a readback the host may not have
-  applied yet — `DragAnchor`'s reasoning, and like it the anchor dies with the gesture. Behaviour
-  across separate gestures under a late host is pre-existing and out of scope: every discrete edit
-  starts from readback, and hosts apply within a buffer, faster than a person moves between them.
-- **A toggle under the cursor answers the bare and `Alt` arrows** as a two-cell segmented control: Right/Up
+- **Presses apply one at a time, in the order pressed.** The language publishes a frame's VALUE
+  presses in order (`ValueKeys`), and where no cursor runs `take_arrows` walks the event queue the
+  same way; `consume_key` returned presses grouped by key, which is harmless for fixed magnitudes
+  and wrong the moment a step depends on its start (Down-then-Up at the top of a range must end at
+  the top). Segmented controls read their presses the same way.
+- **An edit is one host gesture, anchored as a drag is.** VALUE's first press begins it, later
+  presses only emit values, and OUT, letting go of a held VALUE or the next command ends it; BACK
+  cancels it back to where it began. All presses in a frame apply, each from where the one before
+  landed. **The gesture's memory carries the value its last press sent**, and later presses chain
+  from it rather than from a readback the host may not have applied yet — `DragAnchor`'s
+  reasoning, and like it the anchor dies with the gesture. Behaviour across separate gestures under
+  a late host is out of scope: every new gesture starts from readback, and hosts apply within a
+  buffer, faster than a person moves between them.
+- **A toggle under the cursor answers VALUE** as a two-cell segmented control: VALUE + Right/Up
   on, Left/Down off, `Home`/`End`. Only under the cursor (`keyboard_target`), so the player's panes
   and a disclosure toggle, which is never a cursor target, are unchanged.
-- **A selector is a stepped parameter drawn as a menu**, and answers the arrows on `segmented`'s
-  terms — the adjacent option, `Home`/`End`, `Command`+`Backspace` — but never while its own popup
+- **A selector is a stepped parameter drawn as a menu**, and answers VALUE on `segmented`'s terms —
+  the adjacent option, `Home`/`End`, DELETE the default — but never while its own popup
   is up, where egui's list owns the keyboard (after the search field, in a list long enough to
   have one). It marks the caret button. Without this the cursor
   could not reach a routing surface at all: mxm-mono-08 draws its whole source list as selectors,
   and mxm-mono-00 did the same for its retired fifteen patch-bay rows before those became routes.
-- **`navigation::running` keeps a cardless surface safe.** Where no cursor runs, `control`’s
-  bare-arrow editing remains active. An editor calls `navigation::stop` on a cardless surface
+- **`navigation::running` keeps a cardless surface safe.** Where no cursor runs, a focused
+  control's own arrow editing stays active. An editor calls `navigation::stop` on a cardless surface
   such as Parameters; merely hiding the outline leaves an invisible stale cursor consuming that
   surface's arrows.
 - **`consume_key` ignores an extra `Shift` or `Alt`.** A `Modifiers::NONE` pattern therefore also
-  matches `Shift`+arrow, so the most specific modifier must be tested first. Getting this backwards
-  turns every parameter move into a card move, and nothing fails loudly.
+  matches `Shift` and the same key, so the most specific modifier must be tested first. Getting
+  this backwards makes the modified key silently unreachable, and nothing fails loudly.
 - **The card cursor is painted, never laid out**, outside the card's rectangle exactly as the focus
   ring is drawn outside a control's — a cursor that occupied space would move every card beside it
   the moment it arrived.
@@ -776,9 +775,8 @@ being `Ctrl` on Windows and Linux, `Cmd` on macOS. The higher modifier selects t
   matching design-system §11’s `:focus-visible` behavior. `run` **conceals on any pointer press** — before its `inert` return, because
   a click into the preset browser is still somebody reaching for the mouse — and **reveals on any
   key that operates the cursor**, after that return, because while the browser is open or a value is
-  being typed the arrows are that surface's. The revealing set is §11's table minus `Escape`, which
-  cancels rather than navigates. The gesture is *peeked, never consumed*: `requested` and `control`
-  both still need those events.
+  being typed the arrows are that surface's. The revealing set is the language's keys but BACK,
+  which cancels or closes rather than navigates.
 
   Two consequences worth stating, because each is a thing a later change could quietly undo:
 
@@ -790,17 +788,17 @@ being `Ctrl` on Windows and Linux, `Cmd` on macOS. The higher modifier selects t
     its ring would leave those surfaces with no keyboard indication whatsoever.
 
   **Hidden is not lost, and that is the whole point of the split.** A knob turned with the mouse
-  becomes the cursor's parameter (see the pointer rule above), so the next arrow edits *that* value
-  and reveals the cursor already sitting on it; a click on empty space leaves the cursor where it
-  was. `no_border_until_the_keyboard_is_used_and_none_after_a_click` asserts the opening frame,
+  becomes the cursor's parameter (see the pointer rule above), so the next VALUE press edits *that*
+  value and reveals the cursor already sitting on it; a click on empty space leaves the cursor where
+  it was. `no_border_until_the_keyboard_is_used_and_none_after_a_click` asserts the opening frame,
   the reveal, the click on nothing, the surviving position and the return;
-  `escape_is_not_a_reveal` pins the one key in §11's table that is not this interface.
+  `escape_is_not_a_reveal` pins BACK alone.
 
 `crates/ui`'s own tests prove directional card/parameter movement, page-edge fallback, batched key
 presses, multi-cell registration, the reveal rule above, the pointer rule and its three edges, the
 text-field and popup suspension, and — through real controls — a clicked knob taking the next
-arrow, a remove never selecting, same-frame presses chaining in order, a held key's anchor under a
-host that applies nothing, and a toggle's arrows; `plugins/mxm-mono-01/tests/keyboard_editing.rs`
+edit, a remove never selecting, same-frame presses chaining in order, a held edit's anchor under a
+host that applies nothing, and a toggle's VALUE presses; `plugins/mxm-mono-01/tests/keyboard_editing.rs`
 proves the half that only exists once a real panel has painted — category-first card order, text
 and waveform segmented editing, the step law and its musical laws (a clicked cutoff steps an
 octave, a dragged tune a cent, the bend range reaches its end, two batched presses are two
@@ -826,73 +824,24 @@ on a pointer click, so a press in a menu closes it unless another menu opened on
 containers, scroll bars and unlabelled painted areas (canvases with cursors of their own) are left
 out.
 
-## The keyboard language, piloted
+## The keyboard language
 
-Where `pilot` is on (mxm-mono-08, from 2026-10-07), `navigation::run` reads the keys through the
-`mxm-keys` engine instead of §11's modifiers, before any control is drawn: a bare arrow goes to the
-next parameter inside the card (`Step::Any`; ← → only along the row), and to each cell of a
-segmented control, which takes egui's focus so OPEN (Enter, left in egui's queue) chooses it (the
-owner, 2026-10-07: the first pilot's arrows crossed cards and rows, and stepping across a control's
-buttons "fits what I see on the screen"), COARSE + an arrow is the old card step, VIEW + an arrow
-moves between the cards and the bars `navigation::bar` recorded (the view bar, then the app bar),
-where `reach` walks their widgets. VALUE's presses, OUT's keep, BACK's cancel and DELETE's reset are
-published as `ValueKeys` for the one control the cursor is on, which takes them in
+`navigation::run` reads the keys through the `mxm-keys` engine before any control is drawn: a bare
+arrow goes to the next parameter inside the card (`Step::Any`; ← → only along the row), and to each
+cell of a segmented control, which takes egui's focus so OPEN (Enter, left in egui's queue) chooses
+it (the owner, 2026-10-07: the first pilot's arrows crossed cards and rows, and stepping across a
+control's buttons "fits what I see on the screen"), COARSE + an arrow moves card to card, VIEW + an
+arrow moves between the cards and the bars `navigation::bar` recorded (the view bar, then the app
+bar), where `reach` walks their widgets. VALUE's presses, OUT's keep, BACK's cancel and DELETE's
+reset are published as `ValueKeys` for the one control the cursor is on, which takes them in
 `control::language_edit` (or `segmented_keyboard`, one cell a press): one host gesture until it is
-kept or cancelled, chaining each press from where the last one landed, as a held arrow did. Enter,
-Escape, Home, End and every chord with `Command` or `Alt` stay in egui's queue for the controls.
-`mxm-plugin-test`'s coverage check presses the language's keys where the editor pilots it.
+kept or cancelled, chaining each press from where the last one landed. Enter, Escape, Home, End and
+every chord with `Command` or `Alt` stay in egui's queue for the controls. `mxm-plugin-test`'s
+coverage check presses the language's keys.
 
-**Rolled out on 2026-10-08** (the owner: "Roll out the keyboard language"): the pilot's checks
-were deleted, so every editor's cursor reads the language. BACK alone stopped revealing the cursor,
-as `Escape` never did under §11 (`escape_is_not_a_reveal`). The old `Alt` + up/down layer (ten cents
-on a pitch) has no key in the language. Design system §11's keyboard text before the rollout, as it
-was written:
-
-> Keyboard behavior (the table is §11 as it binds the editors today; **the keyboard language
-> replaces it**, the owner decided on 2026-10-07, keys first in newDAWn and the collection, and is
-> piloted on mxm-mono-08 through `mxm_ui::pilot`: the arrows go parameter to parameter inside the
-> card (← → along its row, stopping at either end), stopping on each cell of a segmented control,
-> whose cell OPEN chooses; COARSE + arrows card to card, VALUE + arrows change the value in the steps below — FINE the fine one,
-> COARSE and MUSICAL the coarse, MICRO the finer — as one gesture that OUT keeps and BACK cancels,
-> DELETE resets to the default, and VIEW + arrows move between the cards and the bars above them,
-> never out of the window, which is the window manager's; in the default keymap W is VALUE, S
-> COARSE, D FINE, F MICRO, A MUSICAL, C VIEW and Tab OUT):
->
-> | Key | Behavior |
-> |---|---|
-> | `Shift` + arrows | Move the cursor from module/card to module/card |
-> | `Command` + arrows | Move between the parameters inside the selected card |
-> | `↑` `↓` | Adjust the selected parameter — **coarse**: 10 % of its travel, or an octave |
-> | `←` `→` | Adjust the selected parameter — **fine**: 1 %, or a semitone |
-> | `Alt` + `↑` `↓` | Adjust the selected parameter — **finer coarse**: 1 %, or ten cents |
-> | `Alt` + `←` `→` | Adjust the selected parameter — **finest**: 0.1 %, or a cent |
-> | `Command` + `Backspace` | Return the selected parameter to its default |
-> | `Tab` / `Shift+Tab` | Move focus forward/back |
-> | `Home` / `End` | Minimum / maximum where safe |
-> | `Enter` | Activate or begin value entry |
-> | `Escape` | Cancel edit or close transient UI |
-> | `Ctrl/Cmd+Z` | Undo |
-> | `Ctrl/Cmd+Shift+Z` | Redo |
->
-> **The modifier height mirrors the selection level.** `Shift`, the higher key, moves the highest
-> level: modules/cards. `Command` moves parameters within one, and an unmodified arrow changes the
-> lowest level: the value. This is the owner's live-use correction to the first cursor build; it takes
-> precedence over that build's M8 modifier grammar. `Command` is `Ctrl` on Windows and Linux and `Cmd`
-> on macOS.
->
-> **Left/right is the fine axis and up/down the coarse one.** That is the Dirtywave M8's orientation,
-> taken deliberately: the tracker is where this interaction comes from and a musician who knows one
-> should not have to learn the other backwards. **`Alt` is a finer layer of both, and in each layer
-> up/down is the larger step** (owner, 2026-09-24: *"Some of the sliders are getting small, so it is
-> important that there are enough fine control with the arrows"*; of `Alt` with up/down, *"Make it
-> make meaning"*). `Alt` is `Option` on macOS.
->
-> How far one press moves is a share of the control's **travel** — 10 %, 1 %, and under `Alt` 1 % and
-> 0.1 % — snapped onto the parameter's own grid, so a skewed range keeps its skew: a press near 20 Hz
-> moves a few hertz and one near 20 kHz moves hundreds. **A pitch moves musically**: an octave, a
-> semitone, and under `Alt` ten cents and a cent (owner: *"octave, semitone, cent is the range"*), to
-> the next whole one in the direction pressed. **A press never moves less than one of the parameter's
-> own steps**: on an option list or a whole-semitone tune, every layer reaches the adjacent value.
+Every editor's cursor reads the language since 2026-10-08, after a pilot on mxm-mono-08 from
+2026-10-07 (the owner: "Roll out the keyboard language"), and BACK alone never reveals the cursor
+(`escape_is_not_a_reveal`).
 
 ## Selectors and menus
 

@@ -4,16 +4,17 @@
 //! collection, other hosts are secondary** and fall back to the mouse where they keep a key from
 //! the window.
 //!
-//! - The arrows go to the nearest parameter that way, across cards; COARSE + arrows to the next
-//!   card. VIEW + arrows leave the cards for the bars above them (the view bar, then the app bar)
-//!   and come back, never out of the window: an editor is its own window, and moving between
-//!   windows is the window manager's.
+//! - The arrows go to the next parameter that way inside the card (← → along its row), stopping
+//!   on each cell of a segmented control; COARSE + arrows to the next card. VIEW + arrows (and
+//!   `Shift` + arrows in the default keymap) leave the cards for the bars above them (the view
+//!   bar, then the app bar) and come back, never out of the window: an editor is its own window,
+//!   and moving between windows is the window manager's.
 //! - VALUE + arrows change the parameter the cursor is on: FINE (or no step key) its fine step,
 //!   COARSE and MUSICAL its coarse one, MICRO the finer layer. The change is one gesture, ended by
 //!   OUT, by letting go of a held VALUE or by the next command, and BACK cancels it.
 //! - DELETE (and RIPPLE) put the parameter back to its default. OPEN (Enter) and BACK (Escape)
 //!   stay in egui's queue too, for typing a value and closing what is open; Home and End and every
-//!   chord with `Command` or `Alt` are left for the controls, as they were.
+//!   chord with `Command` or `Alt` are left for the controls and the host.
 //! - In a bar, the cursor walks its widgets with [`crate::reach`]: OPEN presses one.
 
 use std::time::Duration;
@@ -109,7 +110,7 @@ pub(super) fn read(ctx: &Context, state: &mut State) -> Vec<Step> {
             else {
                 return true;
             };
-            // Chords with Command or Alt are the controls' and the host's, as before.
+            // Chords with Command or Alt are the controls' and the host's.
             if modifiers.command || modifiers.alt {
                 return true;
             }

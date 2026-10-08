@@ -185,8 +185,9 @@ pub struct ParamView<'a> {
 /// Under the cursor's keyboard language (see [`crate::navigation`]), VALUE + an arrow is the fine
 /// step, COARSE (or MUSICAL) the coarse one and MICRO the finer layer; the arrow gives only the
 /// direction. The owner of the parameter decides what each means in its own units: 10 %, 1 % and
-/// 0.1 % of the travel, or an octave, a semitone and a cent on a pitch. `coarse` and `finer`
-/// together, the old `Alt` + up/down (ten cents on a pitch), has no key in the language.
+/// 0.1 % of the travel, or an octave, a semitone and a cent on a pitch. With `coarse` and `finer`
+/// both set, the owner's law gives the finer layer's coarse step (1 %, or ten cents on a pitch);
+/// no key asks for it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Press {
     pub up: bool,
@@ -1168,7 +1169,7 @@ fn segmented_impl(
 }
 
 /// Keyboard operation for a segmented parameter. All segmented controls have at most five cells,
-/// so the parameter's fine and coarse axes both mean the adjacent legal value.
+/// so every step size, fine, coarse or finer, means the adjacent legal value.
 fn segmented_keyboard(
     ui: &Ui,
     selected: &mut usize,
@@ -1209,7 +1210,7 @@ fn segmented_keyboard(
             _ => false,
         };
     }
-    // Where no cursor runs, the pre-cursor grammar: `Command` + arrows.
+    // Where no cursor runs, the focused control takes `Command` + arrows.
     ui.input_mut(|input| {
         // In the order they were pressed: Right-then-Left at the last cell ends one cell back,
         // Left-then-Right ends on it.
@@ -2964,10 +2965,10 @@ pub fn toggle_compact(
     clicked || keyed
 }
 
-/// The bare arrows on a toggle the cursor is on: a two-cell segmented control, off then on.
+/// VALUE's presses on a toggle the cursor is on: a two-cell segmented control, off then on.
 ///
-/// Right/Up is on and Left/Down off, `Home`/`End` the same two, exactly as [`segmented`] reads
-/// them. Without it a toggle could be selected — by the cursor, or now by clicking it — and then
+/// VALUE + Right/Up is on and Left/Down off, `Home`/`End` the same two, exactly as [`segmented`]
+/// reads them. Without it a toggle could be selected — by the cursor, or now by clicking it — and then
 /// ignore every arrow, which is a target the keyboard can land on and do nothing with. Only under
 /// the cursor: `Enter`/`Space` still click a focused toggle everywhere, as egui does for any
 /// clickable widget, and a toggle that is not a parameter (a disclosure) is never a cursor target.
@@ -3265,11 +3266,10 @@ fn vertical_slider_value(rect: Rect, pointer_y: f32) -> f64 {
 /// A control that can be selected but not operated is worse than one that cannot be selected at
 /// all: it gives the cursor somewhere to land and gives nothing back.
 ///
-/// **A bare arrow sets the value: left and right are fine, up and down are coarse.** The axis
-/// orientation comes from the M8; the modifier hierarchy is the owner's live-use correction:
-/// `Shift` moves modules/cards, `Command` moves parameters, and no modifier edits the value.
-/// Navigation consumes its two tiers before any control is drawn, so one press cannot be spent
-/// twice.
+/// **Under the cursor the keyboard language sets the value** ([`language_edit`]): VALUE + an arrow,
+/// its size from COARSE, MUSICAL or MICRO. The cursor reads the language's keys before any control
+/// is drawn, so one press cannot be spent twice. Where no cursor runs, the focused control takes
+/// the bare arrows itself, each a fine step, `Shift` a tenth of one.
 ///
 /// How far a press moves is the parameter's own business — see [`Steps`].
 ///
@@ -3302,19 +3302,19 @@ fn keyboard_edit(
     }
 
     // Under the cursor, the keyboard language (rolled out from the pilot on 2026-10-08). Where no
-    // cursor runs — a surface without one — the bare arrows still edit the focused control as they
-    // always did. See [`crate::navigation::running`].
+    // cursor runs — a surface without one — the bare arrows edit the focused control. See
+    // [`crate::navigation::running`].
     if crate::navigation::running(ui) {
         return language_edit(ui, gesture_id, param, normalised);
     }
 
     let (mut presses, mut reset, mut absolute) = (Vec::new(), false, None);
     ui.input_mut(|i| {
-        // The pre-cursor grammar: bare arrows, and `Shift` to refine. `matches_logically` ignores
+        // Without a cursor: bare arrows, and `Shift` to refine. `matches_logically` ignores
         // an extra `Shift` (and `Alt`), so that one pattern admits both, and each press carries
         // which it was.
         presses = take_arrows(i, |pressed| pressed.matches_logically(Modifiers::NONE));
-        // The M8's `EDIT` + `OPTION`: back to the default. Double-click already means this.
+        // `Command` + `Backspace`: back to the default. Double-click already means this.
         if i.consume_key(Modifiers::COMMAND, Key::Backspace) {
             reset = true;
         }
@@ -3363,7 +3363,7 @@ fn keyboard_edit(
     // landed. A frame can carry several repeats; all of them apply, inside one host gesture.
     let mut value = anchor.unwrap_or(*normalised).clamp(0.0, 1.0);
     for (key, modifiers) in presses {
-        // Up and right increase, both on the fine axis; `Shift` is a tenth of a fine step.
+        // Up and right increase, each by the fine step; `Shift` is a tenth of one.
         let press = Press {
             up: matches!(key, Key::ArrowRight | Key::ArrowUp),
             coarse: false,
@@ -3398,7 +3398,7 @@ fn keyboard_edit(
 
 /// The keyboard language's value keys, under the cursor: VALUE's presses, each from where
 /// the one before landed, as one gesture until it is kept or cancelled; DELETE the default, and
-/// Home and End the ends, as before.
+/// Home and End the ends.
 fn language_edit(
     ui: &Ui,
     gesture_id: egui::Id,
@@ -7108,7 +7108,7 @@ mod tests {
         );
     }
 
-    /// MICRO is the finer layer (the old `Alt`, the owner, 2026-09-24): a tenth of the fine step,
+    /// MICRO is the finer layer (the owner, 2026-09-24): a tenth of the fine step,
     /// whichever arrow.
     #[test]
     fn micro_is_the_finer_layer() {

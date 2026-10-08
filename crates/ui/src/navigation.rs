@@ -1,9 +1,8 @@
 //! The keyboard cursor: a card, a parameter inside it, and the value.
 //!
-//! Tracker-style editing with the owner's physical hierarchy — `Shift`+arrows move between
-//! cards/modules, `Command`+arrows (`Ctrl`, or `Cmd` on macOS) move between parameters inside one,
-//! and bare arrows set the value. The M8's axes are kept: **left/right is fine and up/down is
-//! coarse**. `plans/plan-keyboard-editing.md` §1, in the private archive, records both decisions.
+//! It reads the keys through the keyboard language (`navigation/language.rs`): the arrows move
+//! parameter to parameter inside the card, COARSE + arrows card to card, VIEW + arrows to the bars
+//! above the cards, and VALUE + arrows edit the parameter the cursor is on.
 //!
 //! # The map is a by-product of drawing, never an authored table
 //!
@@ -246,11 +245,10 @@ fn reveal(ctx: &egui::Context) {
 
 /// Whether a cursor is driving this context, set by [`run`] and read by [`crate::control`].
 ///
-/// **The rollout is per editor, and this is what keeps it from breaking the ones it has not
-/// reached.** Where a cursor runs, `Shift` and `Command` own its two navigation tiers while bare
-/// arrows edit the value. Where none does — an editor not yet converted — a bare arrow still edits
-/// the focused control exactly as it did before, because taking that away and giving nothing back
-/// would leave those editors worse than untouched.
+/// Where a cursor runs, the keyboard language owns the arrows: they move the cursor, and VALUE +
+/// an arrow edits the value. Where none does — the player, a cardless surface such as Parameters
+/// — a bare arrow edits the focused control itself, because taking that away and giving nothing
+/// back would leave those surfaces with no keyboard editing at all.
 pub fn running(ui: &Ui) -> bool {
     ui.ctx()
         .data(|d| d.get_temp::<bool>(running_id()).unwrap_or(false))
@@ -322,9 +320,8 @@ pub fn at<R>(ui: &mut Ui, key: &str, body: impl FnOnce(&mut Ui) -> R) -> R {
 /// A picker that chooses *which* parameter a control edits is not itself a parameter and has no
 /// permanent id, but it is drawn inside the owning parameter's [`at`] scope — mxm-mono-08's routing
 /// slider carries its source menu on its own name line. Left alone it would register as a second
-/// cell of that parameter and then answer the same bare arrow, so one press would both step the
-/// menu and move the value. This closes the scope for its body: nothing inside marks, and
-/// [`keyboard_target`] is false there.
+/// cell of that parameter and then answer the keys meant for the parameter. This closes the scope
+/// for its body: nothing inside marks, and [`keyboard_target`] is false there.
 pub fn aside<R>(ui: &mut Ui, body: impl FnOnce(&mut Ui) -> R) -> R {
     let held = ui.ctx().data(|d| d.get_temp::<String>(scope_id()));
     ui.ctx().data_mut(|d| d.remove::<String>(scope_id()));
@@ -405,8 +402,8 @@ pub fn spots(ctx: &egui::Context) -> Vec<Spot> {
     ctx.data(|d| d.get_temp::<Vec<Spot>>(last_id()).unwrap_or_default())
 }
 
-/// What a key press asked for. `Shift` and `Command` arrows only — bare value arrows belong to the
-/// selected control and are deliberately left in the queue for it.
+/// A move the keyboard language asked for. VALUE's presses are not here: they go to the control
+/// the cursor is on, as [`ValueKeys`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Step {
     Card(Dir),
@@ -462,7 +459,7 @@ pub fn run(
     state.reach.begin(ctx);
 
     // Declared even while inert: the editor still has a cursor, it is merely suspended, and the
-    // controls must not fall back to their pre-cursor arrow handling for one frame because the
+    // controls must not fall back to their cursorless arrow handling for one frame because the
     // preset browser happens to be open.
     ctx.data_mut(|d| d.insert_temp(running_id(), true));
 
@@ -477,7 +474,7 @@ pub fn run(
     let spots = spots(ctx);
 
     // **Follow the pointer.** A control the pointer pressed, dragged or clicked in the last frame
-    // is where the keyboard is now, so the next bare arrow edits the knob just turned rather than
+    // is where the keyboard is now, so the next VALUE press edits the knob just turned rather than
     // the parameter the cursor was left on. egui never focuses a painted control for a click, so
     // this cannot come from the focus-follow below; the registry records it instead (see [`mark`]).
     //
@@ -498,9 +495,9 @@ pub fn run(
     }
 
     // **A text field or an open popup owns the keyboard**, exactly as the editor's own `inert`
-    // surfaces do: a long selector's search field edits its text with `Shift` and `Command`
-    // arrows, and any open list walks its rows with the arrows. The cursor neither reveals nor
-    // takes a key while either is up, and the pointer's owed focus waits for them to close.
+    // surfaces do: a long selector's search field takes the arrows and the letters as text, and
+    // any open list walks its rows with the arrows. The cursor neither reveals nor takes a key
+    // while either is up, and the pointer's owed focus waits for them to close.
     //
     // `Popup::is_any_open` and not `Context::any_popup_open`: this runs before anything is drawn,
     // and the context's answer is built from the popups drawn so far in this pass — none yet.
@@ -523,8 +520,8 @@ pub fn run(
         return None;
     }
 
-    // Follow the tab ring: a cell `Tab` focused moves the cursor to it, so the two never disagree
-    // about where the keyboard is. **Not in a frame the pointer claimed a control**: egui gives up
+    // Follow egui's focus: a registered cell that took focus some other way moves the cursor to
+    // it, so the two never disagree about where the keyboard is. **Not in a frame the pointer claimed a control**: egui gives up
     // focus on a click but not on a drag, so the knob the cursor was on can still hold it while
     // another is dragged, and following it would undo the pointer's move.
     let focused = ctx.memory(|m| m.focused());
@@ -645,7 +642,8 @@ fn clear_target(ctx: &egui::Context) {
     ctx.data_mut(|data| data.remove::<(u64, String)>(target_id()));
 }
 
-/// Stops this context's cursor layer and restores controls' pre-cursor keyboard behavior.
+/// Stops this context's cursor layer and gives the controls back their cursorless keyboard
+/// behavior.
 ///
 /// Used by cardless surfaces such as the developer Parameters list. Clearing the paint registry is
 /// deliberate: retaining the last musician page would let invisible cards consume its arrows.
@@ -1274,7 +1272,7 @@ mod tests {
     /// **The owner's report of 2026-09-23**: a knob turned with the mouse did not become the
     /// arrows' target, because egui never focuses a painted control for a click and the cursor
     /// only followed focus. The pointer now moves the cursor itself, and hands the control focus
-    /// as a `Command`+arrow move would.
+    /// as a cursor move would.
     #[test]
     fn a_pointer_press_moves_the_cursor_and_hands_the_control_focus() {
         let ctx = egui::Context::default();
@@ -1370,8 +1368,8 @@ mod tests {
         assert_eq!(state.parameter(), Some("b"));
     }
 
-    /// An open menu walks its own rows with the arrows, and a search field edits its text with
-    /// `Shift` and `Command` arrows: while either is up the cursor neither moves nor reveals.
+    /// An open menu walks its own rows with the arrows, and a search field takes the arrows and the
+    /// letters as text: while either is up the cursor neither moves nor reveals.
     #[test]
     fn an_open_popup_keeps_the_keyboard_from_the_cursor() {
         let ctx = egui::Context::default();

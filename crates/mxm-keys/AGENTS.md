@@ -13,8 +13,8 @@ like the M8, or tapped one key at a time like Blender. Zero dependencies, no egu
 **The language is newDAWn's keyboard design** (its `docs/keyboard.md`, in newDAWn's repository,
 private until it is ready), which the owner made the law for the whole collection on 2026-10-06.
 Every instrument's editor reads it through `mxm_ui::navigation`'s cursor since 2026-10-08 (piloted
-on mxm-mono-08 from 2026-10-07; design system §11's `Shift`/`Command` table is gone). The cursor
-over every widget, `mxm_ui::reach`, is built on this engine.
+on mxm-mono-08 from 2026-10-07), and design system §11 states it. The cursor over every widget,
+`mxm_ui::reach`, is built on this engine.
 
 # Ownership
 

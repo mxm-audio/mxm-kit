@@ -116,7 +116,7 @@ Does **not** own labels, parameter bindings, or data. Plugins and the player sup
 - **Reserve a row's body floor before drawing** — egui 0.36's `set_min_height` is cursor-relative.
   `ViewBar` wraps rather than shrinks and reports `ViewBarGeometry`.
 
-## The keyboard cursor — [NOTES.md § The keyboard cursor](NOTES.md#the-keyboard-cursor), [§ Reach](NOTES.md#reach)
+## The keyboard cursor — [NOTES.md § The keyboard cursor](NOTES.md#the-keyboard-cursor), [§ The keyboard language](NOTES.md#the-keyboard-language), [§ Reach](NOTES.md#reach)
 
 - **`reach` walks every widget egui describes to screen readers** (the owner, 2026-10-07; the editors
   convert to it, keys first in newDAWn and the collection): nothing registers; a painted control
@@ -125,8 +125,7 @@ Does **not** own labels, parameter bindings, or data. Plugins and the player sup
   mxm-mono-08, rolled out 2026-10-08): arrows parameter to parameter, COARSE + arrows card to card,
   VALUE + arrows the value (fine, COARSE coarse, MICRO the finer layer), one gesture OUT keeps and
   BACK cancels, DELETE the default, VIEW + arrows the bars. BACK alone never reveals the cursor
-  (`escape_is_not_a_reveal`). The `Shift`/`Command`/`Alt` table it replaced: [NOTES.md § The
-  keyboard language, piloted](NOTES.md#the-keyboard-language-piloted).
+  (`escape_is_not_a_reveal`).
 - **The map is drawn, not declared**: `navigation::mark` inside the `card` and `at` scopes;
   `navigation::aside` for an editor-only control. Editors drive it with `navigation::paged` (never
   a second card order), or `paged_with_bar` + `navigation::bar_card` for an app-bar parameter.
@@ -135,12 +134,11 @@ Does **not** own labels, parameter bindings, or data. Plugins and the player sup
   owed. A text field or open popup makes it inert — read `egui::Popup::is_any_open`, **not**
   `Context::any_popup_open`.
 - A press's size is the parameter's (`control::Steps`, `ParamView::stepping_by`). Presses apply one
-  at a time, in order; a held edit is one gesture chaining from the value it last sent.
+  at a time, in order; an edit is one gesture, each press chaining from the value the last sent.
 - **`consume_key` ignores an extra `Shift` or `Alt`**: test the most specific modifier first.
-- `navigation::stop` on a cardless surface. The cursor is painted, never laid out; it is concealed
-  on a pointer press and revealed by keys that operate it (not `Escape`), peeked and never consumed;
-  the gate lives in `outline` and `control::focus_ring` (only where a cursor runs), never at call
-  sites.
+- `navigation::stop` on a cardless surface. The cursor is painted, never laid out; concealed on a
+  pointer press, revealed by the language's keys; the gate lives in `outline` and
+  `control::focus_ring` (only where a cursor runs), never at call sites.
 
 ## Selectors and menus — [NOTES.md § Selectors and menus](NOTES.md#selectors-and-menus)
 
