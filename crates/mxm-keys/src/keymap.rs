@@ -34,6 +34,9 @@ pub enum Verb {
     Value,
     /// The selection, by extending it.
     Select,
+    /// A copy of the selection, which the arrows take where it goes and the gesture's end puts
+    /// there (the owner, 2026-10-08). Its gesture is a change from the start: the copy.
+    Duplicate,
 }
 
 /// How far one arrow press goes in a gesture.
@@ -56,8 +59,6 @@ pub enum Action {
     /// Takes away what ADD gives. Shift with ADD's key does it, so it needs no key of its own:
     /// Z gives, Shift+Z takes away (the owner, 2026-10-07).
     Remove,
-    /// Duplicates, and selects the copy so it can be moved straight away.
-    Duplicate,
     Delete,
     /// Deletes and closes the gap: what came after moves up to where it began.
     Ripple,
@@ -86,13 +87,13 @@ impl Job {
         Job::Verb(Verb::Extent),
         Job::Verb(Verb::Value),
         Job::Verb(Verb::Select),
+        Job::Verb(Verb::Duplicate),
         Job::Step(Step::Coarse),
         Job::Step(Step::Fine),
         Job::Step(Step::Micro),
         Job::Step(Step::Musical),
         Job::Action(Action::Add),
         Job::Action(Action::Remove),
-        Job::Action(Action::Duplicate),
         Job::Action(Action::Delete),
         Job::Action(Action::Ripple),
         Job::Action(Action::Open),
@@ -108,13 +109,13 @@ impl Job {
             Job::Verb(Verb::Extent) => "extent",
             Job::Verb(Verb::Value) => "value",
             Job::Verb(Verb::Select) => "select",
+            Job::Verb(Verb::Duplicate) => "duplicate",
             Job::Step(Step::Coarse) => "coarse",
             Job::Step(Step::Fine) => "fine",
             Job::Step(Step::Micro) => "micro",
             Job::Step(Step::Musical) => "musical",
             Job::Action(Action::Add) => "add",
             Job::Action(Action::Remove) => "remove",
-            Job::Action(Action::Duplicate) => "duplicate",
             Job::Action(Action::Delete) => "delete",
             Job::Action(Action::Ripple) => "ripple",
             Job::Action(Action::Open) => "open",
@@ -375,8 +376,12 @@ mod tests {
         assert_eq!(SHIPPED[0].0, DEFAULT);
         assert_eq!(keymap.job(Key::E), Some(Job::Verb(Verb::Move)));
         assert_eq!(keymap.job(Key::S), Some(Job::Step(Step::Coarse)));
-        assert_eq!(keymap.job(Key::A), Some(Job::Step(Step::Musical)));
-        assert_eq!(keymap.job(Key::X), Some(Job::Action(Action::Duplicate)));
+        assert_eq!(keymap.job(Key::R), Some(Job::Step(Step::Musical)));
+        assert_eq!(keymap.job(Key::A), Some(Job::Verb(Verb::Value)));
+        assert_eq!(keymap.job(Key::W), Some(Job::Verb(Verb::Duplicate)));
+        assert_eq!(keymap.job(Key::X), Some(Job::Verb(Verb::Extent)));
+        assert_eq!(keymap.job(Key::V), Some(Job::Action(Action::Add)));
+        assert_eq!(keymap.job(Key::Z), None);
         assert_eq!(Keymap::shipped("none"), None);
     }
 

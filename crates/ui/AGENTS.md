@@ -128,6 +128,9 @@ Does **not** own labels, parameter bindings, or data. Plugins and the player sup
   (`escape_is_not_a_reveal`). As newDAWn (the owner, 2026-10-08): **BACK cancels a mouse drag**,
   the control putting back where it began (`drag`; an editor's own widget asks `drag::cancelled`),
   and **F1 shows the keys** from the keymap in use, an editor's jobs only (`navigation/sheet.rs`).
+  Tests press jobs, not keys (`navigation::key_of`, test-only), so a remap of the default keymap
+  changes no test here. OPEN while a verb is armed keeps the edit and opens nothing. A verb an editor has nothing for
+  (DUPLICATE) is ended as soon as it's armed, its end dropped; `Output::Begin` is ignored.
 - **The map is drawn, not declared**: `navigation::mark` inside the `card` and `at` scopes;
   `navigation::aside` for an editor-only control. Editors drive it with `navigation::paged` (never
   a second card order), or `paged_with_bar` + `navigation::bar_card` for an app-bar parameter.

@@ -979,10 +979,31 @@ pub fn paint_card(ui: &Ui, tokens: &Tokens, card: u64, rect: Rect) {
     );
 }
 
+/// The egui key the default keymap puts a job on. Tests press jobs, not keys, so a remap of the
+/// default keymap changes no test.
+#[cfg(test)]
+pub(crate) fn key_of(job: mxm_keys::Job) -> egui::Key {
+    let bound = mxm_keys::Keymap::default()
+        .keys(job)
+        .next()
+        .unwrap_or_else(|| panic!("the default keymap binds {}", job.name()));
+    *egui::Key::ALL
+        .iter()
+        .find(|key| language::to_key(**key) == Some(bound))
+        .expect("egui names every key the language binds")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use egui::Key;
+
+    // Tests press jobs, on the keys the default keymap gives them (`key_of`).
+    const VALUE: mxm_keys::Job = mxm_keys::Job::Verb(mxm_keys::Verb::Value);
+    const DUPLICATE: mxm_keys::Job = mxm_keys::Job::Verb(mxm_keys::Verb::Duplicate);
+    const COARSE: mxm_keys::Job = mxm_keys::Job::Step(mxm_keys::Step::Coarse);
+    const OPEN: mxm_keys::Job = mxm_keys::Job::Action(mxm_keys::Action::Open);
+    const VIEW: mxm_keys::Job = mxm_keys::Job::View;
 
     fn spot(card: u64, key: &str, x: f32, y: f32) -> Spot {
         let id = Id::new((card, key));
@@ -1493,13 +1514,19 @@ mod tests {
         for _ in 0..3 {
             frame(&mut state, Vec::new(), &mut pressed);
         }
-        let view_up: Vec<_> = tap(Key::C).into_iter().chain(tap(Key::ArrowUp)).collect();
+        let view_up: Vec<_> = tap(key_of(VIEW))
+            .into_iter()
+            .chain(tap(Key::ArrowUp))
+            .collect();
         frame(&mut state, view_up, &mut pressed);
         assert_eq!(state.bar(), Some(0), "VIEW + up is the bar");
         frame(&mut state, Vec::new(), &mut pressed);
-        frame(&mut state, tap(Key::Enter).to_vec(), &mut pressed);
+        frame(&mut state, tap(key_of(OPEN)).to_vec(), &mut pressed);
         assert!(pressed, "OPEN pressed the bar's button");
-        let view_down: Vec<_> = tap(Key::C).into_iter().chain(tap(Key::ArrowDown)).collect();
+        let view_down: Vec<_> = tap(key_of(VIEW))
+            .into_iter()
+            .chain(tap(Key::ArrowDown))
+            .collect();
         frame(&mut state, view_down, &mut pressed);
         assert_eq!(state.bar(), None, "VIEW + down is the cards again");
     }
@@ -1533,10 +1560,10 @@ mod tests {
                             matches!(
                                 event,
                                 egui::Event::Key {
-                                    key: Key::Enter,
+                                    key,
                                     pressed: true,
                                     ..
-                                }
+                                } if *key == key_of(OPEN)
                             )
                         })
                     });
@@ -1548,18 +1575,69 @@ mod tests {
         };
         // VALUE, →: armed and stepped. Enter keeps the edit, and no control sees it.
         let value_right = vec![
-            key(Key::W, true),
-            key(Key::W, false),
+            key(key_of(VALUE), true),
+            key(key_of(VALUE), false),
             key(Key::ArrowRight, true),
             key(Key::ArrowRight, false),
         ];
         let _ = read_with(&mut state, value_right);
-        let enter = || vec![key(Key::Enter, true), key(Key::Enter, false)];
+        let enter = || vec![key(key_of(OPEN), true), key(key_of(OPEN), false)];
         let (left, keys) = read_with(&mut state, enter());
         assert!(keys.keep, "the edit is kept");
         assert!(!left, "no value is typed");
         let (left, _) = read_with(&mut state, enter());
         assert!(left, "with nothing armed, Enter is the control's");
+    }
+
+    /// **DUPLICATE has nothing to copy in an editor**: a press that arms it is ended at once, so
+    /// the arrows after it move the cursor, and a value edit it ends is kept, not cancelled.
+    #[test]
+    fn under_the_language_duplicate_ends_at_once_and_keeps_a_value_edit() {
+        let ctx = egui::Context::default();
+        let mut state = State::default();
+        let key = |key, pressed| egui::Event::Key {
+            key,
+            physical_key: None,
+            pressed,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        };
+        let read_with = |state: &mut State, events: Vec<egui::Event>| {
+            let mut keys = ValueKeys::default();
+            let mut output = ctx.run_ui(
+                egui::RawInput {
+                    events,
+                    ..Default::default()
+                },
+                |ui| {
+                    let _ = language::read(ui.ctx(), state, false);
+                    keys = take_value_keys(ui.ctx());
+                },
+            );
+            output.textures_delta.clear();
+            keys
+        };
+        // VALUE, →, then DUPLICATE: the edit is kept, nothing cancelled,
+        // and nothing is left armed.
+        let _ = read_with(
+            &mut state,
+            vec![
+                key(key_of(VALUE), true),
+                key(key_of(VALUE), false),
+                key(Key::ArrowRight, true),
+                key(Key::ArrowRight, false),
+            ],
+        );
+        let keys = read_with(
+            &mut state,
+            vec![key(key_of(DUPLICATE), true), key(key_of(DUPLICATE), false)],
+        );
+        assert!(keys.keep && !keys.cancel, "the value edit is kept");
+        assert_eq!(
+            language::engine(&mut state).arrows(),
+            mxm_keys::Arrows::Navigate,
+            "nothing is left armed"
+        );
     }
 
     /// **The keyboard language's bare arrows keep to the card**, and ← → to the row: at the end
@@ -1610,14 +1688,14 @@ mod tests {
             egui::RawInput {
                 events: vec![
                     egui::Event::Key {
-                        key: Key::S,
+                        key: key_of(COARSE),
                         physical_key: None,
                         pressed: true,
                         repeat: false,
                         modifiers: egui::Modifiers::NONE,
                     },
                     egui::Event::Key {
-                        key: Key::S,
+                        key: key_of(COARSE),
                         physical_key: None,
                         pressed: false,
                         repeat: false,
@@ -1661,16 +1739,20 @@ mod tests {
         assert_eq!((state.card(), state.parameter()), (Some(3), Some("c")));
         // COARSE + right from there is the next card on this page.
         let coarse_right = egui::RawInput {
-            events: [(Key::S, true), (Key::S, false), (Key::ArrowRight, true)]
-                .into_iter()
-                .map(|(key, pressed)| egui::Event::Key {
-                    key,
-                    physical_key: None,
-                    pressed,
-                    repeat: false,
-                    modifiers: egui::Modifiers::NONE,
-                })
-                .collect(),
+            events: [
+                (key_of(COARSE), true),
+                (key_of(COARSE), false),
+                (Key::ArrowRight, true),
+            ]
+            .into_iter()
+            .map(|(key, pressed)| egui::Event::Key {
+                key,
+                physical_key: None,
+                pressed,
+                repeat: false,
+                modifiers: egui::Modifiers::NONE,
+            })
+            .collect(),
             ..Default::default()
         };
         page(&ctx, &mut state, &second_page, coarse_right);

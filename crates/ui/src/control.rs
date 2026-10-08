@@ -4490,6 +4490,14 @@ fn arc_points(centre: Pos2, radius: f32, from: f32, to: f32) -> Vec<Pos2> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::navigation::key_of;
+
+    // Tests press jobs, on the keys the default keymap gives them (`key_of`).
+    const VALUE: mxm_keys::Job = mxm_keys::Job::Verb(mxm_keys::Verb::Value);
+    const COARSE: mxm_keys::Job = mxm_keys::Job::Step(mxm_keys::Step::Coarse);
+    const MICRO: mxm_keys::Job = mxm_keys::Job::Step(mxm_keys::Step::Micro);
+    const OUT: mxm_keys::Job = mxm_keys::Job::Out;
+    const BACK: mxm_keys::Job = mxm_keys::Job::Back;
 
     /// **Each cell hovers its own sentence** (the owner, 2026-09-27: *Hold, Envelope and Gate do not
     /// do the same, so should not have the same text*): hovering one shows what it does, and no
@@ -6872,9 +6880,10 @@ mod tests {
         assert_eq!(rig.nav.parameter(), Some("b"), "the click moved the cursor");
 
         (asked_a, asked_b) = (None, None);
-        rig.frame(taps(&[Key::W, Key::S, Key::ArrowUp, Key::Tab]), |ui| {
-            draw(ui, &mut asked_a, &mut asked_b)
-        });
+        rig.frame(
+            taps(&[key_of(VALUE), key_of(COARSE), Key::ArrowUp, key_of(OUT)]),
+            |ui| draw(ui, &mut asked_a, &mut asked_b),
+        );
         assert_eq!(asked_a, None, "the knob the cursor left is not edited");
         assert!(
             asked_b.is_some_and(|value| (value - 0.6).abs() < 1e-9),
@@ -6924,7 +6933,7 @@ mod tests {
         let focused = rig.ctx.memory(|m| m.focused());
         assert!(focused.is_some(), "the cursor handed the knob focus");
         egui::Popup::open_id(&rig.ctx, egui::Id::new("a menu"));
-        rig.frame(taps(&[Key::W, Key::ArrowRight, Key::Tab]), |ui| {
+        rig.frame(taps(&[key_of(VALUE), Key::ArrowRight, key_of(OUT)]), |ui| {
             cursor_knob(ui, "a", 0.5, None, &mut asked);
         });
         assert_eq!(asked, None, "the keys were the menu's");
@@ -6967,7 +6976,7 @@ mod tests {
         let mut rig = language_rig(&mut asked);
         assert_eq!(rig.nav.parameter(), Some("a"));
 
-        rig.frame(taps(&[Key::W, Key::ArrowUp, Key::Tab]), |ui| {
+        rig.frame(taps(&[key_of(VALUE), Key::ArrowUp, key_of(OUT)]), |ui| {
             two_knobs(ui, &mut asked)
         });
         assert!(
@@ -6980,9 +6989,10 @@ mod tests {
         assert_eq!(rig.nav.parameter(), Some("b"), "→ is the next parameter");
         assert_eq!(asked, [None, None], "a bare arrow edits nothing");
 
-        rig.frame(taps(&[Key::W, Key::S, Key::ArrowUp, Key::Tab]), |ui| {
-            two_knobs(ui, &mut asked)
-        });
+        rig.frame(
+            taps(&[key_of(VALUE), key_of(COARSE), Key::ArrowUp, key_of(OUT)]),
+            |ui| two_knobs(ui, &mut asked),
+        );
         assert!(
             asked[1].is_some_and(|value| (value - 0.6).abs() < 1e-9),
             "VALUE COARSE + ↑ is a coarse step: {asked:?}"
@@ -6994,7 +7004,7 @@ mod tests {
     fn under_the_language_out_leaves_the_cursor_on_its_parameter() {
         let mut asked = [None, None];
         let mut rig = language_rig(&mut asked);
-        for key in [Key::W, Key::ArrowUp, Key::Tab] {
+        for key in [key_of(VALUE), Key::ArrowUp, key_of(OUT)] {
             rig.frame(tap(key), |ui| two_knobs(ui, &mut asked));
         }
         rig.frame(Vec::new(), |ui| two_knobs(ui, &mut asked));
@@ -7007,11 +7017,11 @@ mod tests {
     fn under_the_language_back_cancels_and_delete_resets() {
         let mut asked = [None, None];
         let mut rig = language_rig(&mut asked);
-        rig.frame(taps(&[Key::W, Key::ArrowUp, Key::ArrowUp]), |ui| {
+        rig.frame(taps(&[key_of(VALUE), Key::ArrowUp, Key::ArrowUp]), |ui| {
             two_knobs(ui, &mut asked)
         });
         assert!(asked[0].is_some_and(|value| (value - 0.52).abs() < 1e-9));
-        rig.frame(tap(Key::Escape), |ui| two_knobs(ui, &mut asked));
+        rig.frame(tap(key_of(BACK)), |ui| two_knobs(ui, &mut asked));
         assert!(
             asked[0].is_some_and(|value| (value - 0.5).abs() < 1e-9),
             "BACK sent the value it began at: {asked:?}"
@@ -7053,7 +7063,7 @@ mod tests {
         assert_eq!(selected, 0, "a bare arrow chooses nothing");
         rig.frame(tap(Key::Enter), |ui| draw(ui, &mut selected));
         assert_eq!(selected, 1, "OPEN chooses the cell the cursor is on");
-        rig.frame(taps(&[Key::W, Key::ArrowRight, Key::Tab]), |ui| {
+        rig.frame(taps(&[key_of(VALUE), Key::ArrowRight, key_of(OUT)]), |ui| {
             draw(ui, &mut selected)
         });
         assert_eq!(
@@ -7073,7 +7083,7 @@ mod tests {
             });
         }
         rig.frame(
-            taps(&[Key::W, Key::ArrowUp, Key::ArrowUp, Key::Tab]),
+            taps(&[key_of(VALUE), Key::ArrowUp, Key::ArrowUp, key_of(OUT)]),
             |ui| cursor_knob(ui, "a", 0.1, Some(&Doubling), &mut asked),
         );
         assert!(
@@ -7090,7 +7100,7 @@ mod tests {
             });
         }
         rig.frame(
-            taps(&[Key::W, Key::ArrowLeft, Key::ArrowRight, Key::Tab]),
+            taps(&[key_of(VALUE), Key::ArrowLeft, Key::ArrowRight, key_of(OUT)]),
             |ui| cursor_knob(ui, "a", 0.9, Some(&Doubling), &mut asked),
         );
         assert!(
@@ -7116,7 +7126,7 @@ mod tests {
             asked = None;
             let mut events = Vec::new();
             if index == 0 {
-                events.push(key_event(Key::W, true, false));
+                events.push(key_event(key_of(VALUE), true, false));
             }
             events.push(key_event(Key::ArrowRight, true, repeat));
             rig.frame(events, |ui| {
@@ -7135,12 +7145,12 @@ mod tests {
         rig.frame(
             vec![
                 key_event(Key::ArrowRight, false, false),
-                key_event(Key::W, false, false),
+                key_event(key_of(VALUE), false, false),
             ],
             |ui| cursor_knob(ui, "a", applied, Some(&Doubling), &mut asked),
         );
         asked = None;
-        rig.frame(taps(&[Key::W, Key::ArrowRight, Key::Tab]), |ui| {
+        rig.frame(taps(&[key_of(VALUE), Key::ArrowRight, key_of(OUT)]), |ui| {
             cursor_knob(ui, "a", applied, Some(&Doubling), &mut asked)
         });
         assert!(
@@ -7159,9 +7169,10 @@ mod tests {
             for _ in 0..3 {
                 rig.frame(Vec::new(), |ui| cursor_knob(ui, "a", 0.5, None, &mut asked));
             }
-            rig.frame(taps(&[Key::W, Key::F, key, Key::Tab]), |ui| {
-                cursor_knob(ui, "a", 0.5, None, &mut asked)
-            });
+            rig.frame(
+                taps(&[key_of(VALUE), key_of(MICRO), key, key_of(OUT)]),
+                |ui| cursor_knob(ui, "a", 0.5, None, &mut asked),
+            );
             assert!(
                 asked.is_some_and(|value| (value - 0.501).abs() < 1e-9),
                 "VALUE MICRO + {key:?} landed on {asked:?}, not 0.501"
@@ -7182,11 +7193,11 @@ mod tests {
         for _ in 0..3 {
             rig.frame(Vec::new(), |ui| draw(ui, &mut on));
         }
-        rig.frame(taps(&[Key::W, Key::ArrowRight, Key::Tab]), |ui| {
+        rig.frame(taps(&[key_of(VALUE), Key::ArrowRight, key_of(OUT)]), |ui| {
             draw(ui, &mut on);
         });
         assert!(on, "right is on");
-        rig.frame(taps(&[Key::W, Key::ArrowLeft, Key::Tab]), |ui| {
+        rig.frame(taps(&[key_of(VALUE), Key::ArrowLeft, key_of(OUT)]), |ui| {
             draw(ui, &mut on);
         });
         assert!(!on, "left is off");
@@ -7214,7 +7225,7 @@ mod tests {
                 &mut draw,
             );
         }
-        rig.frame(tap(Key::Escape), &mut draw);
+        rig.frame(tap(key_of(BACK)), &mut draw);
     }
 
     /// **BACK during a mouse drag cancels it, as it cancels a keyboard edit** (the owner,

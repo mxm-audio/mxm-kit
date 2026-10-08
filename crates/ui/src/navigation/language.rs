@@ -17,6 +17,8 @@
 //!   chord with `Command` or `Alt` are left for the controls and the host. OPEN while a verb is
 //!   armed ends its gesture, keeping it, and opens nothing, as in newDAWn (the owner, 2026-10-08:
 //!   "if enter is not the end of the selection, what is?"): its Enter stays out of egui's queue.
+//! - DUPLICATE, a verb with nothing to copy in an editor, is ended as soon as it's armed, keeping
+//!   and cancelling nothing; a value edit it ends is kept, as the next command keeps it.
 //! - In a bar, the cursor walks its widgets with [`crate::reach`]: OPEN presses one.
 
 use std::time::Duration;
@@ -31,7 +33,7 @@ use crate::control::Press;
 use crate::reach;
 
 /// The physical key egui reports, as the language names it.
-fn to_key(key: E) -> Option<Key> {
+pub(super) fn to_key(key: E) -> Option<Key> {
     Some(match key {
         E::A => Key::A,
         E::B => Key::B,
@@ -152,10 +154,21 @@ pub(super) fn read(ctx: &Context, state: &mut State, back_spent: bool) -> Vec<St
                 && matches!(engine.arrows(), Arrows::Edit { .. });
             if *pressed {
                 let read = engine.press(key, mods, at);
-                outputs.extend(
-                    read.into_iter()
-                        .filter(|output| !armed_open || *output != Output::Action(Action::Open)),
-                );
+                outputs.extend(read.into_iter().filter(|output| {
+                    !(armed_open && *output == Output::Action(Action::Open))
+                        && !matches!(output, Output::Begin { .. })
+                }));
+                // An editor has nothing to duplicate: a press that arms DUPLICATE is ended at
+                // once, and the end that makes is dropped, so it keeps or cancels nothing.
+                if matches!(
+                    engine.arrows(),
+                    Arrows::Edit {
+                        verb: Verb::Duplicate,
+                        ..
+                    }
+                ) {
+                    let _ = engine.interrupt();
+                }
             } else {
                 outputs.extend(engine.release(key));
             }

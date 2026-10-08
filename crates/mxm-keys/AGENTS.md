@@ -6,7 +6,7 @@ Parent: [`../../AGENTS.md`](../../AGENTS.md)
 
 The shared keyboard language's engine: physical keys in, finished gestures out, and the plain-text
 keymap that puts its jobs on keys. Navigate with the arrows; then a verb (MOVE, EXTENT, VALUE,
-SELECT), optionally a step size (COARSE, FINE, MICRO, MUSICAL), and a direction; held together
+SELECT, DUPLICATE), optionally a step size (COARSE, FINE, MICRO, MUSICAL), and a direction; held together
 like the M8, or tapped one key at a time like Blender. Zero dependencies, no egui and MSRV
 **1.87**, so newDAWn, MXM Player and any instrument, open or closed, can take it.
 
@@ -23,8 +23,8 @@ on mxm-mono-08 from 2026-10-07), and design system §11 states it. The cursor ov
 - **`keymap`**: `Verb`, `Step`, `Action` and `Job`; `Keymap`, read from text with line-numbered
   errors; `Settings` (`tap-arms`, `one-arrow`, `timeout`); `SHIPPED`, the keymaps in `keymaps/`,
   the default first; `Keymap::default()` is `DEFAULT`'s.
-- **`engine`**: `Engine`, the state machine; `Output`, what each input means; `Arrows`, what the
-  arrows do now, for the arrow map.
+- **`engine`**: `Engine`, the state machine; `Output`, what each input means (`Begin` when a
+  verb is armed); `Arrows`, what the arrows do now, for the arrow map.
 - **`examples/replay.rs`**: presses in, the engine's outputs out, one per line; newDAWn's key
   study checks its press model with it.
 
@@ -33,6 +33,9 @@ keys from a toolkit, and where a keymap file lives. Those are the host's.
 
 # Local Contracts
 
+- **The default keymap's bindings are checked by `the_default_is_the_key_studys` alone**: every
+  other test here, in `mxm-ui` and in newDAWn presses jobs, or uses another shipped keymap on
+  purpose, so a remap of `study.keymap` changes that one test.
 - **The rules are the engine module's documentation and each has a test named after it.** A change
   to a rule changes newDAWn's `docs/keyboard.md` first, by the owner's decision, then the test.
 - **No keymap can take a standard shortcut away.** The format can't write a chord with `Command`,

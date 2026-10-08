@@ -6,9 +6,10 @@
 //!
 //! Each input line is `press <Key> [shift] [alt] [command]` or `release <Key>`, a millisecond
 //! apart. Each output line is one of `navigate <direction>`, `navigate-coarse <direction>`,
-//! `view <direction>`, `step <verb> <step> <direction>`, `finish`, `cancel`, `action <action>`,
-//! `back` or `raw <Key>[ shift][ alt][ command]`, all in lower case but the keys. A tool that
-//! writes a session as presses can check here that the engine reads them as it meant.
+//! `view <direction>`, `begin <verb>`, `step <verb> <step> <direction>`, `finish`, `cancel`,
+//! `action <action>`, `back` or `raw <Key>[ shift][ alt][ command]`, all in lower case but the
+//! keys. A tool that writes a session as presses can check here that the engine reads them as it
+//! meant.
 
 use std::io::{self, BufRead, Write};
 use std::time::Duration;
@@ -65,6 +66,7 @@ fn describe(output: Output) -> String {
         }
         Output::Within { direction } => format!("within {}", direction_name(direction)),
         Output::View { direction } => format!("view {}", direction_name(direction)),
+        Output::Begin { verb } => format!("begin {}", verb_name(verb)),
         Output::Step {
             verb,
             step,
@@ -111,6 +113,7 @@ fn verb_name(verb: Verb) -> &'static str {
         Verb::Extent => "extent",
         Verb::Value => "value",
         Verb::Select => "select",
+        Verb::Duplicate => "duplicate",
     }
 }
 
@@ -127,7 +130,6 @@ fn action_name(action: Action) -> &'static str {
     match action {
         Action::Add => "add",
         Action::Remove => "remove",
-        Action::Duplicate => "duplicate",
         Action::Delete => "delete",
         Action::Ripple => "ripple",
         Action::Open => "open",

@@ -3,6 +3,12 @@
 //! ```text
 //! W MOVE      E EXTENT    R VALUE         Tab OUT      Escape BACK
 //! A ADD       S SELECT    D DUPLICATE     F or Shift VIEW
+//! ```
+//!
+//! `take` leaves out [`Output::Begin`], which a verb pressed always says; the tests of that rule
+//! read everything with `take_all`.
+//!
+//! ```text
 //! Z MUSICAL   X COARSE    C FINE    V MICRO
 //! ```
 
@@ -77,7 +83,14 @@ impl Board {
         self
     }
 
+    /// Every output since the last take, but `Begin`.
     fn take(&mut self) -> Vec<Output> {
+        let mut out = self.take_all();
+        out.retain(|output| !matches!(output, Output::Begin { .. }));
+        out
+    }
+
+    fn take_all(&mut self) -> Vec<Output> {
         std::mem::take(&mut self.out)
     }
 }
@@ -109,7 +122,7 @@ fn coarse_nav(direction: Direction) -> Output {
 }
 
 use crate::keymap::Step::{Coarse, Fine, Micro, Musical};
-use crate::keymap::Verb::{Extent, Move, Select, Value};
+use crate::keymap::Verb::{Duplicate, Extent, Move, Select, Value};
 use Key::{Escape, Tab};
 
 #[test]
@@ -250,28 +263,27 @@ fn the_next_command_finishes_and_goes_on() {
 #[test]
 fn an_action_finishes_the_gesture_then_does_its_job() {
     let mut board = Board::new();
-    board.tap(&[Key::E, Key::Right, Key::D]);
+    board.tap(&[Key::E, Key::Right, Key::A]);
     assert_eq!(
         board.take(),
         [
             step(Extent, Fine, Right),
             Output::Finish,
-            Output::Action(Action::Duplicate)
+            Output::Action(Action::Add)
         ]
     );
 }
 
 #[test]
 fn the_quick_gesture_in_sequence() {
-    // keyboard.md: DUPLICATE, MOVE, MUSICAL, ↑, FINE, →, OUT, seven taps, one key down at a time.
+    // keyboard.md: DUPLICATE, MUSICAL, ↑, FINE, →, OUT, six taps, one key down at a time.
     let mut board = Board::new();
-    board.tap(&[Key::D, Key::W, Key::Z, Key::Up, Key::C, Key::Right, Tab]);
+    board.tap(&[Key::D, Key::Z, Key::Up, Key::C, Key::Right, Tab]);
     assert_eq!(
         board.take(),
         [
-            Output::Action(Action::Duplicate),
-            step(Move, Musical, Up),
-            step(Move, Fine, Right),
+            step(Duplicate, Musical, Up),
+            step(Duplicate, Fine, Right),
             Output::Finish
         ]
     );
@@ -541,14 +553,14 @@ fn the_systems_repeat_is_ignored_but_a_held_arrow_repeats() {
         .press(Key::Right)
         .release(Key::Right);
     board.release(Key::W);
-    board.press(Key::D).press(Key::D).release(Key::D);
+    board.press(Key::A).press(Key::A).release(Key::A);
     assert_eq!(
         board.take(),
         [
             step(Move, Fine, Right),
             step(Move, Fine, Right),
             Output::Finish,
-            Output::Action(Action::Duplicate)
+            Output::Action(Action::Add)
         ]
     );
 }
@@ -636,6 +648,82 @@ fn a_timeout_finishes_a_tapped_verb_left_waiting() {
         .poll()
         .tap(&[Key::Right]);
     assert_eq!(board.take(), [step(Move, Fine, Right)]);
+}
+
+#[test]
+fn arming_a_verb_is_said_after_the_end_of_the_gesture_it_ends() {
+    let mut board = Board::new();
+    board.tap(&[Key::W, Key::Right, Key::E]);
+    assert_eq!(
+        board.take_all(),
+        [
+            Output::Begin { verb: Move },
+            step(Move, Fine, Right),
+            Output::Finish,
+            Output::Begin { verb: Extent }
+        ]
+    );
+}
+
+#[test]
+fn duplicate_is_a_change_from_the_start_so_its_end_is_always_said() {
+    let mut board = Board::new();
+    // OUT, the key again, OPEN and BACK, with no arrow taken.
+    board.tap(&[Key::D, Tab]);
+    assert_eq!(
+        board.take_all(),
+        [Output::Begin { verb: Duplicate }, Output::Finish]
+    );
+    board.tap(&[Key::D, Key::D]);
+    assert_eq!(
+        board.take_all(),
+        [Output::Begin { verb: Duplicate }, Output::Finish]
+    );
+    board.tap(&[Key::D, Key::Enter]);
+    assert_eq!(
+        board.take_all(),
+        [
+            Output::Begin { verb: Duplicate },
+            Output::Finish,
+            Output::Action(Action::Open)
+        ]
+    );
+    board.tap(&[Key::D, Key::Escape]);
+    assert_eq!(
+        board.take_all(),
+        [Output::Begin { verb: Duplicate }, Output::Cancel]
+    );
+    // Other verbs still end without a word when nothing was stepped.
+    board.tap(&[Key::W, Tab]);
+    assert_eq!(board.take_all(), [Output::Begin { verb: Move }]);
+}
+
+#[test]
+fn a_held_duplicate_let_go_after_an_arrow_ends_and_with_none_stays_armed() {
+    let mut board = Board::new();
+    board.press(Key::D).tap(&[Key::Right]).release(Key::D);
+    assert_eq!(board.take(), [step(Duplicate, Fine, Right), Output::Finish]);
+    // Held and let go with no arrow: a tap, still armed.
+    board.press(Key::D).release(Key::D);
+    assert_eq!(board.take(), []);
+    board.tap(&[Tab]);
+    assert_eq!(board.take(), [Output::Finish]);
+}
+
+#[test]
+fn duplicate_ends_under_the_settings_as_any_verb_with_its_end_said() {
+    // A timeout ends a tapped DUPLICATE left waiting, as OUT does.
+    let mut board = Board::keymap("timeout = 2");
+    board.at(0.0).tap(&[Key::D]).at(3.0).poll();
+    assert_eq!(board.take(), [Output::Finish]);
+    // One arrow moves it and ends it.
+    let mut board = Board::keymap("one-arrow = yes");
+    board.tap(&[Key::D, Key::Right]);
+    assert_eq!(board.take(), [step(Duplicate, Fine, Right), Output::Finish]);
+    // With taps not arming, it works while held, and letting go ends it, arrow or not.
+    let mut board = Board::keymap("tap-arms = no");
+    board.press(Key::D).release(Key::D);
+    assert_eq!(board.take(), [Output::Finish]);
 }
 
 #[test]

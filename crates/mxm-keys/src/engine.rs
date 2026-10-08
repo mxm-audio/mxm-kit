@@ -15,8 +15,11 @@
 //!   any order.
 //! - A gesture ends with OUT, by tapping its verb again, or with the next command, which then does
 //!   its own job; letting go of a held verb ends it the same way. BACK, or `Command+Z`, cancels it.
+//! - Arming a verb is said, [`Output::Begin`], after the end of the gesture it ends, so the order
+//!   tells which gesture each end belongs to.
 //! - A gesture's steps are one change: one [`Output::Finish`] or [`Output::Cancel`] follows them.
-//!   A gesture with no steps ends without a word.
+//!   A gesture with no steps ends without a word, but DUPLICATE's: it is a change from the start,
+//!   the copy, so its end is always said.
 //! - Shift with ADD's key is REMOVE: ADD gives, Shift + ADD takes away.
 //! - A key held down is pressed once: the operating system's repeat is ignored, except on the
 //!   arrows, where holding one repeats it.
@@ -40,6 +43,8 @@ pub enum Output {
     Within { direction: Direction },
     /// Move the focus to the neighbouring view.
     View { direction: Direction },
+    /// A verb was armed: a gesture begins. It comes after the end of the gesture it ends.
+    Begin { verb: Verb },
     /// One arrow press of a gesture.
     Step {
         verb: Verb,
@@ -121,7 +126,7 @@ struct Gesture {
     held: bool,
     /// An arrow was pressed while the verb's key was down, so letting go ends the gesture.
     used_while_held: bool,
-    /// A step was sent, so the end of the gesture is said.
+    /// A step was sent, so the end of the gesture is said; DUPLICATE's from the start.
     stepped: bool,
 }
 
@@ -399,8 +404,9 @@ impl Engine {
             step,
             held: true,
             used_while_held: false,
-            stepped: false,
+            stepped: verb == Verb::Duplicate,
         });
+        out.push(Output::Begin { verb });
     }
 
     fn step(&mut self, key: Key, step: Step) {

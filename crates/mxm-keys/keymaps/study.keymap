@@ -1,29 +1,29 @@
-# The default: proposed by the key study of 2026-10-06, which made 26 known songs again with the
-# language, as an experienced user would, and priced every learnable layout for finger travel and
-# comfortable chords, held and tapped. Verbs on the top row, step sizes on the home row (held in
-# chords), actions on the bottom row, for a hand resting ring finger on A, middle on S, index on D.
+# The default: the key study of 2026-10-06 proposed it, making 26 known songs again with the
+# language, as an experienced user would, and pricing every learnable layout for finger travel and
+# comfortable chords, held and tapped; the owner tuned it by practice on 2026-10-08. For a hand
+# resting ring finger on A, middle on S, index on D:
 #
-#   Q  SELECT     W  VALUE      E  MOVE       R  EXTENT
-#   A  MUSICAL    S  COARSE     D  FINE       F  MICRO
-#   Z  ADD        X  DUPLICATE  C  VIEW       V  .
+#   Q  SELECT     W  DUPLICATE  E  MOVE       R  MUSICAL
+#   A  VALUE      S  COARSE     D  FINE       F  MICRO
+#   Z  .          X  EXTENT     C  VIEW       V  ADD
 #
-# A starting point, tuned by practice. The first keys to try swapping, which the study's variants
-# moved: MOVE and EXTENT (E, R), and VALUE and SELECT (W, Q).
+# SELECT, DUPLICATE and MOVE together; VALUE in line with the step sizes it's used with most; ADD
+# on V, beside paste and easy to hit; EXTENT on X; Z unused.
 
 name = Key study, 2026-10-06
 
 move = E
-extent = R
-value = W
+extent = X
+value = A
 select = Q
+duplicate = W
 
-musical = A
+musical = R
 coarse = S
 fine = D
 micro = F
 
-add = Z
-duplicate = X
+add = V
 
 delete = Delete
 ripple = Backspace
