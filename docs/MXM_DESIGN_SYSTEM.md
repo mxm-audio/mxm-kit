@@ -887,7 +887,7 @@ Theme quality is judged by hierarchy, not by whether all colors were mathematica
 Keyboard behavior is **the keyboard language** (newDAWn's `docs/keyboard.md`; the owner decided
 on 2026-10-07 that the editors convert to it, keys first in newDAWn and the collection; piloted on
 mxm-mono-08 and rolled out to every editor on 2026-10-08). Its engine is `mxm-keys`, and the keys
-named below are the default keymap's: A is VALUE, S COARSE, D FINE, F MICRO, C VIEW (and Shift)
+named below are the default keymap's: E is VALUE, S COARSE, D FINE, F MICRO, C VIEW (and Shift)
 and Tab OUT. The keys of a combination can be held together or pressed one after another. On a
 parameter a step key alone edits it, VALUE implied, and ← → go to the next round value of the
 size (newDAWn's owner, 2026-10-09: "sdf value left right should change in musical steps").

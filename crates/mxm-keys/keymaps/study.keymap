@@ -3,18 +3,20 @@
 # comfortable chords, held and tapped; the owner tuned it by practice on 2026-10-08. For a hand
 # resting ring finger on A, middle on S, index on D:
 #
-#   Q  SELECT     W  DUPLICATE  E  MOVE       R  .
-#   A  VALUE      S  COARSE     D  FINE       F  MICRO
+#   Q  SELECT     W  DUPLICATE  E  VALUE      R  .
+#   A  MOVE       S  COARSE     D  FINE       F  MICRO
 #   Z  .          X  EXTENT     C  VIEW       V  ADD
 #
-# SELECT, DUPLICATE and MOVE together; VALUE in line with the step sizes it's used with most; ADD
-# on V, beside paste and easy to hit; EXTENT on X; R and Z unused.
+# SELECT and MOVE under the pinky, in a chord with the step sizes beside them (the owner,
+# 2026-10-09: "a nice chord with the pinky selecting q or a and the rest of the fingers choosing
+# sdf"); VALUE on E, since on a value the step keys change it alone; ADD on V, beside paste and
+# easy to hit; EXTENT on X; R and Z unused.
 
 name = Key study, 2026-10-06
 
-move = E
+move = A
 extent = X
-value = A
+value = E
 select = Q
 duplicate = W
 

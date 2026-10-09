@@ -539,10 +539,10 @@ coarse = S
     fn the_default_is_the_key_studys() {
         let keymap = Keymap::default();
         assert_eq!(SHIPPED[0].0, DEFAULT);
-        assert_eq!(keymap.job(Key::E), Some(Job::Verb(Verb::Move)));
+        assert_eq!(keymap.job(Key::A), Some(Job::Verb(Verb::Move)));
         assert_eq!(keymap.job(Key::S), Some(Job::Step(Step::Coarse)));
         assert_eq!(keymap.job(Key::R), None, "MUSICAL left the language");
-        assert_eq!(keymap.job(Key::A), Some(Job::Verb(Verb::Value)));
+        assert_eq!(keymap.job(Key::E), Some(Job::Verb(Verb::Value)));
         assert_eq!(keymap.job(Key::W), Some(Job::Verb(Verb::Duplicate)));
         assert_eq!(keymap.job(Key::X), Some(Job::Verb(Verb::Extent)));
         assert_eq!(keymap.job(Key::V), Some(Job::Action(Action::Add)));

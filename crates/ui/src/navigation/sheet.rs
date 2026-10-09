@@ -260,13 +260,13 @@ mod tests {
                 .find(|(k, _)| k == key)
                 .map(|(_, job)| job.as_str())
         };
-        assert_eq!(job_of("A"), Some("VALUE"));
+        assert_eq!(job_of("E"), Some("VALUE"));
         assert_eq!(job_of("S"), Some("COARSE"));
         assert_eq!(job_of("F"), Some("MICRO"));
         assert_eq!(job_of("Tab"), Some("OUT"));
         assert_eq!(job_of("C"), Some("VIEW"));
-        // MOVE (E) and ADD (V) are newDAWn's: blank here.
-        assert_eq!(job_of("E"), Some(""));
+        // MOVE (A) and ADD (V) are newDAWn's: blank here.
+        assert_eq!(job_of("A"), Some(""));
         assert_eq!(job_of("V"), Some(""));
         let moving = &sheet.sections[0].1;
         assert!(moving.iter().any(|(keys, _)| keys == "C or Shift ← ↑ ↓ →"));
