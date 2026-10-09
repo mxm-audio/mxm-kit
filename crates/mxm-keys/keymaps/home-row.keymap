@@ -31,6 +31,18 @@ out = Tab
 # in sequence, as every other job is (the user, 2026-10-07).
 view = F, Shift
 
+# The host's keys, outside the language. The panels newDAWn opens and closes, on the number row:
+panel.arrangement = 1
+panel.notes = 2
+panel.tracker = 3
+panel.mixer = 4
+panel.plugins = 5
+panel.parameters = 6
+# Note entry's piano, MXM Player's layout: the semitones up from C, then the octave.
+note.keys = A, W, S, E, D, F, T, G, Y, H, U, J, K, O, L, P, Semicolon, Quote
+note.octave-down = Z
+note.octave-up = X
+
 tap-arms = yes
 one-arrow = no
 timeout = off

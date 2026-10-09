@@ -21,8 +21,9 @@ on mxm-mono-08 from 2026-10-07), and design system §11 states it. The cursor ov
 - **`key`**: `Key`, a physical position named after its US legend; `Direction`; `Mods`, where
   `command` is the platform's shortcut modifier.
 - **`keymap`**: `Verb`, `Step`, `Action` and `Job`; `Keymap`, read from text with line-numbered
-  errors; `Settings` (`tap-arms`, `one-arrow`, `timeout`); `SHIPPED`, the keymaps in `keymaps/`,
-  the default first; `Keymap::default()` is `DEFAULT`'s.
+  errors; `Settings` (`tap-arms`, `one-arrow`, `timeout`); the host's keys, `panel.<name>` and
+  note entry's `note.*`; `SHIPPED`, the keymaps in `keymaps/`, the default first;
+  `Keymap::default()` is `DEFAULT`'s.
 - **`engine`**: `Engine`, the state machine; `Output`, what each input means (`Begin` when a
   verb is armed); `Arrows`, what the arrows do now, for the arrow map.
 - **`examples/replay.rs`**: presses in, the engine's outputs out, one per line; newDAWn's key
@@ -54,6 +55,11 @@ keys from a toolkit, and where a keymap file lives. Those are the host's.
   actions on the bottom; OUT on Tab until a host reads Caps Lock, the study's pick, as a key.
   `notes` and `home-row` stay for comparison. A change to the default changes the study's
   record first.
+- **The host's keys are not jobs** (newDAWn's owner, 2026-10-08): `panel.<name>` (the names are
+  the host's) and note entry's `note.keys`, `note.octave-down`, `note.octave-up` sit in the same
+  file, so one file binds every key. A panel key is no job's and no other panel's, so the engine
+  passes it through as `Raw`; note entry's keys may be jobs' keys, being read only in note entry,
+  but never an arrow, OUT's, BACK's or a panel's. The editors never read them.
 - **Zero dependencies and no `let` chains**: MSRV 1.87 is verified, not assumed.
 
 # Work Guidance

@@ -17,6 +17,19 @@
 //! so no keymap can take a standard shortcut (`Ctrl/Cmd+Z`, `X`, `C`, `V`, `S`) away. `Shift` and
 //! `Alt` are reported only as held, never pressed, so only VIEW, which works while held with the
 //! arrows, can be put on one.
+//!
+//! Two kinds of key are the host's, outside the language, kept here so one file binds every key:
+//!
+//! ```text
+//! panel.mixer = 4                  # a panel the host opens and closes; the name is the host's
+//! note.keys = A, W, S, E, D        # note entry's piano: the semitones up from C, in order
+//! note.octave-down = Z
+//! note.octave-up = X
+//! ```
+//!
+//! A panel key is a key no job and no other panel has, so the engine passes it through as `Raw`.
+//! Note entry's keys are read only while the host's note entry is on, so they may be jobs' keys
+//! too, but never an arrow, OUT's, BACK's or a panel's: note entry can always be moved in and left.
 
 use std::fmt;
 use std::time::Duration;
@@ -163,12 +176,18 @@ impl Default for Settings {
     }
 }
 
-/// Which key does which job, and the settings.
+/// Which key does which job, the host's panel and note-entry keys, and the settings.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Keymap {
     name: String,
     jobs: [Option<Job>; COUNT],
     view_modifier: Option<Modifier>,
+    /// `panel.<name> = key`, in the file's order, the name in lower case.
+    panels: Vec<(String, Key)>,
+    /// `note.keys`: the semitones up from C, in order.
+    note_keys: Vec<Key>,
+    /// `note.octave-down` and `note.octave-up`.
+    note_octave: (Option<Key>, Option<Key>),
     settings: Settings,
 }
 
@@ -206,6 +225,9 @@ impl Keymap {
             name: String::new(),
             jobs: [None; COUNT],
             view_modifier: None,
+            panels: Vec::new(),
+            note_keys: Vec::new(),
+            note_octave: (None, None),
             settings: Settings::default(),
         }
     }
@@ -216,6 +238,10 @@ impl Keymap {
         // The line each job was bound on, so binding it twice can say where it was first.
         let mut bound_on: Vec<(Job, usize)> = Vec::new();
         let mut set_on: Vec<(&str, usize)> = Vec::new();
+        // The host's keys and their lines, checked against the jobs once every line is read.
+        let mut hosts: Vec<(String, usize)> = Vec::new();
+        let mut panel_lines: Vec<usize> = Vec::new();
+        let mut note_lines: Vec<(Key, usize)> = Vec::new();
         for (index, raw) in text.lines().enumerate() {
             let line = index + 1;
             let error = |message: String| Error { line, message };
@@ -236,6 +262,43 @@ impl Keymap {
                 continue;
             }
             let name = name.to_ascii_lowercase();
+            if name.starts_with("panel.") || name.starts_with("note.") {
+                if let Some(&(_, first)) = hosts.iter().find(|(bound, _)| *bound == name) {
+                    return Err(error(format!("{name} is already bound, on line {first}")));
+                }
+                hosts.push((name.clone(), line));
+                let keys = host_keys(value).map_err(error)?;
+                if let Some(panel) = name.strip_prefix("panel.") {
+                    if panel.is_empty() {
+                        return Err(error("a panel needs a name: `panel.<name>`".to_string()));
+                    }
+                    match keys[..] {
+                        [] => {}
+                        [key] => {
+                            keymap.panels.push((panel.to_string(), key));
+                            panel_lines.push(line);
+                        }
+                        _ => return Err(error(format!("{name} takes one key"))),
+                    }
+                    continue;
+                }
+                match name.as_str() {
+                    "note.keys" => keymap.note_keys.clone_from(&keys),
+                    "note.octave-down" | "note.octave-up" => {
+                        if keys.len() > 1 {
+                            return Err(error(format!("{name} takes one key")));
+                        }
+                        if name == "note.octave-down" {
+                            keymap.note_octave.0 = keys.first().copied();
+                        } else {
+                            keymap.note_octave.1 = keys.first().copied();
+                        }
+                    }
+                    _ => return Err(error(format!("`{name}` is not a job or a setting"))),
+                }
+                note_lines.extend(keys.iter().map(|&key| (key, line)));
+                continue;
+            }
             let setting = match name.as_str() {
                 "name" => "name",
                 "tap-arms" => "tap-arms",
@@ -254,7 +317,50 @@ impl Keymap {
                 _ => keymap.settings.timeout = timeout(value).map_err(error)?,
             }
         }
+        keymap.check_host_keys(&panel_lines, &note_lines)?;
         Ok(keymap)
+    }
+
+    /// A panel key is a key no job and no other panel has; note entry's keys differ from each
+    /// other and are never OUT's, BACK's or a panel's.
+    fn check_host_keys(
+        &self,
+        panel_lines: &[usize],
+        note_lines: &[(Key, usize)],
+    ) -> Result<(), Error> {
+        for (at, (&(_, key), &line)) in self.panels.iter().zip(panel_lines).enumerate() {
+            let taken = self.job(key).map(|job| job.name().to_string()).or_else(|| {
+                self.panels[..at]
+                    .iter()
+                    .find(|(_, other)| *other == key)
+                    .map(|(other, _)| format!("panel.{other}"))
+            });
+            if let Some(taken) = taken {
+                return Err(Error {
+                    line,
+                    message: format!("{} is already {taken}", key.name()),
+                });
+            }
+        }
+        for (at, &(key, line)) in note_lines.iter().enumerate() {
+            let taken = match self.job(key) {
+                Some(job @ (Job::Out | Job::Back)) => Some(job.name().to_string()),
+                _ => self.panel(key).map(|panel| format!("panel.{panel}")),
+            };
+            if let Some(taken) = taken {
+                return Err(Error {
+                    line,
+                    message: format!("{} is already {taken}, which note entry needs", key.name()),
+                });
+            }
+            if note_lines[..at].iter().any(|&(other, _)| other == key) {
+                return Err(Error {
+                    line,
+                    message: format!("{} is in note entry twice", key.name()),
+                });
+            }
+        }
+        Ok(())
     }
 
     fn bind(&mut self, job: Job, value: &str) -> Result<(), String> {
@@ -312,6 +418,29 @@ impl Keymap {
             .filter(move |key| self.job(*key) == Some(job))
     }
 
+    /// The host's panel keys, `panel.<name> = key`, in the file's order.
+    pub fn panels(&self) -> impl Iterator<Item = (&str, Key)> + '_ {
+        self.panels.iter().map(|(name, key)| (name.as_str(), *key))
+    }
+
+    /// The panel a key shows, if any.
+    pub fn panel(&self, key: Key) -> Option<&str> {
+        self.panels
+            .iter()
+            .find(|(_, bound)| *bound == key)
+            .map(|(name, _)| name.as_str())
+    }
+
+    /// Note entry's piano: the keys for the semitones up from C, in order.
+    pub fn note_keys(&self) -> &[Key] {
+        &self.note_keys
+    }
+
+    /// Note entry's octave keys: down, then up.
+    pub fn note_octave(&self) -> (Option<Key>, Option<Key>) {
+        self.note_octave
+    }
+
     /// The modifier VIEW is held on, if it is on one.
     pub fn view_modifier(&self) -> Option<Modifier> {
         self.view_modifier
@@ -333,6 +462,26 @@ impl Default for Keymap {
     fn default() -> Keymap {
         Keymap::shipped(DEFAULT).expect("the default keymap ships")
     }
+}
+
+/// The keys a host's line names, in order: never an arrow.
+fn host_keys(value: &str) -> Result<Vec<Key>, String> {
+    let mut keys = Vec::new();
+    for word in value
+        .split(|c: char| c == ',' || c.is_whitespace())
+        .filter(|word| !word.is_empty())
+    {
+        let Some(key) = Key::from_name(word) else {
+            return Err(format!("`{word}` is not a key"));
+        };
+        if key.direction().is_some() {
+            return Err(format!(
+                "{word} can't be bound: the arrows are the right hand's, used with every job"
+            ));
+        }
+        keys.push(key);
+    }
+    Ok(keys)
 }
 
 fn yes_or_no(value: &str) -> Result<bool, String> {
@@ -383,6 +532,43 @@ mod tests {
         assert_eq!(keymap.job(Key::V), Some(Job::Action(Action::Add)));
         assert_eq!(keymap.job(Key::Z), None);
         assert_eq!(Keymap::shipped("none"), None);
+        // The host's keys: the panels on the number row, and MXM Player's piano.
+        let panels: Vec<(&str, Key)> = keymap.panels().collect();
+        assert_eq!(
+            panels,
+            [
+                ("arrangement", Key::Digit1),
+                ("notes", Key::Digit2),
+                ("tracker", Key::Digit3),
+                ("mixer", Key::Digit4),
+                ("plugins", Key::Digit5),
+                ("parameters", Key::Digit6),
+            ]
+        );
+        assert_eq!(
+            keymap.note_keys(),
+            [
+                Key::A,
+                Key::W,
+                Key::S,
+                Key::E,
+                Key::D,
+                Key::F,
+                Key::T,
+                Key::G,
+                Key::Y,
+                Key::H,
+                Key::U,
+                Key::J,
+                Key::K,
+                Key::O,
+                Key::L,
+                Key::P,
+                Key::Semicolon,
+                Key::Quote,
+            ]
+        );
+        assert_eq!(keymap.note_octave(), (Some(Key::Z), Some(Key::X)));
     }
 
     #[test]
@@ -398,7 +584,87 @@ mod tests {
                 assert!(bound, "{stem} binds {}", job.name());
             }
             assert_eq!(keymap.settings(), Settings::default(), "{stem}'s settings");
+            let panels: Vec<&str> = keymap.panels().map(|(name, _)| name).collect();
+            assert_eq!(
+                panels,
+                [
+                    "arrangement",
+                    "notes",
+                    "tracker",
+                    "mixer",
+                    "plugins",
+                    "parameters"
+                ],
+                "{stem}'s panels"
+            );
+            assert_eq!(keymap.note_keys().len(), 18, "{stem}'s piano");
+            assert!(keymap.note_octave().0.is_some() && keymap.note_octave().1.is_some());
         }
+    }
+
+    #[test]
+    fn panel_and_note_entry_keys_are_the_hosts() {
+        let keymap = Keymap::parse(
+            "move = E\n\
+             out = Tab\n\
+             PANEL.Mixer = 4\n\
+             panel.tracker = 3\n\
+             panel.spare =\n\
+             note.keys = A, W, E\n\
+             note.octave-down = Z\n\
+             note.octave-up =\n",
+        )
+        .unwrap();
+        let panels: Vec<(&str, Key)> = keymap.panels().collect();
+        assert_eq!(panels, [("mixer", Key::Digit4), ("tracker", Key::Digit3)]);
+        assert_eq!(keymap.panel(Key::Digit3), Some("tracker"));
+        assert_eq!(keymap.panel(Key::E), None);
+        // A panel key is no job's, so the engine passes it through.
+        assert_eq!(keymap.job(Key::Digit4), None);
+        // Note entry may share a job's key: it's read only while note entry is on.
+        assert_eq!(keymap.note_keys(), [Key::A, Key::W, Key::E]);
+        assert_eq!(keymap.note_octave(), (Some(Key::Z), None));
+    }
+
+    #[test]
+    fn host_keys_that_clash_are_refused() {
+        assert_eq!(
+            refusal("panel.a = 1\nmove = 1").message,
+            "1 is already move"
+        );
+        assert_eq!(refusal("move = 1\npanel.a = 1").line, 2);
+        assert_eq!(
+            refusal("panel.a = 1\npanel.b = 1").message,
+            "1 is already panel.a"
+        );
+        assert_eq!(
+            refusal("panel.a = 1\npanel.a = 2").message,
+            "panel.a is already bound, on line 1"
+        );
+        assert_eq!(refusal("panel.a = 1 2").message, "panel.a takes one key");
+        assert!(refusal("panel. = 1").message.contains("needs a name"));
+        assert!(refusal("panel.a = Up").message.contains("right hand"));
+        assert_eq!(
+            refusal("out = Tab\nnote.keys = A, Tab").message,
+            "Tab is already out, which note entry needs"
+        );
+        assert_eq!(refusal("back = Escape\nnote.octave-up = Escape").line, 2);
+        assert_eq!(
+            refusal("panel.a = 1\nnote.keys = 1").message,
+            "1 is already panel.a, which note entry needs"
+        );
+        assert_eq!(
+            refusal("note.keys = A, S\nnote.octave-down = A").message,
+            "A is in note entry twice"
+        );
+        assert_eq!(
+            refusal("note.keys = A, A").message,
+            "A is in note entry twice"
+        );
+        assert_eq!(
+            refusal("note.fly = A").message,
+            "`note.fly` is not a job or a setting"
+        );
     }
 
     #[test]
