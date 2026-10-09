@@ -18,8 +18,8 @@ pub use mxm_ui::control::Press;
 ///
 /// Every law is computed in the parameter's plain units, from whatever value the press starts at,
 /// and clamped to the range; see [`ErasedParam::step_from`]. A press is fine, coarse
-/// ([`mxm_ui::control::Press`]'s `coarse`: COARSE or MUSICAL in the keyboard language) or the finer
-/// layer (`finer`: MICRO), whichever arrow.
+/// ([`mxm_ui::control::Press`]'s `coarse`: COARSE in the keyboard language) or the finer layer
+/// (`finer`: MICRO); ↑ ↓ move by it, and ← → (`snap`) to the next line of it ([`snap_from`]).
 ///
 /// **MICRO is the finer layer** (the owner, 2026-09-24: *"So that 10%, 1% and 0,1% can be set
 /// precisely"*, and on a pitch *"octave, semitone, cent"*). A press moves
@@ -216,6 +216,9 @@ impl<P: Param> ErasedParam for P {
 
     fn step_from(&self, normalised: f64, press: Press, law: StepLaw) -> f64 {
         let from = normalised.clamp(0.0, 1.0);
+        if press.snap {
+            return snap_from(self, from, press, law);
+        }
         let to = match law {
             StepLaw::Own => own_step(self, from, press),
             StepLaw::Semitones => {
@@ -366,6 +369,76 @@ fn next_on_grid(value: f64, grid: f64, up: bool) -> f64 {
     to * grid
 }
 
+/// ← →: the next line of the press's size on the law's lattice, the next round value (newDAWn's
+/// owner, 2026-10-09: the musical change), from any value and clamped to the range; never less
+/// than one of the parameter's own steps.
+///
+/// The lattices: [`StepLaw::Own`] 10 %, 1 % and 0.1 % of the travel from its start;
+/// [`StepLaw::Semitones`] 12, 1 and 0.01 semitones from 0; [`StepLaw::Cents`] 10, 1 and 0.1 cents
+/// from 0; [`StepLaw::Hertz`] the octave, semitone and cent lines of equal temperament at A440,
+/// with 0 Hz and the minimum as [`hertz_step`] treats them; [`StepLaw::Interval`] its own lattice,
+/// which already snaps; [`StepLaw::Voltage`] whole semitones coarse, and multiples of `fine`, or a
+/// tenth of it, from 0.
+fn snap_from<P: Param>(param: &P, from: f64, press: Press, law: StepLaw) -> f64 {
+    let size = |coarse: f64, fine: f64, finer: f64| match (press.coarse, press.finer) {
+        (true, false) => coarse,
+        (false, false) | (true, true) => fine,
+        (false, true) => finer,
+    };
+    let plain = plain_of(param, from);
+    let unsnapped = Press {
+        snap: false,
+        ..press
+    };
+    let to = match law {
+        StepLaw::Own => next_on_grid(from, fraction(press), press.up),
+        StepLaw::Semitones => {
+            normalised_of(param, next_on_grid(plain, size(12.0, 1.0, 0.01), press.up))
+        }
+        StepLaw::Cents => normalised_of(param, next_on_grid(plain, size(10.0, 1.0, 0.1), press.up)),
+        // From 0 Hz no line of a ratio's lattice is next: the step leaves it, as ↑ ↓ do.
+        StepLaw::Hertz if plain <= 0.0 => hertz_step(param, from, unsnapped),
+        StepLaw::Hertz => {
+            let cents = 1200.0 * (plain / 440.0).log2();
+            let line = next_on_grid(cents, size(1200.0, 100.0, 1.0), press.up);
+            let to = 440.0 * 2.0_f64.powf(line / 1200.0);
+            // Below the first own step above the minimum: the minimum, as `hertz_step` lands.
+            let first = plain_of(param, own_magnitude(param, 0.0, fraction(press), true));
+            if !press.up && to < first * (1.0 - 1e-6) {
+                0.0
+            } else {
+                normalised_of(param, to)
+            }
+        }
+        StepLaw::Interval { octaves_per_unit } => {
+            interval_step(param, from, press, octaves_per_unit, size(12.0, 1.0, 0.01))
+        }
+        StepLaw::Voltage {
+            octaves_per_unit,
+            fine,
+        } => {
+            if press.coarse && !press.finer {
+                interval_step(param, from, press, octaves_per_unit, 1.0)
+            } else {
+                let grid = if press.finer { fine / 10.0 } else { fine };
+                normalised_of(param, next_on_grid(plain, grid, press.up))
+            }
+        }
+    }
+    .clamp(0.0, 1.0);
+    // **Never less than one step**: a line the parameter's own grid can't show moves one of its
+    // own steps instead.
+    if (snapped(param, to) - snapped(param, from)).abs() < 1e-9 {
+        let fine = Press {
+            coarse: false,
+            finer: false,
+            ..unsnapped
+        };
+        return own_step(param, from, fine).clamp(0.0, 1.0);
+    }
+    to
+}
+
 /// The next point of a `grid`-semitone lattice from `from`, for a parameter whose plain value times
 /// `octaves_per_unit` is octaves. A zero reach has no semitones to land on, and takes the
 /// parameter's own step.
@@ -452,38 +525,45 @@ mod tests {
         up: true,
         coarse: false,
         finer: false,
+        snap: false,
     };
     const FINE_DOWN: Press = Press {
         up: false,
         coarse: false,
         finer: false,
+        snap: false,
     };
     const COARSE_UP: Press = Press {
         up: true,
         coarse: true,
         finer: false,
+        snap: false,
     };
     const COARSE_DOWN: Press = Press {
         up: false,
         coarse: true,
         finer: false,
+        snap: false,
     };
     /// MICRO, upward, whichever arrow: the finer layer.
     const FINEST_UP: Press = Press {
         up: true,
         coarse: false,
         finer: true,
+        snap: false,
     };
     const FINEST_DOWN: Press = Press {
         up: false,
         coarse: false,
         finer: true,
+        snap: false,
     };
     /// `coarse` and `finer` both set: the finer layer's coarse step, which no key asks for.
     const ALT_COARSE_UP: Press = Press {
         up: true,
         coarse: true,
         finer: true,
+        snap: false,
     };
 
     /// Where `press` lands from `plain`, in plain units.
@@ -745,6 +825,153 @@ mod tests {
         close(lands(&level, 1.0, COARSE_UP, law), 1.0, 1e-6);
         close(lands(&level, 1.0, FINE_UP, law), 1.0, 1e-6);
         close(lands(&level, 0.0, FINE_DOWN, law), 0.0, 1e-6);
+    }
+
+    /// ← →, `snap`: to the next line of the size on each law's lattice, from on a line or between
+    /// two, both ways (newDAWn's owner, 2026-10-09: the musical change).
+    #[test]
+    fn a_snap_goes_to_the_next_line_of_each_laws_lattice() {
+        let snap = |press: Press| Press {
+            snap: true,
+            ..press
+        };
+        // Own: 10 %, 1 % and 0.1 % lines of the travel.
+        let level = FloatParam::new(
+            "Level",
+            50.0,
+            FloatRange::Linear {
+                min: 0.0,
+                max: 100.0,
+            },
+        );
+        close(
+            lands(&level, 53.7, snap(COARSE_UP), StepLaw::Own),
+            60.0,
+            1e-3,
+        );
+        close(
+            lands(&level, 53.7, snap(COARSE_DOWN), StepLaw::Own),
+            50.0,
+            1e-3,
+        );
+        close(
+            lands(&level, 50.0, snap(COARSE_UP), StepLaw::Own),
+            60.0,
+            1e-3,
+        );
+        close(
+            lands(&level, 53.75, snap(FINE_UP), StepLaw::Own),
+            54.0,
+            1e-3,
+        );
+        close(
+            lands(&level, 53.75, snap(FINEST_DOWN), StepLaw::Own),
+            53.7,
+            1e-3,
+        );
+        // Cents: 10, 1 and 0.1 cent lines.
+        let tune = FloatParam::new(
+            "Tune",
+            0.0,
+            FloatRange::Linear {
+                min: -100.0,
+                max: 100.0,
+            },
+        );
+        close(
+            lands(&tune, 7.9, snap(COARSE_UP), StepLaw::Cents),
+            10.0,
+            1e-3,
+        );
+        close(
+            lands(&tune, 7.9, snap(FINE_DOWN), StepLaw::Cents),
+            7.0,
+            1e-3,
+        );
+        close(
+            lands(&tune, 7.0, snap(FINE_DOWN), StepLaw::Cents),
+            6.0,
+            1e-3,
+        );
+        // Semitones: octave, semitone and cent lines from 0.
+        let bend = FloatParam::new(
+            "Bend range",
+            2.0,
+            FloatRange::Linear {
+                min: -48.0,
+                max: 48.0,
+            },
+        );
+        close(
+            lands(&bend, 2.37, snap(COARSE_UP), StepLaw::Semitones),
+            12.0,
+            1e-3,
+        );
+        close(
+            lands(&bend, 2.37, snap(FINE_UP), StepLaw::Semitones),
+            3.0,
+            1e-3,
+        );
+        close(
+            lands(&bend, 2.37, snap(FINE_DOWN), StepLaw::Semitones),
+            2.0,
+            1e-3,
+        );
+        // Hertz: the octave and semitone lines of equal temperament at A440.
+        let cutoff = FloatParam::new(
+            "Cutoff",
+            1000.0,
+            FloatRange::Skewed {
+                min: 20.0,
+                max: 20_000.0,
+                factor: FloatRange::skew_factor(-2.0),
+            },
+        );
+        close(
+            lands(&cutoff, 1000.0, snap(COARSE_UP), StepLaw::Hertz),
+            1760.0,
+            0.1,
+        );
+        close(
+            lands(&cutoff, 1000.0, snap(COARSE_DOWN), StepLaw::Hertz),
+            880.0,
+            0.1,
+        );
+        close(
+            lands(&cutoff, 880.0, snap(COARSE_DOWN), StepLaw::Hertz),
+            440.0,
+            0.1,
+        );
+        close(
+            lands(&cutoff, 1000.0, snap(FINE_UP), StepLaw::Hertz),
+            1046.50,
+            0.1,
+        );
+        close(
+            lands(&cutoff, 1000.0, snap(FINE_DOWN), StepLaw::Hertz),
+            987.77,
+            0.1,
+        );
+        // Voltage: whole semitones coarse, multiples of `fine` and a tenth of it.
+        let stage = FloatParam::new(
+            "Step 1 level",
+            0.0,
+            FloatRange::Linear { min: 0.0, max: 1.0 },
+        );
+        let law = StepLaw::Voltage {
+            octaves_per_unit: 1.0,
+            fine: 0.01,
+        };
+        close(lands(&stage, 0.105, snap(COARSE_UP), law), 2.0 / 12.0, 1e-6);
+        close(lands(&stage, 0.105, snap(FINE_UP), law), 0.11, 1e-6);
+        close(lands(&stage, 0.105, snap(FINEST_DOWN), law), 0.104, 1e-6);
+        // A line the parameter can't show: one of its own steps.
+        let choice = IntParam::new("Mode", 1, IntRange::Linear { min: 0, max: 2 });
+        close(
+            lands(&choice, 1.0, snap(FINEST_UP), StepLaw::Own),
+            2.0,
+            1e-6,
+        );
     }
 
     /// The owner's three sizes, 2026-09-24: *"10%, 1% and 0,1%"*, and a percent with `coarse` and

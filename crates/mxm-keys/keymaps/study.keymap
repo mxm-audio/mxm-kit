@@ -3,12 +3,12 @@
 # comfortable chords, held and tapped; the owner tuned it by practice on 2026-10-08. For a hand
 # resting ring finger on A, middle on S, index on D:
 #
-#   Q  SELECT     W  DUPLICATE  E  MOVE       R  MUSICAL
+#   Q  SELECT     W  DUPLICATE  E  MOVE       R  .
 #   A  VALUE      S  COARSE     D  FINE       F  MICRO
 #   Z  .          X  EXTENT     C  VIEW       V  ADD
 #
 # SELECT, DUPLICATE and MOVE together; VALUE in line with the step sizes it's used with most; ADD
-# on V, beside paste and easy to hit; EXTENT on X; Z unused.
+# on V, beside paste and easy to hit; EXTENT on X; R and Z unused.
 
 name = Key study, 2026-10-06
 
@@ -18,7 +18,6 @@ value = A
 select = Q
 duplicate = W
 
-musical = R
 coarse = S
 fine = D
 micro = F

@@ -1,8 +1,8 @@
 //! The shared keyboard language: physical keys in, finished gestures out.
 //!
 //! The left hand says *what*, the right hand *where*. Navigate with the arrows; then choose a verb
-//! (MOVE, EXTENT, VALUE, SELECT), optionally a step size (COARSE, FINE, MICRO, MUSICAL), and a
-//! direction. Actions (ADD, and Shift + ADD to take away, DUPLICATE, DELETE, RIPPLE, OPEN) work on their own, OUT finishes whatever is
+//! (MOVE, EXTENT, VALUE, SELECT), optionally a step size (COARSE, FINE, MICRO), and a direction;
+//! on a value, a step size alone does, ↑ ↓ by its size and ← → to the next line of it. Actions (ADD, and Shift + ADD to take away, DUPLICATE, DELETE, RIPPLE, OPEN) work on their own, OUT finishes whatever is
 //! armed, and BACK cancels it. A key means the same in every view and every instrument; only the
 //! object it acts on changes.
 //!

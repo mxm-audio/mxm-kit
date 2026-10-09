@@ -3,7 +3,7 @@
 #
 #   Q  SELECT     W  ADD        E  DUPLICATE  R  .
 #   A  EXTENT     S  MOVE       D  VALUE      F  VIEW
-#   Z  MUSICAL    X  COARSE     C  FINE       V  MICRO
+#   Z  .          X  COARSE     C  FINE       V  MICRO
 #
 # A starting point to try, not a choice: the bindings are chosen from usage.
 
@@ -17,7 +17,6 @@ add = W
 select = Q
 duplicate = E
 
-musical = Z
 coarse = X
 fine = C
 micro = V

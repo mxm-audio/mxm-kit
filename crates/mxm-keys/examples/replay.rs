@@ -122,7 +122,6 @@ fn step_name(step: Step) -> &'static str {
         Step::Coarse => "coarse",
         Step::Fine => "fine",
         Step::Micro => "micro",
-        Step::Musical => "musical",
     }
 }
 

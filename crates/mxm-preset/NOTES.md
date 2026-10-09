@@ -288,6 +288,17 @@ plain units and clamped to the range:
   fine moves exactly `fine` plain units with no grid. So a fine press detunes off a semitone and
   the next coarse press lands back on one: 2 % and then coarse up is one semitone, not one and 2 %.
 
+**← → snap, every law** (newDAWn's owner, 2026-10-09: *"sdf value left right should change in
+musical steps"*). ↑ ↓ move by the size as above; ← → (`Press::snap`) go **to** the next line of the
+size, on a lattice fixed in the value's own units, so two presses from anywhere land on a round
+value: `Own` the 10 %, 1 % and 0.1 % lines of the travel from its start; `Semitones` 12, 1 and
+0.01 semitones from 0; `Cents` 10, 1 and 0.1 cents from 0, where ↑ ↓ keep no grid; `Hertz` the
+octave, semitone and cent lines of equal temperament at A440, in log2, where ↑ ↓ are ratios, with 0
+Hz and the minimum as its step treats them; `Interval` its own lattice, which already snaps, so
+← → = ↑ ↓; `Voltage` the whole semitones coarse, and multiples of `fine` and of a tenth of it from
+0, where ↑ ↓ fine keep no grid. A line the parameter's own grid can't show moves one of its own
+steps, as any press does. `a_snap_goes_to_the_next_line_of_each_laws_lattice` holds it.
+
 **Declared by the owner, never guessed** — each plugin's binding carries a `law` its sections set
 per parameter. A unit string cannot tell a cutoff from an LFO rate, and `" st"` also marks the
 continuous tunes the owner excluded. The plain⇄normalised conversion is nice-plug's own

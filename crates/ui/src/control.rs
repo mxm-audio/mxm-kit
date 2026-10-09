@@ -179,20 +179,23 @@ pub struct ParamView<'a> {
     pub quiet_label: bool,
 }
 
-/// One keyboard press on a value: which way, whether it is the coarse step, and whether it is the
-/// finer layer.
+/// One keyboard press on a value: which way, whether it is the coarse step, whether it is the
+/// finer layer, and whether it snaps.
 ///
-/// Under the cursor's keyboard language (see [`crate::navigation`]), VALUE + an arrow is the fine
-/// step, COARSE (or MUSICAL) the coarse one and MICRO the finer layer; the arrow gives only the
-/// direction. The owner of the parameter decides what each means in its own units: 10 %, 1 % and
-/// 0.1 % of the travel, or an octave, a semitone and a cent on a pitch. With `coarse` and `finer`
-/// both set, the owner's law gives the finer layer's coarse step (1 %, or ten cents on a pitch);
-/// no key asks for it.
+/// Under the cursor's keyboard language (see [`crate::navigation`]), FINE + an arrow (or VALUE's)
+/// is the fine step, COARSE the coarse one and MICRO the finer layer. The owner of the parameter
+/// decides what each means in its own units: 10 %, 1 % and 0.1 % of the travel, or an octave, a
+/// semitone and a cent on a pitch. ↑ ↓ move **by** that size; ← → `snap` **to** the next line of
+/// it, the next round value (newDAWn's owner, 2026-10-09: the musical change). With `coarse` and
+/// `finer` both set, the owner's law gives the finer layer's coarse step (1 %, or ten cents on a
+/// pitch); no key asks for it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Press {
     pub up: bool,
     pub coarse: bool,
     pub finer: bool,
+    /// ← →: to the next line of the size, rather than by it.
+    pub snap: bool,
 }
 
 /// Where one keyboard press lands, answered by the parameter's owner from **any** value.
@@ -3308,7 +3311,7 @@ fn vertical_slider_value(rect: Rect, pointer_y: f32) -> f64 {
 /// all: it gives the cursor somewhere to land and gives nothing back.
 ///
 /// **Under the cursor the keyboard language sets the value** ([`language_edit`]): VALUE + an arrow,
-/// its size from COARSE, MUSICAL or MICRO. The cursor reads the language's keys before any control
+/// its size from COARSE or MICRO, and ← → snap. The cursor reads the language's keys before any control
 /// is drawn, so one press cannot be spent twice. Where no cursor runs, the focused control takes
 /// the bare arrows itself, each a fine step, `Shift` a tenth of one.
 ///
@@ -3409,6 +3412,7 @@ fn keyboard_edit(
             up: matches!(key, Key::ArrowRight | Key::ArrowUp),
             coarse: false,
             finer: false,
+            snap: false,
         };
         value = if modifiers.shift {
             let steps = param.steps;
@@ -3524,10 +3528,19 @@ fn language_edit(
 }
 
 /// Where one press lands from `value`: the owner's law when it gave one, its fixed [`Steps`] when
-/// it did not — the finer layer a tenth of fine (and, with `coarse`, fine).
+/// it did not — the finer layer a tenth of fine (and, with `coarse`, fine). Without a law, a snap
+/// goes to the next 10 %, 1 % or 0.1 % line of the travel.
 fn step_once(param: &ParamView<'_>, value: f64, press: Press) -> f64 {
     if let Some(Next(law)) = param.next {
         return law.next_value(value, press).clamp(0.0, 1.0);
+    }
+    if press.snap {
+        let grid = match (press.coarse, press.finer) {
+            (true, false) => 0.1,
+            (false, false) | (true, true) => 0.01,
+            (false, true) => 0.001,
+        };
+        return next_line(value, grid, press.up).clamp(0.0, 1.0);
     }
     let steps = param.steps;
     let (up, down) = match (press.coarse, press.finer) {
@@ -3536,6 +3549,19 @@ fn step_once(param: &ParamView<'_>, value: f64, press: Press) -> f64 {
         (false, true) => (steps.fine_up / 10.0, steps.fine_down / 10.0),
     };
     (value + if press.up { up } else { -down }).clamp(0.0, 1.0)
+}
+
+/// The next line of a `grid`-spaced lattice from `value`, that way: the one past it when `value`
+/// is on a line (give or take a ten-thousandth of a cell), else the nearest that way.
+pub fn next_line(value: f64, grid: f64, up: bool) -> f64 {
+    const SLACK: f64 = 1e-4;
+    let cells = value / grid;
+    let to = if up {
+        (cells + SLACK).floor() + 1.0
+    } else {
+        (cells - SLACK).ceil() - 1.0
+    };
+    to * grid
 }
 
 /// The wheel, under §7.1's condition: focus **or** a held modifier, never hover alone.

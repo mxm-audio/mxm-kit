@@ -28,8 +28,10 @@ only.
 # Local Contracts
 
 - **The checks press jobs, not keys** (`keyboard_checks::key_of` and its `VALUE`, `COARSE`,
-  `MICRO`, `OUT`, through `mxm_ui::navigation::default_key`), and so do the plugins' own key
-  tests: a remap of the default keymap changes no test (the owner, 2026-10-08).
+  `MICRO`, `VIEW`, `OUT`, through `mxm_ui::navigation::default_key`), and so do the plugins' own key
+  tests: a remap of the default keymap changes no test (the owner, 2026-10-08). `operates` holds
+  that VALUE + ↑ and COARSE + ↑ (VALUE implied on a value, 2026-10-09) each edit as one
+  balanced host gesture, and that VIEW + an arrow selects a card without editing.
 - **A `[dev-dependencies]` entry only, never a normal one.** Nothing here may reach a bundle; the
   check under *Verification* holds it.
 - **One copy for every plugin.** A check is kept whole, not trimmed or varied for one consumer; a

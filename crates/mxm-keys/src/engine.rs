@@ -13,6 +13,9 @@
 //! - The verb comes first. With no step size it steps FINE, and a step size stays until another
 //!   one is pressed. A step key held when the verb is pressed counts, so a chord can be pressed in
 //!   any order.
+//! - On a value, a step key is VALUE at its size: the host says the focused item is a value
+//!   ([`Engine::set_on_value`]), and the step key arms VALUE, held or tapped, as a verb's key does,
+//!   so COARSE, FINE and MICRO change a value with no VALUE first (newDAWn's owner, 2026-10-09).
 //! - A gesture ends with OUT, by tapping its verb again, or with the next command, which then does
 //!   its own job; letting go of a held verb ends it the same way. BACK, or `Command+Z`, cancels it.
 //! - Arming a verb is said, [`Output::Begin`], after the end of the gesture it ends, so the order
@@ -161,6 +164,8 @@ pub struct Engine {
     spent: Option<Key>,
     /// When the last key was pressed, for the timeout.
     last_press: Option<Duration>,
+    /// The host's word that the focused item is a value, so a step key arms VALUE.
+    on_value: bool,
 }
 
 impl Engine {
@@ -173,7 +178,15 @@ impl Engine {
             last_step: None,
             spent: None,
             last_press: None,
+            on_value: false,
         }
+    }
+
+    /// Whether the focused item is a value, said before each key: then a step key with nothing
+    /// armed is VALUE at its size. The host says it from where its cursor is once the outputs of
+    /// the key before are applied, so keys read together do what they'd do typed slowly.
+    pub fn set_on_value(&mut self, on_value: bool) {
+        self.on_value = on_value;
     }
 
     pub fn keymap(&self) -> &Keymap {
@@ -232,7 +245,7 @@ impl Engine {
         match self.keymap.job(key) {
             None => self.raw(key, mods, &mut out),
             Some(Job::Verb(verb)) => self.verb(key, verb, &mut out),
-            Some(Job::Step(step)) => self.step(key, step),
+            Some(Job::Step(step)) => self.step(key, step, &mut out),
             Some(Job::Action(action)) => {
                 self.end(true, &mut out);
                 self.navigation = None;
@@ -409,25 +422,45 @@ impl Engine {
         out.push(Output::Begin { verb });
     }
 
-    fn step(&mut self, key: Key, step: Step) {
+    fn step(&mut self, key: Key, step: Step, out: &mut Outputs) {
         self.last_step = Some((key, step));
         if let Some(gesture) = &mut self.gesture {
+            // A step key that armed VALUE on a value, tapped again: it finishes, as a verb's does.
+            if gesture.key == key && !gesture.held {
+                self.end(true, out);
+                self.spent = Some(key);
+                return;
+            }
             gesture.step = step;
             return;
         }
-        // COARSE and MICRO with nothing armed move the focus a level up or down; FINE and
-        // MUSICAL have nothing to size, and forget either.
-        let layer = match step {
-            Step::Coarse => Some(Layer::Coarse),
-            Step::Micro => Some(Layer::Micro),
-            Step::Fine | Step::Musical => None,
-        };
         if self
             .navigation
             .is_some_and(|navigation| navigation.layer == Layer::View)
         {
             return;
         }
+        // On a value, the step key is VALUE at its size.
+        if self.on_value {
+            self.navigation = None;
+            self.gesture = Some(Gesture {
+                verb: Verb::Value,
+                key,
+                step,
+                held: true,
+                used_while_held: false,
+                stepped: false,
+            });
+            out.push(Output::Begin { verb: Verb::Value });
+            return;
+        }
+        // COARSE and MICRO with nothing armed move the focus a level up or down; FINE has nothing
+        // to size, and forgets either.
+        let layer = match step {
+            Step::Coarse => Some(Layer::Coarse),
+            Step::Micro => Some(Layer::Micro),
+            Step::Fine => None,
+        };
         self.navigation = layer.map(|layer| Navigation {
             layer,
             key,

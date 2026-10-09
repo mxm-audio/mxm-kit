@@ -84,6 +84,12 @@ pub(crate) fn sheet(keymap: &Keymap) -> Sheet {
         .collect();
     let key = |job| job_key(keymap, job);
     let value = key(Job::Verb(Verb::Value));
+    let sizes = format!(
+        "{} {} {}",
+        key(Job::Step(Step::Coarse)),
+        key(Job::Step(Step::Fine)),
+        key(Job::Step(Step::Micro))
+    );
     let sections = vec![
         (
             "Moving",
@@ -93,12 +99,8 @@ pub(crate) fn sheet(keymap: &Keymap) -> Sheet {
                     "the next parameter that way; ← → along its row",
                 ),
                 (
-                    format!("{} ← ↑ ↓ →", key(Job::Step(Step::Coarse))),
-                    "the next card that way",
-                ),
-                (
                     format!("{} ← ↑ ↓ →", key(Job::View)),
-                    "the bars above the cards, and back",
+                    "the next card that way; up from the top ones, the bars above, and back",
                 ),
                 (
                     key(Job::Action(Action::Open)),
@@ -109,8 +111,12 @@ pub(crate) fn sheet(keymap: &Keymap) -> Sheet {
         (
             "Changing a value",
             vec![
-                (format!("{value} ↑ →"), "up by a step"),
-                (format!("{value} ↓ ←"), "down by a step"),
+                (format!("{sizes} ↑ ↓"), "up or down by that step"),
+                (
+                    format!("{sizes} ← →"),
+                    "to the next round value of that step",
+                ),
+                (format!("{value} ↑ ↓, ← →"), "the same, a fine step"),
                 (key(Job::Action(Action::Delete)), "back to its default"),
                 ("Home / End".into(), "its lowest, its highest"),
             ],
@@ -120,7 +126,7 @@ pub(crate) fn sheet(keymap: &Keymap) -> Sheet {
             vec![
                 (key(Job::Out), "keep it"),
                 (key(Job::Action(Action::Open)), "keep it, open nothing"),
-                (format!("let go of {value}"), "keep it, when it was held"),
+                ("let go".into(), "keep it, when its key was held"),
                 (key(Job::Back), "cancel it, a mouse drag too"),
             ],
         ),
@@ -134,12 +140,6 @@ pub(crate) fn sheet(keymap: &Keymap) -> Sheet {
             "a semitone",
         ),
         (key(Job::Step(Step::Coarse)), "COARSE", "10 %", "an octave"),
-        (
-            key(Job::Step(Step::Musical)),
-            "MUSICAL",
-            "10 %",
-            "an octave",
-        ),
         (key(Job::Step(Step::Micro)), "MICRO", "0.1 %", "a cent"),
     ];
     Sheet {
@@ -269,8 +269,10 @@ mod tests {
         assert_eq!(job_of("E"), Some(""));
         assert_eq!(job_of("V"), Some(""));
         let moving = &sheet.sections[0].1;
-        assert!(moving.iter().any(|(keys, _)| keys == "S ← ↑ ↓ →"));
         assert!(moving.iter().any(|(keys, _)| keys == "C or Shift ← ↑ ↓ →"));
+        let changing = &sheet.sections[1].1;
+        assert!(changing.iter().any(|(keys, _)| keys == "S D F ↑ ↓"));
+        assert!(changing.iter().any(|(keys, _)| keys == "S D F ← →"));
     }
 
     /// F1 opens and closes the sheet, `Escape` closes it, and neither reaches anything else.

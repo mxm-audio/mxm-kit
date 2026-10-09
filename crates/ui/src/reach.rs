@@ -70,14 +70,25 @@ pub enum Edited {
     Cancelled(f64),
 }
 
+/// One keyboard press on a hand-drawn value: its step size, +1 or −1, and whether it snaps.
+///
+/// ↑ ↓ move the value **by** the size; ← → `snap` it **to** the next line of the size that way,
+/// the next round value (newDAWn's owner, 2026-10-09: the musical change on the free arrows).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Change {
+    pub size: Step,
+    pub sign: f64,
+    pub snap: bool,
+}
+
 /// A hand-drawn value widget's keyboard edits, in its own units. Call it every frame with the
-/// widget's id and its value: `step` takes a value, a step size and +1 or −1, and gives the next
-/// value. Returns the value to show, the edit's while one is going on, and what changed now.
+/// widget's id and its value: `step` takes a value and a [`Change`], and gives the next value.
+/// Returns the value to show, the edit's while one is going on, and what changed now.
 pub fn edit(
     ui: &Ui,
     id: Id,
     current: f64,
-    step: impl Fn(f64, Step, f64) -> f64,
+    step: impl Fn(f64, Change) -> f64,
 ) -> (f64, Option<Edited>) {
     let ctx = ui.ctx();
     let node = id.accesskit_id();
@@ -96,8 +107,8 @@ pub fn edit(
     let mut edited = None;
     for event in events {
         match event {
-            EditEvent::Step(size, sign) => {
-                let next = step(value.unwrap_or(current), size, sign);
+            EditEvent::Change(change) => {
+                let next = step(value.unwrap_or(current), change);
                 value = Some(next);
                 edited = Some(Edited::Moving(next));
             }
@@ -170,7 +181,7 @@ struct Takes(Vec<NodeId>);
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum EditEvent {
-    Step(Step, f64),
+    Change(Change),
     Keep,
     Cancel,
 }
@@ -276,11 +287,12 @@ fn ask(ctx: &Context, target: NodeId, action: accesskit::Action) {
     ctx.input_mut(|input| input.events.push(request(target, action)));
 }
 
-/// How many of a value widget's own steps one press makes, for widgets that take no edits.
+/// How many of a value widget's own steps one press makes, for widgets that take no edits; they
+/// can't snap, so ← → step as ↑ ↓ do.
 fn steps(size: Step) -> usize {
     match size {
         Step::Coarse => 10,
-        Step::Fine | Step::Micro | Step::Musical => 1,
+        Step::Fine | Step::Micro => 1,
     }
 }
 
@@ -436,7 +448,12 @@ impl<K: Copy + Eq + Hash> State<K> {
                     Direction::Down | Direction::Left => -1.0,
                 };
                 if self.takes.contains(&cursor.id) {
-                    edit_event(ctx, cursor.id, EditEvent::Step(size, sign));
+                    let change = Change {
+                        size,
+                        sign,
+                        snap: matches!(direction, Direction::Left | Direction::Right),
+                    };
+                    edit_event(ctx, cursor.id, EditEvent::Change(change));
                 } else {
                     let action = if sign > 0.0 {
                         accesskit::Action::Increment
@@ -453,6 +470,22 @@ impl<K: Copy + Eq + Hash> State<K> {
             _ => return false,
         }
         true
+    }
+
+    /// Whether the cursor in `region` is on a value that reads its own edits ([`edit`]), with no
+    /// menu open: one that can snap, so there a step key is VALUE at its size (the host says so
+    /// to the engine, `mxm_keys::Engine::set_on_value`, before each key). Where the cursor is now,
+    /// after this frame's keys before it moved it, so keys read together do what they'd do typed
+    /// slowly. A widget that only takes AccessKit's steps can't snap, and VALUE still edits it.
+    pub fn on_value_in(&self, view: K, region: Region) -> bool {
+        let Some(ctx) = &self.ctx else {
+            return false;
+        };
+        if menu(ctx).is_some() {
+            return false;
+        }
+        self.cursor(ctx, view, region)
+            .is_some_and(|widget| widget.kind == Kind::Value && self.takes.contains(&widget.id))
     }
 
     /// Where the cursor is now, for the outline and the help: in the menu if one is open, or

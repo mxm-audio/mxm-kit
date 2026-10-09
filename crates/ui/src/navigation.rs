@@ -1,8 +1,8 @@
 //! The keyboard cursor: a card, a parameter inside it, and the value.
 //!
 //! It reads the keys through the keyboard language (`navigation/language.rs`): the arrows move
-//! parameter to parameter inside the card, COARSE + arrows card to card, VIEW + arrows to the bars
-//! above the cards, and VALUE + arrows edit the parameter the cursor is on.
+//! parameter to parameter inside the card, VIEW + arrows card to card and up to the bars above the
+//! cards, and a step key + arrows (or VALUE's) edit the parameter the cursor is on.
 //!
 //! # The map is a by-product of drawing, never an authored table
 //!
@@ -57,6 +57,9 @@ pub struct Spot {
     /// Read from the control's own [`Response`], never from where the press landed: a press on a
     /// popup drawn over a knob belongs to the popup, and only the widget can say it was pressed.
     pub pointed: bool,
+    /// A value, which a step key changes without VALUE (newDAWn's owner, 2026-10-09): every
+    /// control [`mark`]s itself as one, and [`mark_unclaimed`]'s remove mark is not.
+    pub value: bool,
 }
 
 /// What the cursor is on.
@@ -89,7 +92,7 @@ pub struct State {
     cell: usize,
     /// VIEW + arrows left the cards for a bar: which, counted from the top.
     bar: Option<usize>,
-    /// A card COARSE + an arrow asked the renderer to show from another page, and the frames left
+    /// A card VIEW + an arrow asked the renderer to show from another page, and the frames left
     /// to wait for it before the cursor stops waiting.
     awaiting: Option<(u64, u8)>,
     /// The cards the app bar draws (`paged_with_bar`): always on screen, never a page.
@@ -100,6 +103,8 @@ pub struct State {
     reach: crate::reach::State<usize>,
     /// F1's sheet of the keys is open (`sheet`).
     sheet: bool,
+    /// What a move after a value edit left for the next frame ([`language::read`]).
+    waiting: language::Waiting,
 }
 
 impl State {
@@ -351,16 +356,16 @@ pub fn aside<R>(ui: &mut Ui, body: impl FnOnce(&mut Ui) -> R) -> R {
 /// on screen.
 pub fn mark(ui: &Ui, response: &Response, rect: Rect) {
     let pointed = response.is_pointer_button_down_on() || response.clicked();
-    register(ui, response.id, rect, pointed);
+    register(ui, response.id, rect, pointed, true);
 }
 
 /// [`mark`], for a control a press must not select: `control::remove_mark`, whose press deletes
 /// the row it sits on, so the cursor would be left on a parameter that is gone.
 pub fn mark_unclaimed(ui: &Ui, id: Id, rect: Rect) {
-    register(ui, id, rect, false);
+    register(ui, id, rect, false, false);
 }
 
-fn register(ui: &Ui, id: Id, rect: Rect, pointed: bool) {
+fn register(ui: &Ui, id: Id, rect: Rect, pointed: bool, value: bool) {
     let (Some(card), Some(key)) = (
         ui.ctx().data(|d| d.get_temp::<u64>(card_id())),
         ui.ctx().data(|d| d.get_temp::<String>(scope_id())),
@@ -396,6 +401,7 @@ fn register(ui: &Ui, id: Id, rect: Rect, pointed: bool) {
             cells: vec![rect],
             pointed,
             pointed_cell: 0,
+            value,
         });
     });
 }
@@ -560,7 +566,65 @@ pub fn run(
         state.moved = true;
     }
 
-    let steps = language::read(ctx, state, back_spent);
+    // **The page changed under the cursor** — a tab chosen from the view bar, or with the mouse —
+    // so its card is not drawn any more: it goes to the first card of the page shown, where it was
+    // last on it. Not while a card asked for is on its way (the owner, 2026-10-07: back from the
+    // tabs the cursor was on nothing, and a card jump started from a card off screen). Before the
+    // keys, so each key moves the cursor from where it is drawn.
+    if state.bar.is_none() {
+        if let Some((card, left)) = state.awaiting {
+            let arrived = cards.iter().any(|(key, _)| *key == card);
+            state.awaiting = (!arrived && left > 0).then_some((card, left - 1));
+        }
+        let home = std::mem::take(&mut state.home);
+        if state.awaiting.is_none()
+            && let Some(card) = state.cursor.card
+            && (!cards.iter().any(|(key, _)| *key == card)
+                || (home && state.bar_cards.contains(&card)))
+            && let Some(first) = order.iter().find(|key| {
+                !state.bar_cards.contains(key) && cards.iter().any(|(visible, _)| visible == *key)
+            })
+        {
+            enter(state, &spots, *first);
+        }
+
+        // A cursor that has never landed starts on the first thing drawn, so the first keystroke
+        // is never spent arriving.
+        if state.cursor.key.is_none() {
+            // On the page's first card rather than a parameter in the app bar, which VIEW reaches
+            // (the owner, 2026-10-07: it started on Output).
+            let first = spots
+                .iter()
+                .find(|spot| !state.bar_cards.contains(&spot.card))
+                .or(spots.first());
+            if let Some(first) = first {
+                state.settle(first);
+                state.moved = true;
+            }
+        }
+    }
+
+    // The keys, one at a time: each one's moves land before the next is read, and the engine hears
+    // before each whether the cursor is on a value.
+    let mut show = None;
+    let on_value = |state: &State| match state.bar {
+        Some(bar) => bars(ctx).get(bar).is_some_and(|&(ui, _)| {
+            state
+                .reach
+                .on_value_in(bar, crate::reach::Region::Inside(ui))
+        }),
+        None => current_spot(state, &spots).is_some_and(|spot| spot.value),
+    };
+    let mut apply = |state: &mut State, step: Step| match step {
+        Step::Card(dir) => {
+            if let Some(wanted) = move_card(state, &spots, order, cards, dir) {
+                show = Some(wanted);
+                state.awaiting = Some((wanted, 4));
+            }
+        }
+        Step::Any(dir) => move_any(state, &spots, dir),
+    };
+    language::read(ctx, state, back_spent, &on_value, &mut apply);
 
     // In a bar, the cards keep their place but give up the keyboard, and the bar's own cursor is
     // outlined over it while the keyboard is in use.
@@ -585,58 +649,6 @@ pub fn run(
             );
         }
         return None;
-    }
-
-    // **The page changed under the cursor** — a tab chosen from the view bar, or with the mouse —
-    // so its card is not drawn any more: it goes to the first card of the page shown, where it was
-    // last on it. Not while a card COARSE asked for is on its way (the owner, 2026-10-07: back from
-    // the tabs the cursor was on nothing, and COARSE + an arrow started from a card off screen).
-    if let Some((card, left)) = state.awaiting {
-        let arrived = cards.iter().any(|(key, _)| *key == card);
-        state.awaiting = (!arrived && left > 0).then_some((card, left - 1));
-    }
-    let home = std::mem::take(&mut state.home);
-    if state.awaiting.is_none()
-        && let Some(card) = state.cursor.card
-        && (!cards.iter().any(|(key, _)| *key == card) || (home && state.bar_cards.contains(&card)))
-        && let Some(first) = order.iter().find(|key| {
-            !state.bar_cards.contains(key) && cards.iter().any(|(visible, _)| visible == *key)
-        })
-    {
-        enter(state, &spots, *first);
-    }
-
-    // A cursor that has never landed starts on the first thing drawn, so the first keystroke is
-    // never spent arriving.
-    if state.cursor.key.is_none() {
-        // On the page's first card rather than a parameter in the app bar, which VIEW reaches (the
-        // owner, 2026-10-07: it started on Output).
-        let first = spots
-            .iter()
-            .find(|spot| !state.bar_cards.contains(&spot.card))
-            .or(spots.first());
-        if let Some(first) = first {
-            state.settle(first);
-            state.moved = true;
-        }
-        if steps.is_empty() {
-            focus(ctx, state, &spots);
-            publish_target(ctx, state);
-            return None;
-        }
-    }
-
-    let mut show = None;
-    for step in steps {
-        match step {
-            Step::Card(dir) => {
-                if let Some(wanted) = move_card(state, &spots, order, cards, dir) {
-                    show = Some(wanted);
-                    state.awaiting = Some((wanted, 4));
-                }
-            }
-            Step::Any(dir) => move_any(state, &spots, dir),
-        }
     }
     focus(ctx, state, &spots);
     publish_target(ctx, state);
@@ -784,7 +796,7 @@ fn enter(state: &mut State, spots: &[Spot], card: u64) {
 }
 
 /// The keyboard language's bare arrow: parameter to parameter **inside the card**, as in a synth
-/// editor; COARSE + an arrow goes card to card. ← → stay on the parameter's row and stop at its
+/// editor; VIEW + an arrow goes card to card. ← → stay on the parameter's row and stop at its
 /// end, ↑ ↓ go to the nearest row that way and the parameter most in line there. (The owner,
 /// 2026-10-07, of the first pilot, whose arrows went to the nearest parameter on any card: "There
 /// is no logic to the order ... sometimes the lr keys jumps up or down to cards.")
@@ -1006,6 +1018,7 @@ mod tests {
     const COARSE: mxm_keys::Job = mxm_keys::Job::Step(mxm_keys::Step::Coarse);
     const OPEN: mxm_keys::Job = mxm_keys::Job::Action(mxm_keys::Action::Open);
     const VIEW: mxm_keys::Job = mxm_keys::Job::View;
+    const OUT: mxm_keys::Job = mxm_keys::Job::Out;
 
     fn spot(card: u64, key: &str, x: f32, y: f32) -> Spot {
         let id = Id::new((card, key));
@@ -1019,6 +1032,7 @@ mod tests {
             cells: vec![rect],
             pointed: false,
             pointed_cell: 0,
+            value: true,
         }
     }
 
@@ -1556,7 +1570,7 @@ mod tests {
                     ..Default::default()
                 },
                 |ui| {
-                    let _ = language::read(ui.ctx(), state, false);
+                    language::read(ui.ctx(), state, false, &|_| false, &mut |_, _| {});
                     left = ui.input(|input| {
                         input.events.iter().any(|event| {
                             matches!(
@@ -1612,7 +1626,7 @@ mod tests {
                     ..Default::default()
                 },
                 |ui| {
-                    let _ = language::read(ui.ctx(), state, false);
+                    language::read(ui.ctx(), state, false, &|_| false, &mut |_, _| {});
                     keys = take_value_keys(ui.ctx());
                 },
             );
@@ -1643,7 +1657,7 @@ mod tests {
     }
 
     /// **The keyboard language's bare arrows keep to the card**, and ← → to the row: at the end
-    /// of either they stop, and COARSE + an arrow goes to the next card.
+    /// of either they stop, and VIEW + an arrow goes to the next card.
     #[test]
     fn under_the_language_the_arrows_keep_to_the_card_and_the_row() {
         let ctx = egui::Context::default();
@@ -1682,7 +1696,7 @@ mod tests {
         );
         frame(&ctx, &mut state, &spots, arrow(Key::ArrowDown));
         assert_eq!(cards(&state), (Some(1), Some("c".into())), "the card ends");
-        // COARSE + right is the next card.
+        // VIEW + right is the next card.
         frame(
             &ctx,
             &mut state,
@@ -1690,14 +1704,14 @@ mod tests {
             egui::RawInput {
                 events: vec![
                     egui::Event::Key {
-                        key: key_of(COARSE),
+                        key: key_of(VIEW),
                         physical_key: None,
                         pressed: true,
                         repeat: false,
                         modifiers: egui::Modifiers::NONE,
                     },
                     egui::Event::Key {
-                        key: key_of(COARSE),
+                        key: key_of(VIEW),
                         physical_key: None,
                         pressed: false,
                         repeat: false,
@@ -1714,11 +1728,11 @@ mod tests {
                 ..Default::default()
             },
         );
-        assert_eq!(state.card(), Some(2), "COARSE + right is the next card");
+        assert_eq!(state.card(), Some(2), "VIEW + right is the next card");
     }
 
     /// **The page changes under the cursor** (a tab chosen, with the keys or the mouse): the
-    /// cursor goes to the first card of the page shown, and COARSE + an arrow starts from there.
+    /// cursor goes to the first card of the page shown, and VIEW + an arrow starts from there.
     #[test]
     fn under_the_language_a_new_page_takes_the_cursor_to_its_first_card() {
         let ctx = egui::Context::default();
@@ -1739,11 +1753,11 @@ mod tests {
         // The second page is shown: the cursor follows it.
         page(&ctx, &mut state, &second_page, egui::RawInput::default());
         assert_eq!((state.card(), state.parameter()), (Some(3), Some("c")));
-        // COARSE + right from there is the next card on this page.
-        let coarse_right = egui::RawInput {
+        // VIEW + right from there is the next card on this page.
+        let view_right = egui::RawInput {
             events: [
-                (key_of(COARSE), true),
-                (key_of(COARSE), false),
+                (key_of(VIEW), true),
+                (key_of(VIEW), false),
                 (Key::ArrowRight, true),
             ]
             .into_iter()
@@ -1757,7 +1771,174 @@ mod tests {
             .collect(),
             ..Default::default()
         };
-        page(&ctx, &mut state, &second_page, coarse_right);
+        page(&ctx, &mut state, &second_page, view_right);
         assert_eq!(state.card(), Some(4));
+    }
+
+    /// **On a value a step key edits, VALUE implied** (newDAWn's owner, 2026-10-09), decided key
+    /// by key: a move onto a value and a step key in one frame edit it, a move off one doesn't.
+    #[test]
+    fn under_the_language_a_step_key_edits_the_value_the_cursor_is_on_then() {
+        let ctx = egui::Context::default();
+        let mut state = State::default();
+        // A knob, and a remove mark (no value) to its right.
+        let mut mark = spot(1, "x", 50.0, 0.0);
+        mark.value = false;
+        let spots = vec![spot(1, "a", 0.0, 0.0), mark];
+        frame(&ctx, &mut state, &spots, egui::RawInput::default());
+        assert_eq!(state.parameter(), Some("a"));
+        let taps = |keys: &[Key]| egui::RawInput {
+            events: keys
+                .iter()
+                .flat_map(|&key| {
+                    [true, false].map(|pressed| egui::Event::Key {
+                        key,
+                        physical_key: None,
+                        pressed,
+                        repeat: false,
+                        modifiers: egui::Modifiers::NONE,
+                    })
+                })
+                .collect(),
+            ..Default::default()
+        };
+        // → onto the mark, then COARSE ↑, in one frame: no value there, nothing to edit.
+        frame(
+            &ctx,
+            &mut state,
+            &spots,
+            taps(&[Key::ArrowRight, key_of(COARSE), Key::ArrowUp]),
+        );
+        assert_eq!(state.parameter(), Some("x"));
+        assert!(take_value_keys(&ctx).presses.is_empty());
+        // ← back onto the knob, then COARSE ↑ and →, kept: a coarse step, then a snap.
+        frame(
+            &ctx,
+            &mut state,
+            &spots,
+            taps(&[
+                Key::ArrowLeft,
+                key_of(COARSE),
+                Key::ArrowUp,
+                Key::ArrowRight,
+                key_of(OUT),
+            ]),
+        );
+        assert_eq!(state.parameter(), Some("a"));
+        let keys = take_value_keys(&ctx);
+        let coarse = |snap| Press {
+            up: true,
+            coarse: true,
+            finer: false,
+            snap,
+        };
+        assert_eq!(keys.presses, [coarse(false), coarse(true)]);
+        assert!(keys.keep);
+    }
+
+    /// A value edit and a move after it, in one frame, edit the parameter the edit was typed on:
+    /// the move waits for the next frame, as it would have typed slowly.
+    #[test]
+    fn a_move_after_a_value_edit_in_one_frame_waits_so_the_edit_stays_on_its_parameter() {
+        let ctx = egui::Context::default();
+        let mut state = State::default();
+        let spots = vec![spot(1, "a", 0.0, 0.0), spot(1, "b", 50.0, 0.0)];
+        frame(&ctx, &mut state, &spots, egui::RawInput::default());
+        assert_eq!(state.parameter(), Some("a"));
+        let taps = |keys: &[Key]| egui::RawInput {
+            events: keys
+                .iter()
+                .flat_map(|&key| {
+                    [true, false].map(|pressed| egui::Event::Key {
+                        key,
+                        physical_key: None,
+                        pressed,
+                        repeat: false,
+                        modifiers: egui::Modifiers::NONE,
+                    })
+                })
+                .collect(),
+            ..Default::default()
+        };
+        frame(
+            &ctx,
+            &mut state,
+            &spots,
+            taps(&[key_of(COARSE), Key::ArrowUp, key_of(OUT), Key::ArrowRight]),
+        );
+        assert_eq!(state.parameter(), Some("a"), "the edit's frame stays on a");
+        let keys = take_value_keys(&ctx);
+        assert_eq!(keys.presses.len(), 1);
+        assert!(keys.keep);
+        frame(&ctx, &mut state, &spots, egui::RawInput::default());
+        assert_eq!(
+            state.parameter(),
+            Some("b"),
+            "the move came the frame after"
+        );
+        assert_eq!(
+            take_value_keys(&ctx),
+            ValueKeys::default(),
+            "b gets no edit"
+        );
+    }
+
+    /// VIEW + an arrow to a card on another page, and a step key in the same frame: the step key
+    /// waits for that page to be drawn, and edits the parameter the cursor lands on there.
+    #[test]
+    fn keys_after_a_move_to_another_page_wait_for_it_and_edit_there() {
+        let ctx = egui::Context::default();
+        let mut state = State::default();
+        let first_page = vec![spot(1, "a", 0.0, 0.0)];
+        let second_page = vec![spot(2, "b", 0.0, 0.0)];
+        let order = [1, 2];
+        let page = |ctx: &egui::Context, state: &mut State, spots: &[Spot], keys: &[Key]| {
+            let input = egui::RawInput {
+                events: keys
+                    .iter()
+                    .flat_map(|&key| {
+                        [true, false].map(|pressed| egui::Event::Key {
+                            key,
+                            physical_key: None,
+                            pressed,
+                            repeat: false,
+                            modifiers: egui::Modifiers::NONE,
+                        })
+                    })
+                    .collect(),
+                ..Default::default()
+            };
+            let mut output = ctx.run_ui(input, |ui| {
+                ui.ctx()
+                    .data_mut(|d| d.insert_temp(last_id(), spots.to_vec()));
+                let _ = run(ui.ctx(), state, &order, &cards(spots), false);
+            });
+            output.textures_delta.clear();
+        };
+        page(&ctx, &mut state, &first_page, &[]);
+        assert_eq!(state.parameter(), Some("a"));
+        page(
+            &ctx,
+            &mut state,
+            &first_page,
+            &[
+                key_of(VIEW),
+                Key::ArrowRight,
+                key_of(COARSE),
+                Key::ArrowUp,
+                key_of(OUT),
+            ],
+        );
+        assert_eq!(state.card(), Some(2));
+        assert_eq!(
+            take_value_keys(&ctx),
+            ValueKeys::default(),
+            "nothing edits a"
+        );
+        page(&ctx, &mut state, &second_page, &[]);
+        assert_eq!(state.parameter(), Some("b"));
+        let keys = take_value_keys(&ctx);
+        assert_eq!(keys.presses.len(), 1, "COARSE ↑ edited b once it was drawn");
+        assert!(keys.keep);
     }
 }

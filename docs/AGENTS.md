@@ -66,9 +66,10 @@ CC 119 addresses categories, not bar positions. Controller-page permanence below
 of GUI navigation; headless fit does not establish native-window or DAW quality.
 
 **§11 is the keyboard language, and it is normative** (every editor's since 2026-10-08, after a
-pilot on mxm-mono-08): arrows select parameters, COARSE + arrows modules/cards, VALUE + arrows edit
-values: FINE (or none) 1 % of the travel or a semitone, COARSE 10 % or an octave, MICRO 0.1 % or a
-cent, snapped to the parameter's grid and never less than one of its steps. Direction follows
+pilot on mxm-mono-08): arrows select parameters, VIEW (Shift) + arrows cards, a step key (or VALUE)
++ arrows edit values: FINE (or none) 1 % of the travel or a semitone, COARSE 10 % or an octave,
+MICRO 0.1 % or a cent, ↑ ↓ by the size and ← → to the next line of it (2026-10-09), snapped to the
+parameter's grid and never less than one of its steps. Direction follows
 painted geometry; paging order bridges page edges; segmented controls are one parameter target; the
 visible target remains authoritative after native widget-focus loss; cardless surfaces relinquish
 the cursor; and an edit is one host gesture until it is kept or cancelled. Cardless

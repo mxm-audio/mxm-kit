@@ -115,7 +115,8 @@ Its centre is *no modulation*, so a half-filled track would read as "half on" wh
 A row's keyboard step is the amount's own (`ErasedParam::stepping`) through `stack`. A plugin
 whose target reads as a pitch passes `stack_with_law` a law per route — `mxm-mono-08`'s pitch
 routes, `StepLaw::Interval` at the same reach its reading multiplies by (owner, 2026-09-23) — and
-the row hands it to the slider as its `NextValue`. Per route, because a reach is a *(target,
+the row hands it to the slider as its `NextValue` (← → snap on the law's lattice, `Press::snap`,
+2026-10-09). Per route, because a reach is a *(target,
 source)* pair's; only the plugin knows it, since the reading is its own formatter. Every other
 instrument keeps `stack` and the owner's earlier exclusion of route amounts from the laws.
 

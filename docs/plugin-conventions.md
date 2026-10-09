@@ -990,14 +990,15 @@ editor hosting tests. Do not invent a CLI protocol for private editor state.
 ## The keyboard cursor runs in every editor, and each one owes it three things
 
 `mxm_ui::navigation` is the keyboard language (design system §11; every editor's since 2026-10-08,
-after a pilot on mxm-mono-08): arrows between the parameters, COARSE + arrows between the
-modules/cards, VALUE + arrows for the value (fine, COARSE coarse, MICRO the finer layer) as one
-gesture that OUT keeps and BACK cancels, DELETE the default, VIEW + arrows the bars. BACK also
+after a pilot on mxm-mono-08): arrows between the parameters, VIEW (Shift) + arrows between
+the cards and up to the bars, a step key (or VALUE) + arrows for the value (FINE fine, COARSE
+coarse, MICRO the finer layer; ↑ ↓ by the size, ← → to the next line of it, 2026-10-09) as one
+gesture that OUT keeps and BACK cancels, DELETE the default. BACK also
 cancels a mouse drag: the shared knobs and sliders put back the value it began at, and an editor's
 own dragged widget does the same by asking `mxm_ui::drag::cancelled` when its drag stops. F1
 shows and hides a sheet of the keys in every editor, from the cursor, with nothing to wire. A
 plugin's own key tests press jobs, not keys: `keyboard_checks::key_of(VALUE)` (and `COARSE`,
-`MICRO`, `OUT`) is the key the default keymap gives the job, so a remap of the default keymap
+`MICRO`, `VIEW`, `OUT`) is the key the default keymap gives the job, so a remap of the default keymap
 changes no plugin's test (the owner, 2026-10-08). `mxm_ui::navigation::running` keeps a *surface* without a cursor — the developer
 Parameters list — on its focused control's own bare-arrow editing.
 
@@ -1046,8 +1047,9 @@ would be wrong the first time any of the three changed.
 **Every editor proves its own coverage**, with one call to
 `mxm_plugin_test::keyboard_checks::the_cursor_reaches_and_operates`, the shared check beside
 `mxm_plugin_test::paging_checks`. It paints the real panel: first that
-the cursor lands, that VALUE + an arrow, kept with OUT, edits it as one balanced host gesture (which
-is also what proves the step law arrived), and that COARSE + an arrow selects a card instead; then
+the cursor lands, that VALUE + an arrow and COARSE + an arrow (VALUE implied), each kept with OUT,
+edit it as one balanced host gesture (which is also what proves the step law arrived), and that
+VIEW + an arrow selects a card instead; then
 that requesting each card in turn, with the editor's `REVEAL` opening whatever it keeps behind a disclosure, registers
 `Coverage::Exactly` the editor's inventory — or `Coverage::Within` it, where some parameters are
 reached only through a card's own picker (mxm-mono-08's routing amounts). **A missed `at` scope is

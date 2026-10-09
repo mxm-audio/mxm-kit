@@ -156,6 +156,11 @@ in plain units and clamped to the range: `Own` (`stepping()` at the start value)
 ±12 from the whole semitone shown), `Cents` (exactly ±1 and ±10, no grid), `Hertz` (×/÷ 2^(1/12) and
 ×/÷ 2), `Interval { octaves_per_unit }` (to the **next** whole semitone or octave) and
 `Voltage { octaves_per_unit, fine }` (coarse to the next whole semitone, fine by exactly `fine`).
+**← → snap** (`Press::snap`, newDAWn's owner, 2026-10-09): every law goes to the next line of the
+size on a fixed lattice, `snap_from` — `Own` 10 %, 1 % and 0.1 % of the travel; `Semitones` 12, 1
+and 0.01 semitones from 0; `Cents` 10, 1 and 0.1 cents; `Hertz` the octave, semitone and cent lines
+of A440; `Interval` its own lattice, already snapping; `Voltage` whole semitones coarse and
+multiples of `fine` and a tenth of it. Never less than one of the parameter's own steps.
 **Declared by the owner per parameter, never guessed.** The plain⇄normalised conversion is nice-plug's
 `ParamPtr::preview_plain`/`preview_normalized`, this crate's only `unsafe`; `normalised_of` clamps
 first. `erased.rs`'s tests pin each law. The laws in full:

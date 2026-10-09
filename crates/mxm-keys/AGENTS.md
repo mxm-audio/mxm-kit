@@ -6,7 +6,7 @@ Parent: [`../../AGENTS.md`](../../AGENTS.md)
 
 The shared keyboard language's engine: physical keys in, finished gestures out, and the plain-text
 keymap that puts its jobs on keys. Navigate with the arrows; then a verb (MOVE, EXTENT, VALUE,
-SELECT, DUPLICATE), optionally a step size (COARSE, FINE, MICRO, MUSICAL), and a direction; held together
+SELECT, DUPLICATE), optionally a step size (COARSE, FINE, MICRO), and a direction; held together
 like the M8, or tapped one key at a time like Blender. Zero dependencies, no egui and MSRV
 **1.87**, so newDAWn, MXM Player and any instrument, open or closed, can take it.
 
@@ -55,6 +55,12 @@ keys from a toolkit, and where a keymap file lives. Those are the host's.
   actions on the bottom; OUT on Tab until a host reads Caps Lock, the study's pick, as a key.
   `notes` and `home-row` stay for comparison. A change to the default changes the study's
   record first.
+- **On a value a step key is VALUE at its size** (newDAWn's owner, 2026-10-09): the host says so
+  before each key (`Engine::set_on_value`), from where its cursor is once the key before is applied,
+  and the step key arms VALUE as a verb's key does, held or tapped; ← → are the value's too, for
+  the host to snap. An older keymap's `musical =` line reads and binds nothing.
+  `on_a_value_a_step_key_is_value_at_its_size` and
+  `a_keymap_written_with_musical_still_reads_and_its_key_is_free` hold it.
 - **The host's keys are not jobs** (newDAWn's owner, 2026-10-08): `panel.<name>` (the names are
   the host's) and note entry's `note.keys`, `note.octave-down`, `note.octave-up` sit in the same
   file, so one file binds every key. A panel key is no job's and no other panel's, so the engine

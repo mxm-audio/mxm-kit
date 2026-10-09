@@ -77,6 +77,10 @@ impl control::NextValue for Bound<'_> {
             } else {
                 fine
             };
+            // ← →: the next line of the grid's step.
+            if press.snap {
+                return control::next_line(normalised, size, press.up).clamp(0.0, 1.0);
+            }
             return (normalised + if press.up { size } else { -size }).clamp(0.0, 1.0);
         }
         self.param.step_from(normalised, press, self.law)
@@ -1149,7 +1153,12 @@ mod tests {
             .stepped(note, 12.0 * note)
             .law(StepLaw::Semitones);
         let from = 60.0 * note;
-        let press = |up, coarse, finer| Press { up, coarse, finer };
+        let press = |up, coarse, finer| Press {
+            up,
+            coarse,
+            finer,
+            snap: false,
+        };
         for (press, wanted) in [
             (press(true, false, false), 61.0),
             (press(false, true, false), 48.0),

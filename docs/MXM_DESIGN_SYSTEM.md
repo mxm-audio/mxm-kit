@@ -887,17 +887,19 @@ Theme quality is judged by hierarchy, not by whether all colors were mathematica
 Keyboard behavior is **the keyboard language** (newDAWn's `docs/keyboard.md`; the owner decided
 on 2026-10-07 that the editors convert to it, keys first in newDAWn and the collection; piloted on
 mxm-mono-08 and rolled out to every editor on 2026-10-08). Its engine is `mxm-keys`, and the keys
-named below are the default keymap's: A is VALUE, S COARSE, D FINE, F MICRO, R MUSICAL, C VIEW and
-Tab OUT. The keys of a combination can be held together or pressed one after another.
+named below are the default keymap's: A is VALUE, S COARSE, D FINE, F MICRO, C VIEW (and Shift)
+and Tab OUT. The keys of a combination can be held together or pressed one after another. On a
+parameter a step key alone edits it, VALUE implied, and ← → go to the next round value of the
+size (newDAWn's owner, 2026-10-09: "sdf value left right should change in musical steps").
 
 | Key | Behavior |
 |---|---|
 | arrows | Move the cursor to the next parameter that way inside the card (← → along its row, stopping at either end), and onto each cell of a segmented control |
-| COARSE + arrows | Move the cursor from module/card to module/card |
-| VIEW + arrows | Move between the cards and the bars above them (the view bar, then the app bar), never out of the window, which is the window manager's |
-| VALUE + arrows | Adjust the selected parameter — **fine**: 1 % of its travel, or a semitone |
-| VALUE + COARSE (or MUSICAL) + arrows | Adjust the selected parameter — **coarse**: 10 %, or an octave |
-| VALUE + MICRO + arrows | Adjust the selected parameter — **finer**: 0.1 %, or a cent |
+| VIEW + arrows (Shift + arrows) | Move the cursor from card to card; ↑ from the top cards to the bars above them (the view bar, then the app bar) and back, never out of the window, which is the window manager's |
+| FINE (or VALUE) + ↑ ↓ | Adjust the selected parameter — **fine**: 1 % of its travel, or a semitone |
+| COARSE + ↑ ↓ | Adjust the selected parameter — **coarse**: 10 %, or an octave |
+| MICRO + ↑ ↓ | Adjust the selected parameter — **finer**: 0.1 %, or a cent |
+| a step key + ← → | Take the selected parameter to the next line of that size: the next 10 %, 1 % or 0.1 % of its travel, or the next whole octave, semitone or cent |
 | OUT | Keep the edit, as one host gesture, and stay on the parameter |
 | BACK (`Escape`) | Cancel the edit back to where it began, a mouse drag included, or close transient UI |
 | DELETE | Return the selected parameter to its default |
@@ -915,8 +917,10 @@ How far one press moves is a share of the control's **travel** — 10 %, 1 % and
 onto the parameter's own grid, so a skewed range keeps its skew: a press near 20 Hz moves a few
 hertz and one near 20 kHz moves hundreds. **A pitch moves musically**: an octave, a semitone and a
 cent (owner: *"octave, semitone, cent is the range"*), to the next whole one in the direction
-pressed. **A press never moves less than one of the parameter's own steps**: on an option list or a
-whole-semitone tune, every size reaches the adjacent value.
+pressed. ← → **snap**: to the next line of the size, from the travel's start or, on a pitch, on the
+whole octaves, semitones and cents (in hertz, those of A440). **A press never moves less than one of
+the parameter's own steps**: on an option list or a whole-semitone tune, every size reaches the
+adjacent value, and ← → on an option list are the previous and the next option.
 
 **Every editor in the collection runs the cursor**, so this table is the mapping, not one of two.
 Only where there is no cursor to run — a cardless developer surface — does a focused control edit

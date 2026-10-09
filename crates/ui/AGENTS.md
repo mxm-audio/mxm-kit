@@ -122,9 +122,12 @@ Does **not** own labels, parameter bindings, or data. Plugins and the player sup
   convert to it, keys first in newDAWn and the collection): nothing registers; a painted control
   names itself or stays out; a value in its own units reads `reach::edit`; menus `reach::context_menu`.
 - **The cursor reads the keyboard language** (`navigation/language.rs`, design system §11; piloted on
-  mxm-mono-08, rolled out 2026-10-08): arrows parameter to parameter, COARSE + arrows card to card,
-  VALUE + arrows the value (fine, COARSE coarse, MICRO the finer layer), one gesture OUT keeps and
-  BACK cancels, DELETE the default, VIEW + arrows the bars. BACK alone never reveals the cursor
+  mxm-mono-08, rolled out 2026-10-08): arrows parameter to parameter, VIEW + arrows card to card
+  and up to the bars, a step key (or VALUE) + arrows the value (fine, COARSE coarse, MICRO the finer
+  layer; ↑ ↓ by it, ← → to the next line of it, `Press::snap`), one gesture OUT keeps and BACK
+  cancels, DELETE the default (2026-10-09). The keys go to the engine one at a time, the engine told
+  before each whether the cursor is on a value (`Spot::value`, `reach::State::on_value_in`), so
+  keys read together do what they'd do typed slowly. BACK alone never reveals the cursor
   (`escape_is_not_a_reveal`). As newDAWn (the owner, 2026-10-08): **BACK cancels a mouse drag**,
   the control putting back where it began (`drag`; an editor's own widget asks `drag::cancelled`),
   and **F1 shows the keys** from the keymap in use, an editor's jobs only (`navigation/sheet.rs`).

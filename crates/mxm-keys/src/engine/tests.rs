@@ -9,7 +9,7 @@
 //! read everything with `take_all`.
 //!
 //! ```text
-//! Z MUSICAL   X COARSE    C FINE    V MICRO
+//! Z .         X COARSE    C FINE    V MICRO
 //! ```
 
 use super::*;
@@ -121,7 +121,7 @@ fn coarse_nav(direction: Direction) -> Output {
     }
 }
 
-use crate::keymap::Step::{Coarse, Fine, Micro, Musical};
+use crate::keymap::Step::{Coarse, Fine, Micro};
 use crate::keymap::Verb::{Duplicate, Extent, Move, Select, Value};
 use Key::{Escape, Tab};
 
@@ -276,13 +276,13 @@ fn an_action_finishes_the_gesture_then_does_its_job() {
 
 #[test]
 fn the_quick_gesture_in_sequence() {
-    // keyboard.md: DUPLICATE, MUSICAL, ↑, FINE, →, OUT, six taps, one key down at a time.
+    // keyboard.md: DUPLICATE, COARSE, ↑, FINE, →, OUT, six taps, one key down at a time.
     let mut board = Board::new();
-    board.tap(&[Key::D, Key::Z, Key::Up, Key::C, Key::Right, Tab]);
+    board.tap(&[Key::D, Key::X, Key::Up, Key::C, Key::Right, Tab]);
     assert_eq!(
         board.take(),
         [
-            step(Duplicate, Musical, Up),
+            step(Duplicate, Coarse, Up),
             step(Duplicate, Fine, Right),
             Output::Finish
         ]
@@ -422,9 +422,9 @@ fn back_or_out_forgets_a_tapped_coarse() {
 #[test]
 fn the_other_steps_alone_do_nothing() {
     let mut board = Board::new();
-    board.tap(&[Key::C, Key::Z, Key::Left]);
+    board.tap(&[Key::C, Key::Left]);
     assert_eq!(board.take(), [nav(Left)]);
-    // FINE or MUSICAL forgets a tapped MICRO.
+    // FINE forgets a tapped MICRO.
     board.tap(&[Key::V, Key::C, Key::Left]);
     assert_eq!(board.take(), [nav(Left)]);
 }
@@ -736,5 +736,63 @@ fn there_is_no_timeout_unless_one_is_set() {
             verb: Move,
             step: Fine
         }
+    );
+}
+
+#[test]
+fn on_a_value_a_step_key_is_value_at_its_size() {
+    let mut board = Board::new();
+    board.engine.set_on_value(true);
+    // Held: COARSE down, ↑ ↑, up; the gesture ends as a held verb's does.
+    board.press(Key::X).tap(&[Key::Up, Key::Up]).release(Key::X);
+    assert_eq!(
+        board.take_all(),
+        [
+            Output::Begin { verb: Value },
+            step(Value, Coarse, Up),
+            step(Value, Coarse, Up),
+            Output::Finish
+        ]
+    );
+    // Tapped: MICRO, ←, OUT keeps; ← → are the value's too, for the host to snap.
+    board.tap(&[Key::V, Key::Left, Tab]);
+    assert_eq!(
+        board.take_all(),
+        [
+            Output::Begin { verb: Value },
+            step(Value, Micro, Left),
+            Output::Finish
+        ]
+    );
+    // Tapped again, the step key finishes it, as a verb's does; BACK cancels.
+    board.tap(&[Key::C, Key::Up, Key::C]);
+    assert_eq!(board.take(), [step(Value, Fine, Up), Output::Finish]);
+    board.tap(&[Key::C, Key::Down, Escape]);
+    assert_eq!(board.take(), [step(Value, Fine, Down), Output::Cancel]);
+    // Another step key changes the size, the gesture going on.
+    board.tap(&[Key::C, Key::Up, Key::X, Key::Up, Tab]);
+    assert_eq!(
+        board.take(),
+        [
+            step(Value, Fine, Up),
+            step(Value, Coarse, Up),
+            Output::Finish
+        ]
+    );
+}
+
+#[test]
+fn off_a_value_the_step_keys_move_as_before() {
+    let mut board = Board::new();
+    board.engine.set_on_value(true);
+    board.engine.set_on_value(false);
+    board.tap(&[Key::X, Key::Right, Key::V, Key::Left, Key::C, Key::Up]);
+    assert_eq!(
+        board.take_all(),
+        [
+            coarse_nav(Right),
+            Output::Within { direction: Left },
+            nav(Up)
+        ]
     );
 }

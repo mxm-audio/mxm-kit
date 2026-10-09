@@ -664,8 +664,8 @@ border.
 
 `navigation` is the keyboard cursor every editor runs: a card, a parameter inside it, and that
 parameter's value. It reads the keys through the keyboard language ([§ The keyboard
-language](#the-keyboard-language)): the arrows move parameter to parameter inside the card, COARSE +
-arrows card to card, and VALUE + arrows edit the value.
+language](#the-keyboard-language)): the arrows move parameter to parameter inside the card, VIEW +
+arrows card to card, and a step key (or VALUE) + arrows edit the value.
 
 - **The parameter-to-card map is a by-product of painting.** A control calls `navigation::mark` as
   it draws, inside a `navigation::card` scope the paging renderer opens and a `navigation::at`
@@ -726,9 +726,10 @@ arrows card to card, and VALUE + arrows edit the value.
   which is built from the popups drawn so far in this pass, and `run` runs before anything is drawn.
 - **MICRO is the finer layer** (the owner, 2026-09-24: *"Some of the sliders are getting small, so
   it is important that there are enough fine control with the arrows"*). VALUE + an arrow is the
-  fine step (1 % of the travel), with COARSE (or MUSICAL) the coarse one (10 %) and with MICRO the
-  finer (0.1 %); a pitch's law makes those a semitone, an octave and a cent. The arrow gives only
-  the direction; `Press` carries the size, `Press::finer` for MICRO. A segmented control, a toggle
+  fine step (1 % of the travel), with COARSE the coarse one (10 %) and with MICRO the finer
+  (0.1 %); a pitch's law makes those a semitone, an octave and a cent. ↑ ↓ move by the size and
+  ← → to the next line of it (`Press::snap`, 2026-10-09); `Press` carries the size,
+  `Press::finer` for MICRO. A segmented control, a toggle
   and a selector move one option for every size, because an option list has nothing finer or
   coarser than the adjacent option. `micro_is_the_finer_layer` holds it.
 - **How far a press moves is the parameter's, not this crate's.** `control::Steps` carries four
@@ -830,9 +831,17 @@ out.
 arrow goes to the next parameter inside the card (`Step::Any`; ← → only along the row), and to each
 cell of a segmented control, which takes egui's focus so OPEN (Enter, left in egui's queue) chooses
 it (the owner, 2026-10-07: the first pilot's arrows crossed cards and rows, and stepping across a
-control's buttons "fits what I see on the screen"), COARSE + an arrow moves card to card, VIEW + an
-arrow moves between the cards and the bars `navigation::bar` recorded (the view bar, then the app
-bar), where `reach` walks their widgets. VALUE's presses, OUT's keep, BACK's cancel and DELETE's
+control's buttons "fits what I see on the screen"), VIEW + an arrow moves card to card (the owner,
+2026-10-09: "Shift + arrows goes to the next card"), and ↑ from the top cards between the cards and
+the bars `navigation::bar` recorded (the view bar, then the app bar), where `reach` walks their
+widgets. Each key goes to the engine on its own, the engine told first whether the cursor's spot is
+a value (`Spot::value`: every `mark`ed control, not `mark_unclaimed`'s remove mark), and its moves
+land before the next key is read. The value keys, though, reach a control only as it is drawn,
+after every key of the frame is read, so a move after a value edit in the same frame waits for the
+next frame, with every key after it (`language::Waiting`; their events go back to the front of
+egui's queue then): otherwise the edit would land on the parameter the move reached (Pi's code
+review, 2026-10-09). `a_move_after_a_value_edit_in_one_frame_waits_so_the_edit_stays_on_its_parameter`
+holds it. VALUE's presses, OUT's keep, BACK's cancel and DELETE's
 reset are published as `ValueKeys` for the one control the cursor is on, which takes them in
 `control::language_edit` (or `segmented_keyboard`, one cell a press): one host gesture until it is
 kept or cancelled, chaining each press from where the last one landed. Enter, Escape, Home, End and

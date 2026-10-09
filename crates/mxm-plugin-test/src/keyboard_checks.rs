@@ -131,6 +131,7 @@ pub const VALUE: Job = Job::Verb(mxm_keys::Verb::Value);
 pub const COARSE: Job = Job::Step(mxm_keys::Step::Coarse);
 pub const MICRO: Job = Job::Step(mxm_keys::Step::Micro);
 pub const OUT: Job = Job::Out;
+pub const VIEW: Job = Job::View;
 
 /// The key the default keymap gives a job. Tests press jobs, not keys, so a remap of the default
 /// keymap changes no plugin's test.
@@ -171,9 +172,10 @@ pub enum Coverage<'a> {
 /// Two properties, one call, because they fail for the same reason and an editor that declares
 /// them separately mostly declares the same eight lines of setup twice:
 ///
-/// 1. **It operates.** The cursor lands without being aimed, VALUE + an arrow, kept with OUT,
-///    edits the parameter it landed on as one balanced host gesture, and COARSE + an arrow
-///    selects a card instead of editing. The edit is also what proves the binding filled
+/// 1. **It operates.** The cursor lands without being aimed; VALUE + an arrow, kept with OUT,
+///    edits the parameter it landed on as one balanced host gesture, and so does COARSE + an
+///    arrow, VALUE implied on a value (2026-10-09); VIEW + an arrow selects a card instead of
+///    editing. The edit is also what proves the binding filled
 ///    `ParamView::stepping`: a control left with no step law moves by nothing and the host sees
 ///    no set.
 /// 2. **It reaches everything.** Each card is requested in turn — so a parameter on a page this
@@ -245,30 +247,42 @@ fn operates(
     }
 
     // The keyboard language (every editor's since 2026-10-08): the edit is VALUE + an arrow kept
-    // with OUT, and the card step is COARSE + an arrow.
+    // with OUT, or a step key + an arrow on a value (2026-10-09), and the card step is VIEW + an
+    // arrow. Both edits go up from the same value: the `Recorder` counts sets and applies none, so
+    // a parameter at its minimum has no room down.
     let none = egui::Modifiers::NONE;
     let taps = |keys: &[egui::Key]| -> Vec<egui::Event> {
         keys.iter().flat_map(|&k| press(k, none)).collect()
     };
-    let (edit, card, edit_name, card_name) = (
-        taps(&[key_of(VALUE), egui::Key::ArrowUp, key_of(OUT)]),
-        taps(&[key_of(COARSE), egui::Key::ArrowRight]),
-        "VALUE + an arrow",
-        "COARSE + an arrow",
+    let edits = [
+        (
+            taps(&[key_of(VALUE), egui::Key::ArrowUp, key_of(OUT)]),
+            "VALUE + an arrow",
+        ),
+        (
+            taps(&[key_of(COARSE), egui::Key::ArrowUp, key_of(OUT)]),
+            "COARSE + an arrow, with no VALUE",
+        ),
+    ];
+    let (card, card_name) = (
+        taps(&[key_of(VIEW), egui::Key::ArrowRight]),
+        "VIEW + an arrow",
     );
 
-    let (begins, sets, ends) = (host.begins(), host.sets(), host.ends());
-    session.frame(panel, edit);
-    session.frame(panel, Vec::new());
-    assert!(
-        host.sets() > sets,
-        "{edit_name} on the landed cursor set nothing"
-    );
-    assert_eq!(
-        host.begins() - begins,
-        host.ends() - ends,
-        "{edit_name} left an unbalanced host gesture"
-    );
+    for (edit, edit_name) in edits {
+        let (begins, sets, ends) = (host.begins(), host.sets(), host.ends());
+        session.frame(panel, edit);
+        session.frame(panel, Vec::new());
+        assert!(
+            host.sets() > sets,
+            "{edit_name} on the landed cursor set nothing"
+        );
+        assert_eq!(
+            host.begins() - begins,
+            host.ends() - ends,
+            "{edit_name} left an unbalanced host gesture"
+        );
+    }
 
     let sets = host.sets();
     session.frame(panel, card);

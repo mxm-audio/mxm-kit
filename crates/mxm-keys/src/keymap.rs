@@ -52,7 +52,9 @@ pub enum Verb {
     Duplicate,
 }
 
-/// How far one arrow press goes in a gesture.
+/// How far one arrow press goes in a gesture. On a value, ↑ ↓ move it by the size and ← → to the
+/// next line of it, the next round value (newDAWn's owner, 2026-10-09: the musical change on the
+/// free arrows).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Step {
     /// Large. Without a verb, the arrows go one structural level up instead.
@@ -61,8 +63,6 @@ pub enum Step {
     Fine,
     /// Tiny.
     Micro,
-    /// The next meaningful value instead of a number.
-    Musical,
 }
 
 /// A job done at once, on the focused item.
@@ -95,7 +95,7 @@ pub enum Job {
 
 impl Job {
     /// Every job, in the order a keymap file lists them.
-    pub const ALL: [Job; 17] = [
+    pub const ALL: [Job; 16] = [
         Job::Verb(Verb::Move),
         Job::Verb(Verb::Extent),
         Job::Verb(Verb::Value),
@@ -104,7 +104,6 @@ impl Job {
         Job::Step(Step::Coarse),
         Job::Step(Step::Fine),
         Job::Step(Step::Micro),
-        Job::Step(Step::Musical),
         Job::Action(Action::Add),
         Job::Action(Action::Remove),
         Job::Action(Action::Delete),
@@ -126,7 +125,6 @@ impl Job {
             Job::Step(Step::Coarse) => "coarse",
             Job::Step(Step::Fine) => "fine",
             Job::Step(Step::Micro) => "micro",
-            Job::Step(Step::Musical) => "musical",
             Job::Action(Action::Add) => "add",
             Job::Action(Action::Remove) => "remove",
             Job::Action(Action::Delete) => "delete",
@@ -262,6 +260,11 @@ impl Keymap {
                 continue;
             }
             let name = name.to_ascii_lowercase();
+            // MUSICAL left the language (2026-10-09): a keymap written before still reads, and its
+            // line binds nothing, so its key is free.
+            if name == "musical" {
+                continue;
+            }
             if name.starts_with("panel.") || name.starts_with("note.") {
                 if let Some(&(_, first)) = hosts.iter().find(|(bound, _)| *bound == name) {
                     return Err(error(format!("{name} is already bound, on line {first}")));
@@ -513,6 +516,19 @@ mod tests {
     }
 
     #[test]
+    fn a_keymap_written_with_musical_still_reads_and_its_key_is_free() {
+        let keymap = Keymap::parse(
+            "move = E
+musical = R
+coarse = S
+",
+        )
+        .expect("it reads");
+        assert_eq!(keymap.job(Key::R), None);
+        assert_eq!(keymap.job(Key::S), Some(Job::Step(Step::Coarse)));
+    }
+
+    #[test]
     fn every_job_name_reads_back() {
         for job in Job::ALL {
             assert_eq!(Job::from_name(job.name()), Some(job));
@@ -525,7 +541,7 @@ mod tests {
         assert_eq!(SHIPPED[0].0, DEFAULT);
         assert_eq!(keymap.job(Key::E), Some(Job::Verb(Verb::Move)));
         assert_eq!(keymap.job(Key::S), Some(Job::Step(Step::Coarse)));
-        assert_eq!(keymap.job(Key::R), Some(Job::Step(Step::Musical)));
+        assert_eq!(keymap.job(Key::R), None, "MUSICAL left the language");
         assert_eq!(keymap.job(Key::A), Some(Job::Verb(Verb::Value)));
         assert_eq!(keymap.job(Key::W), Some(Job::Verb(Verb::Duplicate)));
         assert_eq!(keymap.job(Key::X), Some(Job::Verb(Verb::Extent)));
