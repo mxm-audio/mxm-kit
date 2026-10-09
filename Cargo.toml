@@ -14,6 +14,7 @@ members = [
     "crates/mxm-measure",
     "crates/mxm-plugin-test",
     "crates/mxm-xtask",
+    "crates/mxm-vst3-host",
 ]
 
 [workspace.package]
@@ -44,6 +45,7 @@ mxm-audio-file-decode = { path = "crates/mxm-audio-file-decode" }
 mxm-measure = { path = "crates/mxm-measure" }
 mxm-plugin-test = { path = "crates/mxm-plugin-test" }
 mxm-xtask = { path = "crates/mxm-xtask" }
+mxm-vst3-host = { path = "crates/mxm-vst3-host" }
 
 [profile.release]
 lto = "thin"

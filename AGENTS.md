@@ -35,7 +35,7 @@ fixes in its `PATCHES.md` — which every repository that builds a plugin patche
 ## The crates
 
 The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.md#the-crate-rules-in-full).
-**Eleven crate rules, deliberately different** — count the bullets before editing this number:
+**Twelve crate rules, deliberately different** — count the bullets before editing this number:
 
 - `crates/ui` is **shared from day one**: design system §13 exempts the shell, theme tokens,
   typography and basic parameter controls; anything *beyond* them waits for two instruments.
@@ -72,6 +72,10 @@ The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.
   what a gesture changes. Every editor's cursor reads it since 2026-10-08 (the owner decided on
   2026-10-07 that the editors convert, keys first in newDAWn and the collection; `mxm_ui::reach` is
   the first shared part). Zero dependencies and MSRV 1.87.
+- `crates/mxm-vst3-host` is **VST3 hosting for the CLAP hosts**, an owner-approved exception to
+  evidence-first extraction (2026-10-09: "We need VST3 support ourselves in the player and daw"): a
+  `.vst3` module offered as an in-process CLAP plugin entry, so MXM Player and newDAWn host VST3
+  through the CLAP code they have. It knows CLAP and VST3, never what a host does with a plugin.
 
 # Local Contracts
 
@@ -125,6 +129,7 @@ cargo +1.87.0 build -p <crate>          # and `test`, which is the harder floor
 | `crates/mxm-audio-file-decode` | **1.87** | symphonia declares 1.85. **Verified on 1.87**, library, unit and fixture tests |
 | `crates/ui` | **1.95** | egui |
 | `crates/mxm-preset` | **1.95** | egui, for the app-bar controls; the format and the library alone would stand at 1.87 |
+| `crates/mxm-vst3-host` | **1.95** | Inherited, not lowered: its two consumers, MXM Player and newDAWn, are at the GUI floor |
 
 ## Licensing
 
@@ -201,4 +206,5 @@ their own shipped packages.
 | [`crates/mxm-audio-file-decode/AGENTS.md`](crates/mxm-audio-file-decode/AGENTS.md) | Reading audio through symphonia (MPL-2.0): the formats it reads, a second crate rather than a feature, the compiled-in notice, Great-or-Excellent components only, what is bounded and what is not, what is refused and how skipped audio is found, per-file gapless reporting, and fixtures that are our own work |
 | [`crates/ui/AGENTS.md`](crates/ui/AGENTS.md) | The shared interface foundation and its design-system contract |
 | [`crates/mxm-preset/AGENTS.md`](crates/mxm-preset/AGENTS.md) | Shared preset format, library, browser, identity, authored-model Init and durable-content transaction |
+| [`crates/mxm-vst3-host/AGENTS.md`](crates/mxm-vst3-host/AGENTS.md) | VST3 plugins in a CLAP host: a module as an in-process CLAP entry, the CLAP-to-VST3 mapping, threads and the fixed-size block lists, embedded and floating editors, Linux's run loop, and the checks against installed plugins |
 | [`docs/AGENTS.md`](docs/AGENTS.md) | The normative design system and control map, the plugin conventions, the measured `mxm-measure` page, and the filter, oscillator and modulation theory |

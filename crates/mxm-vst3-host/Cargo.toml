@@ -1,0 +1,66 @@
+[package]
+name = "mxm-vst3-host"
+description = "VST3 plugins in a CLAP host: a .vst3 module, offered as an in-process CLAP plugin entry"
+version.workspace = true
+edition.workspace = true
+# Inherited, not lowered: its two consumers, MXM Player and newDAWn, are at the GUI floor.
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+# The VST3 API, generated from Steinberg's headers (MIT OR Apache-2.0, like the SDK since 3.8).
+vst3 = "=0.3.0"
+# The CLAP side: a VST3 module is offered to the host as a clack plugin entry, which clack-host
+# loads in-process (`PluginEntry::load_from_clack`). The same versions MXM Player and newDAWn pin.
+clack-plugin = "=0.1.1"
+clack-extensions = { version = "=0.1.1", default-features = false, features = [
+    "clack-plugin",
+    "audio-ports", "note-ports", "params", "state", "latency", "tail", "render", "gui",
+    # A plugin's editor on Linux runs on the host's main loop: its timers and file descriptors.
+    "timer", "posix-fd",
+] }
+# Single-producer queues between the editor's thread and the audio thread. MXM Player's version.
+rtrb = "=0.3.5"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+libloading = "=0.8.9"
+# A floating editor's window. The version the player's and newDAWn's trees already resolve.
+windows-sys = { version = "=0.61.2", features = [
+    "Win32_Foundation", "Win32_Graphics_Gdi", "Win32_System_LibraryLoader",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# A floating editor's window. objc2 is the one caret requirement here: MXM Player locks 0.6.4 and
+# newDAWn 0.6.5, and an exact pin would refuse one of them.
+objc2 = "0.6.4"
+objc2-foundation = { version = "=0.3.2", default-features = false, features = [
+    "std", "NSGeometry", "NSNotification", "NSObject", "NSString",
+] }
+objc2-app-kit = { version = "=0.3.2", default-features = false, features = [
+    "std", "NSResponder", "NSView", "NSWindow", "NSGraphics",
+] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+# A module's library is opened with RTLD_NODELETE: see `module.rs`.
+libloading = "=0.8.9"
+# poll(2), for a plugin's file descriptors when the host offers no CLAP posix-fd support. A caret
+# requirement: MXM Player locks 0.2.189 and newDAWn 0.2.190.
+libc = "0.2.189"
+# A floating editor's window. The version both trees already resolve.
+x11rb = { version = "=0.13.2", default-features = false, features = ["allow-unsafe-code"] }
+
+[dev-dependencies]
+clack-host = { version = "=0.1.1", features = ["clack-plugin"] }
+clack-extensions = { version = "=0.1.1", default-features = false, features = [
+    "clack-host", "audio-ports", "note-ports", "params", "state", "latency", "tail", "gui",
+] }
+
+# `examples/vst3_editor.rs`: a parent window for an embedded editor, and the capture.
+[target.'cfg(target_os = "windows")'.dev-dependencies]
+windows-sys = { version = "=0.61.2", features = [
+    "Win32_Foundation", "Win32_Graphics_Gdi", "Win32_Storage_Xps", "Win32_System_LibraryLoader",
+    "Win32_UI_WindowsAndMessaging",
+] }
