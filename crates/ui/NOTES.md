@@ -118,6 +118,13 @@ eats the first few pixels of a press before calling it a drag and a hard-coded t
 break the next time egui tuned it. What must hold is that the lag costs nothing. A slider needs
 none of this — it is positional, so it reads the pointer, not the parameter.
 
+**And the knob is drawn from the anchor on every frame of the drag**, the still ones too. A frame
+with no pointer movement — a timed repaint, a meter's — used to draw the readback, which the host
+had not caught up with, so the knob flicked back to where the host last applied it and forward
+again on the next movement (the owner, 2026-10-09, of `mxm-fx-oldify` in MXM Player: "the buttons
+dont turn very smoothly. The are jittery"). `a_still_frame_mid_drag_draws_the_drag_not_the_readback`
+holds it with half the frames still and a host applying every seventh.
+
 ### Nothing changes size under the pointer
 
 Every control allocates geometry from its `Size` tier **before** reading hover, focus or drag state;

@@ -43,7 +43,8 @@ Does **not** own labels, parameter bindings, or data. Plugins and the player sup
   on the selected cell still fires, double-click resets to `default_cell`, and a selection one past
   the last cell is *nothing selected*.
 - **A knob is relational, a slider positional; `Shift` refines both.** A knob's drag accumulates
-  against `DragAnchor`, never against readback (CLAP delivery is asynchronous).
+  against `DragAnchor`, never against readback (CLAP delivery is asynchronous), and is drawn from
+  it on every frame of the drag, still frames included.
 - **Nothing changes size under the pointer**: geometry comes from the `Size` tier before hover,
   focus or drag is read; interaction changes only color and stroke width. **Reserve the space,
   paint the state** — `mark_slot` always reserves `SPACE_2`.

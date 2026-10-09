@@ -3110,25 +3110,28 @@ fn drag_edit(
         // Up increases, wherever the pointer is. A knob has no track to point at, so it is
         // relational by nature, and vertical is the direction knobs have used for forty years.
         let delta = -response.drag_delta().y;
+        // **From the anchor, not from the value on screen.** See `DragAnchor` for what that
+        // costs when it is wrong.
+        let mut anchor = ui
+            .data_mut(|d| d.get_temp::<DragAnchor>(anchor_id(response)))
+            .unwrap_or(DragAnchor {
+                start: *normalised,
+                travelled: 0.0,
+            });
         if delta != 0.0 {
             let travel = if ui.input(|i| i.modifiers.shift) {
                 DRAG_TRAVEL as f64 * FINE_FACTOR
             } else {
                 DRAG_TRAVEL as f64
             };
-            // **From the anchor, not from the value on screen.** See `DragAnchor` for what that
-            // costs when it is wrong.
-            let mut anchor = ui
-                .data_mut(|d| d.get_temp::<DragAnchor>(anchor_id(response)))
-                .unwrap_or(DragAnchor {
-                    start: *normalised,
-                    travelled: 0.0,
-                });
             anchor.travelled += f64::from(delta) / travel;
-            *normalised = (anchor.start + anchor.travelled).clamp(0.0, 1.0);
             ui.data_mut(|d| d.insert_temp(anchor_id(response), anchor));
             outcome.changed = true;
         }
+        // **Drawn from the anchor on every frame of the drag**, the still ones too: a frame with
+        // no pointer movement (a timed repaint, a meter) would otherwise draw the readback, which
+        // the host has not caught up with, and the knob flicks back and forth while it turns.
+        *normalised = (anchor.start + anchor.travelled).clamp(0.0, 1.0);
     }
 
     if response.drag_stopped() {
@@ -4758,6 +4761,91 @@ mod tests {
                 (lagged - instant).abs() < 1e-6,
                 "applied every {apply_every} frames the drag reached {lagged}, and applied at \
                  once it reached {instant}"
+            );
+        }
+    }
+
+    /// **A knob dragged upwards never draws itself turning back**, though the host applies late and
+    /// half the frames carry no pointer movement (a timed repaint, a meter): a still frame draws
+    /// the drag, not the readback the host has not caught up with. Reported against
+    /// `mxm-fx-oldify` in MXM Player (the owner, 2026-10-09: "the buttons dont turn very smoothly.
+    /// The are jittery").
+    ///
+    /// Falsified by drawing the readback on a frame whose pointer did not move: the still frames
+    /// then fall back to the last applied value.
+    #[test]
+    fn a_still_frame_mid_drag_draws_the_drag_not_the_readback() {
+        let ctx = egui::Context::default();
+        let mut applied = 0.5_f64;
+        let mut requested: Option<f64> = None;
+        let mut pointer = egui::pos2(32.0, 66.0);
+        let mut drawn = Vec::new();
+        for frame in 0..40 {
+            let mut events = Vec::new();
+            match frame {
+                0 => events.push(egui::Event::PointerMoved(pointer)),
+                1 => events.push(egui::Event::PointerButton {
+                    pos: pointer,
+                    button: egui::PointerButton::Primary,
+                    pressed: true,
+                    modifiers: egui::Modifiers::default(),
+                }),
+                // Every other frame moves; the rest are still.
+                _ if frame % 2 == 0 => {
+                    pointer.y -= 3.0;
+                    events.push(egui::Event::PointerMoved(pointer));
+                }
+                _ => {}
+            }
+            let input = egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(
+                    egui::Pos2::ZERO,
+                    egui::vec2(200.0, 200.0),
+                )),
+                events,
+                ..Default::default()
+            };
+            let mut painted = applied;
+            let mut output = ctx.run_ui(input, |ui| {
+                egui::CentralPanel::default()
+                    .frame(egui::Frame::NONE)
+                    .show(ui, |ui| {
+                        let view = ParamView::new("Cutoff", "1.2 kHz", "A parameter.");
+                        let mut normalised = applied;
+                        let mut entry = None;
+                        let outcome = knob(
+                            ui,
+                            &crate::theme::LIGHT,
+                            &view,
+                            &mut normalised,
+                            Size::Primary,
+                            Size::Primary.diameter(),
+                            &mut entry,
+                            Wheel::Off,
+                        );
+                        if outcome.changed {
+                            requested = Some(normalised);
+                        }
+                        painted = normalised;
+                    });
+            });
+            output.textures_delta.clear();
+            drawn.push(painted);
+            // The host applies every seventh frame.
+            if frame % 7 == 6
+                && let Some(value) = requested.take()
+            {
+                applied = value;
+            }
+        }
+        assert!(
+            drawn.last().is_some_and(|last| *last > 0.6),
+            "the drag has to move the knob for this to prove anything: {drawn:?}"
+        );
+        for pair in drawn.windows(2) {
+            assert!(
+                pair[1] >= pair[0],
+                "the knob turned back while dragged up: {drawn:?}"
             );
         }
     }
