@@ -817,6 +817,34 @@ Non-negotiable, and the source of most "fine in tests, crackles in the DAW" bugs
 `assert_process_allocs` aborts on any allocation in `process()` — but **only in debug builds**. A
 release validator run does not prove absence of allocation.
 
+## Latency is fixed, and every moving read shares one room
+
+A rule of thumb for any plugin whose wet path is late: oversampling, a modulated delay's base,
+look-ahead (the owner, 2026-10-11, from mxm-fx-oldify, where it took the latency from 88 ms to
+41 ms: "Remember to write this down as a rule of thumb for future plugins").
+
+- **Report it once, in `activate()`, and keep it.** A CLAP plugin may change its latency only by
+  asking the host to restart it: a dropout, and an engine started fresh. So the latency never
+  follows a continuous parameter; the dry path is delayed by the same amount so Mix never combs.
+- **Every moving read shares one room.** Modulations that move one read (wow, flutter, an
+  off-centre record, a warp, a chorus's sweep) get one room between them, not one each: sized one
+  by one, the room is every modulation at its extreme at once, a setting nobody makes, and every
+  user pays its latency. Size the shared room for the largest single one at its full travel with a
+  realistic one beside it; when together they would overrun it, lower all of them by the same
+  share, smoothly, so nothing jumps. A fixed offset of the same read (a tilted head's delay between
+  two tracks) is read there too, not through a line of its own.
+- **Stop a depth where it already passes the real thing if going further costs latency.** The
+  collection's rule that a plugin reaches past the physical for creative use (the owner,
+  2026-10-11) holds for everything else; a modulation depth whose extra travel only lengthens the
+  delay stops at the reference's full travel (oldify's Wow and Flutter, the owner, 2026-10-11:
+  "We probably dont need the wow and flutter that high then").
+- **A filter's own delay adds on and cannot be shared**: a linear-phase oversampler's latency is
+  not a read. Keep it short; a minimum-phase filter would remove it but shift the treble's phase
+  against the dry path.
+- **Why it matters at all.** On playback a DAW compensates any reported latency, and nobody hears
+  it. It is felt when playing or monitoring live through the plugin, and in hosts that delay all
+  live monitoring by the largest plugin latency in the project. Keep it as low as the sound allows.
+
 ## Editor contract
 
 - Editors are transient. The DAW opens and closes them at will, and audio must render normally with
