@@ -392,9 +392,10 @@ pub fn mark_unclaimed(ui: &Ui, id: Id, rect: Rect) {
 
 /// Records the editor's own widget — a graph of points, a canvas — as one stop of the cursor that
 /// **the keyboard language operates directly**: while the cursor is on it, every output but VIEW
-/// goes to the editor ([`surface_outputs`]) instead of moving the cursor or a value. That is the
-/// arrows, MICRO's start and end edges (`Within`), every verb's steps (DUPLICATE's too, which a
-/// value has no use for), the gesture's end, the actions and BACK; VIEW still goes card to card.
+/// and `Begin` goes to the editor ([`surface_outputs`]) instead of moving the cursor or a value.
+/// That is the arrows, MICRO's start and end edges (`Within`), every verb's steps (DUPLICATE's too,
+/// which a value has no use for), the gesture's end, the actions and BACK; VIEW still goes card to
+/// card. `Begin` is dropped here as everywhere: a gesture begins at its first step.
 /// Inside a [`card`] or [`bar_card`] and an [`at`] scope, as a control is; a press on it moves the
 /// cursor there. It is not a value: a step key off a verb is the language's coarse move.
 pub fn surface(ui: &Ui, response: &Response, rect: Rect) {

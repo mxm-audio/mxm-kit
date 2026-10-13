@@ -6,16 +6,37 @@
 //! - **x86_64**: the MXCSR flush-to-zero (bit 15) and denormals-are-zero (bit 6) bits;
 //! - **aarch64**: the FPCR flush-to-zero bit (bit 24);
 //! - **any other target**: nothing. A caller's own flush of its stored state is then the only
-//!   layer, which it keeps everywhere anyway (`plans/plan-mxm-fft.md` §3).
+//!   layer, which it keeps everywhere anyway (the archive's `plans/plan-mxm-fft.md` §3).
 //!
 //! The state before is restored when the guard drops, so the caller's floating-point environment is
 //! never changed. nice-plug's own guard is compiled out in this workspace (its
 //! `unsafe_flush_denormals` feature is off), so this one does not lean on it.
+//!
+//! The register is the thread's, so a guard stays on the thread that made it: it is neither `Send`
+//! nor `Sync`.
+//!
+//! ```
+//! let _flush = mxm_fft::denormals::Guard::new();
+//! ```
+//!
+//! ```compile_fail
+//! fn send<T: Send>() {}
+//! send::<mxm_fft::denormals::Guard>();
+//! ```
+//!
+//! ```compile_fail
+//! fn sync<T: Sync>() {}
+//! sync::<mxm_fft::denormals::Guard>();
+//! ```
+
+use std::marker::PhantomData;
 
 /// Flushes subnormals to zero until dropped, then restores what was set before.
 pub struct Guard {
     #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
     previous: Control,
+    /// Keeps the guard on its thread, whose register it restores.
+    thread: PhantomData<*const ()>,
 }
 
 #[cfg(target_arch = "x86_64")]
@@ -78,11 +99,16 @@ impl Guard {
             if previous & FLUSH != FLUSH {
                 write(previous | FLUSH);
             }
-            Self { previous }
+            Self {
+                previous,
+                thread: PhantomData,
+            }
         }
         #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
         {
-            Self {}
+            Self {
+                thread: PhantomData,
+            }
         }
     }
 

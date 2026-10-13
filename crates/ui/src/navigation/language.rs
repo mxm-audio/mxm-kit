@@ -377,7 +377,8 @@ fn handle(
             }
             continue;
         }
-        // On the editor's own widget the language operates it: everything but VIEW is its.
+        // On the editor's own widget the language operates it: everything but VIEW (and the dropped
+        // `Begin`) is its.
         if on_surface(state) {
             super::push_surface(ctx, output);
             continue;

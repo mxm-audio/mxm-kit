@@ -4437,6 +4437,10 @@ name = "mxm-preset"
 version = "0.4.1"
 
 [[patch.unused]]
+name = "mxm-telemetry"
+version = "0.4.1"
+
+[[patch.unused]]
 name = "mxm-tempo"
 version = "0.4.1"
 
@@ -4451,3 +4455,11 @@ version = "0.4.1"
 [[patch.unused]]
 name = "mxm-xtask"
 version = "0.4.1"
+
+[[patch.unused]]
+name = "mxm-player"
+version = "0.1.0"
+
+[[patch.unused]]
+name = "mxm-player-harness"
+version = "0.2.1"
