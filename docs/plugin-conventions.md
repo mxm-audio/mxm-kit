@@ -710,8 +710,9 @@ anyone who did not set it, and no host, preset or automation lane can trip it.
 
 The shape is the same in every plugin, deliberately, so the verbs are the same too: five
 constants in `lib.rs`, a `dev_cc: bool` read once at construction, four arms in the `MidiCC` match
-guarded by it, four request slots on `Telemetry` (taken once — atomics, the only channel from the
-audio thread to the editor; the DSP reads nothing), and the editor honouring them at the top of
+guarded by it, the four request slots as `Telemetry`'s `dev: mxm_telemetry::DevRequests` (taken once —
+atomics, the only channel from the audio thread to the editor; the DSP reads nothing), and the
+editor honouring them at the top of
 `panel`. A plugin with no expander answers CC 118 with nothing, and says so. Each plugin's
 `the_developer_channel_is_off_unless_the_environment_asked_for_it` holds the gate.
 
@@ -894,7 +895,11 @@ look-ahead (the owner, 2026-10-11, from mxm-fx-oldify, where it took the latency
   implementation, not a plan. This exception exists for acts such as a hardware momentary firing
   excluded from recall, not for a control that happens to be inconvenient to model as a parameter.
 - DSP → editor telemetry uses atomics or a triple buffer, never a mutex read by the audio thread,
-  and may drop frames. Throttle or stop it when the editor is hidden.
+  and may drop frames. Throttle or stop it when the editor is hidden. **The meter is
+  `mxm_telemetry::PeakMeter`, held as a field of the plugin's `Telemetry`**, never a copy: one
+  policy for every plugin, in which a non-finite peak latches the clip and is never the level; a
+  plugin with several levels holds one meter per level. A plugin's own telemetry (an envelope, a
+  modulator, stage levels) stays beside it.
 
   mxm-mono-01 expresses this as a struct rather than a convention: `src/telemetry.rs` is the **only**
   channel, `Arc`-shared, atomics only, written once per block. Two rules in it are worth carrying
