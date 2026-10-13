@@ -1,0 +1,13 @@
+[package]
+name = "mxm-fft"
+description = "The collection's one FFT: rustfft and realfft behind the collection's conventions"
+version.workspace = true
+edition.workspace = true
+rust-version = "1.87"
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+rustfft = "=6.4.1"
+realfft = "=3.5.0"

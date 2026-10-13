@@ -35,7 +35,7 @@ fixes in its `PATCHES.md` — which every repository that builds a plugin patche
 ## The crates
 
 The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.md#the-crate-rules-in-full).
-**Fourteen crate rules, deliberately different** — count the bullets before editing this number:
+**Fifteen crate rules, deliberately different** — count the bullets before editing this number:
 
 - `crates/ui` is **shared from day one**: design system §13 exempts the shell, theme tokens,
   typography and basic parameter controls; anything *beyond* them waits for two instruments.
@@ -83,6 +83,12 @@ The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.
   evidence-first extraction (2026-10-09: "We need VST3 support ourselves in the player and daw"): a
   `.vst3` module offered as an in-process CLAP plugin entry, so MXM Player and newDAWn host VST3
   through the CLAP code they have. It knows CLAP and VST3, never what a host does with a plugin.
+- `crates/mxm-fft` is **the collection's one FFT**, shared on evidence from five in-house radix-2
+  copies and the owner's ruling (2026-10-12: *"make a shared fft crate. Havine 3 or for
+  implementations is non DRY"*). It wraps `rustfft` and `realfft`, pinned, and owns the
+  conventions: an unnormalised forward, a 1/N inverse, planning ahead, execution with caller
+  scratch that allocates nothing, and a scoped hardware flush of subnormals. An FFT written anywhere
+  else is a defect; the remaining copies move to it one consumer at a time. MSRV 1.87.
 
 # Local Contracts
 
@@ -139,6 +145,7 @@ cargo +1.87.0 build -p <crate>          # and `test`, which is the harder floor
 | `crates/mxm-params` | **1.95** | The binding draws with egui; no DSP crate needs anything in it |
 | `crates/mxm-telemetry` | **1.87** | Zero dependencies, atomics only, so a plugin's audio half takes it without the GUI floor. **Verified on 1.87**, library and tests |
 | `crates/mxm-vst3-host` | **1.95** | Inherited, not lowered: its two consumers, MXM Player and newDAWn, are at the GUI floor |
+| `crates/mxm-fft` | **1.87** | `rustfft` 6.4.1 (MSRV 1.61) and `realfft` 3.5.0, pinned, so a DSP crate can take it. **Verified on 1.87**, library and tests |
 
 ## Licensing
 
@@ -217,5 +224,6 @@ their own shipped packages.
 | [`crates/mxm-preset/AGENTS.md`](crates/mxm-preset/AGENTS.md) | Shared preset format, library, browser, identity, authored-model Init and durable-content transaction |
 | [`crates/mxm-params/AGENTS.md`](crates/mxm-params/AGENTS.md) | `ErasedParam` and the step laws, the collection's one parameter binding, and the shared value text |
 | [`crates/mxm-telemetry/AGENTS.md`](crates/mxm-telemetry/AGENTS.md) | The plugin's DSP→editor channel: the peak meter and its one policy, and the developer channel's request slots |
+| [`crates/mxm-fft/AGENTS.md`](crates/mxm-fft/AGENTS.md) | The one FFT: its conventions, planning ahead and allocation-free execution, the scoped hardware flush of subnormals, determinism, and the finding that planning cannot fail cleanly |
 | [`crates/mxm-vst3-host/AGENTS.md`](crates/mxm-vst3-host/AGENTS.md) | VST3 plugins in a CLAP host: a module as an in-process CLAP entry, the CLAP-to-VST3 mapping, threads and the fixed-size block lists, embedded and floating editors, Linux's run loop, and the checks against installed plugins |
 | [`docs/AGENTS.md`](docs/AGENTS.md) | The normative design system and control map, the plugin conventions, the measured `mxm-measure` page, and the filter, oscillator and modulation theory |

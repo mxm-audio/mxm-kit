@@ -17,6 +17,7 @@ members = [
     "crates/mxm-plugin-test",
     "crates/mxm-xtask",
     "crates/mxm-vst3-host",
+    "crates/mxm-fft",
 ]
 
 [workspace.package]
@@ -50,6 +51,7 @@ mxm-measure = { path = "crates/mxm-measure" }
 mxm-plugin-test = { path = "crates/mxm-plugin-test" }
 mxm-xtask = { path = "crates/mxm-xtask" }
 mxm-vst3-host = { path = "crates/mxm-vst3-host" }
+mxm-fft = { path = "crates/mxm-fft" }
 
 [profile.release]
 lto = "thin"
@@ -58,6 +60,14 @@ strip = "symbols"
 # The rulers (the FFT) are measurement, not shipped code; every crate that measures sound pays for
 # them unoptimised.
 [profile.dev.package.mxm-measure]
+opt-level = 3
+
+# The FFT under mxm-fft: its 2^22-point tests would take minutes unoptimised. A consumer sets the
+# same in its own root, because Cargo reads only the root workspace's profiles.
+[profile.dev.package.rustfft]
+opt-level = 3
+
+[profile.dev.package.realfft]
 opt-level = 3
 
 [profile.profiling]

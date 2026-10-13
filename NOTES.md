@@ -202,6 +202,17 @@ extracted on.
   the same leak check as the measurement crates. See
   [`crates/mxm-plugin-test/AGENTS.md`](crates/mxm-plugin-test/AGENTS.md).
 
+**`crates/mxm-fft`** (2026-10-13). The collection had five FFTs, every one an iterative radix-2:
+the convolution's on the audio thread (f32, interleaved), classic-verb-fit's periodogram (f64,
+split, twiddles allocated per call), room-ir's (f64, interleaved), `mxm-measure`'s rulers (f64,
+split, `Option` on a wrong length) and a test copy in the creative sampler, each with its own
+conventions. Three said a shared FFT waited for another consumer, and `mxm-fx-eq-n`'s analyser was
+it. The owner ruled on 2026-10-12, and `rustfft`/`realfft` do the arithmetic so the algorithm is
+not the collection's to maintain. Planning was checked before the dependency was committed:
+neither crate reserves fallibly, so planning cannot fail cleanly and the convolution plans its
+fixed audio-path sizes at activation. The plan and its migration order are the archive's
+`plans/plan-mxm-fft.md`.
+
 ## Why every MSRV floor is compiled against
 
 **Every floor in this table has been compiled against, and a floor that has not is a guess.** Cargo
