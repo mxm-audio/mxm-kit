@@ -30,7 +30,8 @@ transforms or their flushing: those are the consumer's. No minimum-phase helper 
 - **A real transform** takes `len` samples to `len / 2 + 1` bins. Its input is garbage afterwards:
   `realfft` works in it. The inverse takes the imaginary parts a real signal's spectrum cannot
   have, at DC and an even length's Nyquist bin, as zero.
-- **Any length**, 0 and 1 included. The tests cover 1 to 2²².
+- **Any length**, 0 and 1 included. The tests cover 0 to 2²²; both libraries plan 0 themselves
+  (`rustfft`'s SIMD planners turn every length under 10 into a butterfly before factoring).
 
 ## Realtime: plan ahead, execute without allocating
 

@@ -884,7 +884,9 @@ editor too old to read a newer file keeps its own shipped keymap of that name un
 `navigation::tests::a_window_reading_the_keymap_folder_takes_its_keys` and `keymaps::tests` hold it.
 
 
-**A surface** (2026-10-13). The cursor reads parameters: a value, its steps and its default. The
+### A surface
+
+Added 2026-10-13. The cursor reads parameters: a value, its steps and its default. The
 language's other verbs, MOVE, EXTENT, SELECT and DUPLICATE, are newDAWn's for its items, and an
 editor had nothing to apply them to until `mxm-fx-eq-n`'s graph, whose bands are items: MOVE sets a
 band's frequency and gain, EXTENT its width, MICRO's `Within` takes its start or end edge for MOVE
@@ -892,6 +894,16 @@ to move alone, DUPLICATE carries a copy where the arrows go, ADD and REMOVE make
 band. So the cursor hands those outputs to the editor's own widget rather than learning what a band
 is: the surface keeps the language whole, and the kit still knows no item. VIEW stays the cursor's,
 so moving between the graph and the cards is the same as between any two cards.
+
+The contract in full: `navigation::surface` is one spot, not a value. While the cursor is on it
+every output but VIEW and `Begin` goes to the editor, read with `navigation::surface_outputs` after
+`paged` and before drawing: the arrows, MICRO's `Within` edges, every verb's steps (DUPLICATE stays
+armed there), the gesture's end, the actions and BACK. A gesture begins at its first step, as a
+value's does, so `Begin` is dropped here as everywhere. When the cursor turns inert mid-gesture (a
+value typed, a menu or the browser open) the language's interrupt keeps the gesture, and the
+surface hears that `Finish` once (`a_surface_hears_the_end_of_a_gesture_the_cursor_turning_inert_keeps`).
+F1's sheet is the editor's whole reference: it names MOVE, EXTENT, DUPLICATE, ADD and REMOVE, in
+their own section, whenever a surface is drawn, wherever the cursor is.
 ## Selectors and menus
 
 ### A selector is one row, and §7.4 finally has a shared one

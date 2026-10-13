@@ -346,3 +346,43 @@ fn longer_scratch_is_accepted() {
     fft.forward(&mut buffer, &mut scratch).unwrap();
     assert!((buffer[0].re - 100.0).abs() < 1e-3);
 }
+
+#[test]
+fn length_zero_plans_and_transforms_nothing_in_both_precisions_and_every_kind() {
+    fn zero<T: mxm_fft::Sample>() {
+        let mut planner = Planner::<T>::new();
+        let complex = planner.complex(0);
+        let mut scratch = complex.make_scratch();
+        let mut buffer: Vec<Complex<T>> = Vec::new();
+        assert!(complex.forward(&mut buffer, &mut scratch).is_ok());
+        assert!(complex.inverse(&mut buffer, &mut scratch).is_ok());
+        let (mut re, mut im, mut work) = (Vec::<T>::new(), Vec::<T>::new(), Vec::new());
+        assert!(
+            complex
+                .forward_split(&mut re, &mut im, &mut work, &mut scratch)
+                .is_ok()
+        );
+        assert!(
+            complex
+                .inverse_split(&mut re, &mut im, &mut work, &mut scratch)
+                .is_ok()
+        );
+
+        let real = planner.real(0);
+        assert_eq!(real.spectrum_len(), 1);
+        let mut scratch = real.make_scratch();
+        let mut signal: Vec<T> = Vec::new();
+        let mut spectrum = vec![Complex::new(T::one(), T::one())];
+        assert!(
+            real.forward(&mut signal, &mut spectrum, &mut scratch)
+                .is_ok()
+        );
+        assert_eq!(spectrum[0], Complex::new(T::zero(), T::zero()));
+        assert!(
+            real.inverse(&mut spectrum, &mut signal, &mut scratch)
+                .is_ok()
+        );
+    }
+    zero::<f32>();
+    zero::<f64>();
+}

@@ -155,13 +155,9 @@ Does **not** own labels, parameter bindings, or data. Plugins and the player sup
 - A press's size is the parameter's (`control::Steps`, `ParamView::stepping_by`). Presses apply one
   at a time, in order; an edit is one gesture, each press chaining from the value the last sent.
 - **`consume_key` ignores an extra `Shift` or `Alt`**: test the most specific modifier first.
-- **An editor's own widget joins as a surface** (`navigation::surface`, for `mxm-fx-eq-n`'s graph,
-  2026-10-13): one spot, not a value, that the language operates directly. While the cursor is on
-  it every output but VIEW and `Begin` goes to the editor (`navigation::surface_outputs`, read
-  after `paged` and before drawing): the arrows, MICRO's `Within` edges, every verb's steps
-  (DUPLICATE stays armed there), the gesture's end, the actions and BACK; a gesture begins at its
-  first step, as a value's does. VIEW still goes card to card, and F1's
-  sheet names MOVE, EXTENT, DUPLICATE, ADD and REMOVE when a surface is drawn.
+- **An editor's own widget joins as a surface** (`navigation::surface`): while the cursor is on it
+  every output but VIEW and `Begin` goes to the editor (`navigation::surface_outputs`), an inert
+  frame's `Finish` too; F1's sheet names its jobs ([NOTES.md § A surface](NOTES.md#a-surface)).
 - `navigation::stop` on a cardless surface. The cursor is painted, never laid out; concealed on a
   pointer press, revealed by the language's keys; the gate lives in `outline` and
   `control::focus_ring` (only where a cursor runs), never at call sites.

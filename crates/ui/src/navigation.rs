@@ -586,8 +586,17 @@ pub fn run(
     sheet::show(ctx, &mut open, language::engine(state).keymap(), surfaces);
     state.sheet = open;
     if inert {
+        // The interrupt keeps whatever was armed. A surface hears that end as it heard the
+        // gesture's steps, so the editor's own transaction closes too.
+        let surface =
+            state.bar.is_none() && current_spot(state, &spots).is_some_and(|spot| spot.surface);
         if let Some(engine) = state.language.as_mut() {
-            let _ = engine.interrupt();
+            let ended = engine.interrupt();
+            if surface {
+                for output in ended {
+                    push_surface(ctx, output);
+                }
+            }
         }
         clear_target(ctx);
         return None;
@@ -1190,6 +1199,54 @@ mod tests {
         });
         output.textures_delta.clear();
         ctx.data(|d| d.get_temp::<u64>(outline_id()))
+    }
+
+    /// A gesture on a surface that something else interrupts — a value typed, a menu or the browser
+    /// opening with the verb still held — ends kept, and the surface hears that end once.
+    #[test]
+    fn a_surface_hears_the_end_of_a_gesture_the_cursor_turning_inert_keeps() {
+        use mxm_keys::{Output, Verb};
+        let ctx = egui::Context::default();
+        let mut graph = spot(1, "graph", 0.0, 0.0);
+        graph.value = false;
+        graph.surface = true;
+        let spots = vec![graph];
+        let mut state = State::default();
+        state.settle(&spots[0]);
+        let read = |ctx: &egui::Context| {
+            ctx.data_mut(|d| d.remove_temp::<Vec<Output>>(surface_id()))
+                .unwrap_or_default()
+        };
+        const MOVE: mxm_keys::Job = mxm_keys::Job::Verb(Verb::Move);
+        let held = egui::RawInput {
+            events: [
+                (key_of(MOVE), true),
+                (Key::ArrowUp, true),
+                (Key::ArrowUp, false),
+            ]
+            .into_iter()
+            .map(|(key, pressed)| egui::Event::Key {
+                key,
+                physical_key: None,
+                pressed,
+                repeat: false,
+                modifiers: egui::Modifiers::NONE,
+            })
+            .collect(),
+            ..Default::default()
+        };
+        frame(&ctx, &mut state, &spots, held);
+        let stepped = read(&ctx);
+        assert!(
+            !stepped.contains(&Output::Finish),
+            "MOVE is still held: {stepped:?}"
+        );
+
+        // Something else takes the keyboard with MOVE still down: the gesture ends, kept.
+        frame_inert(&ctx, &mut state, &spots, egui::RawInput::default());
+        assert_eq!(read(&ctx), vec![Output::Finish]);
+        frame_inert(&ctx, &mut state, &spots, egui::RawInput::default());
+        assert_eq!(read(&ctx), Vec::new(), "once");
     }
 
     /// **The editor's own widget is operated by the language** ([`surface`]): on it, the arrows,
