@@ -18,7 +18,7 @@ plugin's own repository (`https://github.com/mxm-audio/<plugin>`), `apps/mxm-pla
 The CLAP plugins the collection ships. Each is a thin nice-plug shell over a framework-free DSP
 crate: parameter definitions, host contract, event handling, and an editor.
 
-Twenty plugins — eleven instruments and nine effects:
+Twenty-one plugins — eleven instruments and ten effects:
 
 | | |
 |---|---|
@@ -36,6 +36,7 @@ Twenty plugins — eleven instruments and nine effects:
 | [`mxm-grain-fx/`](https://github.com/mxm-audio/mxm-grain-fx/blob/main/plugins/mxm-grain-fx/AGENTS.md) | Granular processor on a live capture buffer with a recycled loop |
 | [`mxm-fx-convolution/`](https://github.com/mxm-audio/mxm-fx-convolution/blob/main/plugins/mxm-fx-convolution/AGENTS.md) | Original convolution effect over embedded user response state, with an owner-ruled ten-second source |
 | [`mxm-fx-curve/`](https://github.com/mxm-audio/mxm-fx-curve/blob/main/plugins/mxm-fx-curve/AGENTS.md) | Original serial point-curve processor with memoryless and linked-dynamics stages |
+| [`mxm-fx-eq-n/`](https://github.com/mxm-audio/mxm-fx-eq-n/blob/main/plugins/mxm-fx-eq-n/AGENTS.md) | Original parametric EQ: up to 24 bands made on demand, matched to analogue curves, a graph with a side column and an analyser |
 | [`mxm-fx-delay/`](https://github.com/mxm-audio/mxm-fx-delay/blob/main/plugins/mxm-fx-delay/AGENTS.md) | General-purpose Clean, Vintage digital and Tape delay with three routing and time-change laws |
 | [`mxm-shimmer/`](https://github.com/mxm-audio/mxm-shimmer/blob/main/plugins/mxm-shimmer/AGENTS.md) | Pitch-shifted feedback reverb with outer-tap placement, reverse sweeps and Freeze |
 | [`mxm-classic-verb/`](https://github.com/mxm-audio/mxm-classic-verb/blob/main/plugins/mxm-classic-verb/AGENTS.md) | Everyday algorithmic reverb whose spaces are fitted from impulse responses |
@@ -113,7 +114,8 @@ useful setting rather than zero: `mxm-chorus-06` starts as the circuit at its fi
 rule above is the instruments'; this is the effects', and each effect's AGENTS.md records which
 setting it starts at. **`mxm-fx-curve` is the specific owner-directed exception:** fresh construction
 and Init are one unlinked 1:1 identity stage, so inserting the open-ended authoring surface changes
-nothing until the player draws a law or chooses a sound.
+nothing until the player draws a law or chooses a sound. **`mxm-fx-eq-n` is the second** (owner,
+2026-10-12): Init is the empty EQ, every band slot Off, because its bands are made on demand.
 
 That is why "no LFO, but the LFO at a good vibrato rate" is not a contradiction: depth zero makes it
 inaudible, and a sensible rate makes it *vibrato* the moment depth is raised rather than a drift or a
@@ -954,6 +956,10 @@ look-ahead (the owner, 2026-10-11, from mxm-fx-oldify, where it took the latency
   plugin declares beside it where that is larger (design system §4.3).
   Page count follows width and height, not authored Synth/Mod/FX assignments; one page has no bar.
   Cards always receive top-down body Uis, never a horizontal row's inherited layout.
+  **Two editors are named exceptions**, each recorded in its own `AGENTS.md`: `mxm-fx-curve`'s
+  canvas, and `mxm-fx-eq-n`'s graph with a fixed-width column of cards to its right, never under it.
+  Their card bodies are still trees and pass the tree checks; their cards are the cursor's through
+  `navigation::bar_card`.
 - **Nothing is drawn to learn a size.** A card's tree is built each frame from parameters, editor
   state and text formatted from telemetry; a plugin states its own visuals' sizes beside their
   drawing, and a size never comes from a telemetry value. Read destructive telemetry once, before
@@ -1036,7 +1042,11 @@ the cards and up to the bars, a step key (or VALUE) + arrows for the value (FINE
 coarse, MICRO the finer layer; ↑ ↓ by the size, ← → to the next line of it, 2026-10-09) as one
 gesture that OUT keeps and BACK cancels, DELETE the default. BACK also
 cancels a mouse drag: the shared knobs and sliders put back the value it began at, and an editor's
-own dragged widget does the same by asking `mxm_ui::drag::cancelled` when its drag stops. F1
+own dragged widget does the same by asking `mxm_ui::drag::cancelled` when its drag stops. **An
+editor's own view of items joins as a surface** (`navigation::surface`, `mxm-fx-eq-n`'s graph of bands,
+2026-10-13): with the cursor on it the language's outputs go to the editor
+(`navigation::surface_outputs`), so MOVE, EXTENT, DUPLICATE, ADD and REMOVE act on its items, and
+VIEW still leaves it. F1
 shows and hides a sheet of the keys in every editor, from the cursor, with nothing to wire. **The
 keys are the keymap in use in the folder newDAWn and every MXM editor share** (`<config>/mxm/keymaps/`,
 `mxm_ui::keymaps`; the owner, 2026-10-12): the editor's `build()` calls
@@ -1349,5 +1359,6 @@ per-plugin DAW checks recorded in each child doc still have to be run and report
 | [`mxm-grain-fx/AGENTS.md`](https://github.com/mxm-audio/mxm-grain-fx/blob/main/plugins/mxm-grain-fx/AGENTS.md) | Provisional identity, granular laws, activity and editor |
 | [`mxm-fx-convolution/AGENTS.md`](https://github.com/mxm-audio/mxm-fx-convolution/blob/main/plugins/mxm-fx-convolution/AGENTS.md) | Identity, embedded response state, the collection's impulses folder, presets, activity and editor |
 | [`mxm-fx-curve/AGENTS.md`](https://github.com/mxm-audio/mxm-fx-curve/blob/main/plugins/mxm-fx-curve/AGENTS.md) | Identity, schema, Input gain / Auto makeup / Mix parameters, sixty durable-state factory presets, stretch-to-window canvas with post-gain In and post-Mix Out meter rails, bounded undo, host dirty-state, fixed-slot publication and transitions |
+| [`mxm-fx-eq-n/AGENTS.md`](https://github.com/mxm-audio/mxm-fx-eq-n/blob/main/plugins/mxm-fx-eq-n/AGENTS.md) | Identity, the 146 permanent parameters and their reserved stepped domains, the empty-EQ Init, solo, the analyser and meter, the graph-and-column editor, the graph as a surface, plain undo |
 | [`mxm-fx-delay/AGENTS.md`](https://github.com/mxm-audio/mxm-fx-delay/blob/main/plugins/mxm-fx-delay/AGENTS.md) | Identity, synced Time, factory Mix preservation, layouts, activity, presets and five-card editor |
 | [`mxm-creative-sampler/AGENTS.md`](https://github.com/mxm-audio/mxm-creative-sampler/blob/main/plugins/mxm-creative-sampler/AGENTS.md) | Identity, native acquisition, embedded assets, transactions, events and editor |
