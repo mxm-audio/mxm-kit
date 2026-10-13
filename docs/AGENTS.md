@@ -153,9 +153,8 @@ No automated checks. Two manual gates, both real:
   ```
 
   and confirm each path exists relative to its referring file.
-- **`research:` citations resolve**, when the research checkout is present — since the split it is
-  in the private archive, not a sibling, so set `RESEARCH` to it (in the monorepo it was
-  `../01-mxm-collection-research`):
+- **`research:` citations resolve**, when the research checkout is present — it is a private
+  repository of its own, not a sibling, so set `RESEARCH` to its checkout:
 
   ```bash
   git grep -h -o -E 'research:[A-Za-z0-9._-][A-Za-z0-9._/-]*' -- . ':!automation/tests' | sed 's|^research:||' | sort -u | while read -r p; do [ -e "$RESEARCH/$p" ] || echo "MISSING $p"; done
