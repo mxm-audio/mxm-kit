@@ -26,6 +26,7 @@ pub mod browser;
 pub mod control;
 pub mod drag;
 pub mod flow;
+pub mod keymaps;
 pub mod navigation;
 pub mod offthread;
 pub mod paging;

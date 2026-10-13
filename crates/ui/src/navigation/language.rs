@@ -101,6 +101,25 @@ pub(super) fn engine(state: &mut State) -> &mut Engine {
         .get_or_insert_with(|| Engine::new(Keymap::default()))
 }
 
+/// The keymap [`super::use_shared_keymap`] read when the window opened, given to the engine once:
+/// anything armed is finished, handled with the frame's keys. A window that read none keeps the
+/// default.
+pub(super) fn use_keymap(ctx: &Context, state: &mut State, id: egui::Id) {
+    let Some(keymap) = ctx.data(|data| data.get_temp::<std::sync::Arc<Keymap>>(id)) else {
+        return;
+    };
+    if state
+        .keymap
+        .as_ref()
+        .is_some_and(|given| std::sync::Arc::ptr_eq(given, &keymap))
+    {
+        return;
+    }
+    let ended = engine(state).set_keymap((*keymap).clone());
+    state.waiting.outputs.extend(ended);
+    state.keymap = Some(keymap);
+}
+
 /// Whether the keymap puts BACK on `Escape`, which egui itself uses to end a mouse drag.
 pub(super) fn escape_is_back(state: &mut State) -> bool {
     engine(state).keymap().job(Key::Escape) == Some(Job::Back)

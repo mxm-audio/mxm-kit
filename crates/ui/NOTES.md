@@ -14,7 +14,8 @@ canvas, trace, meter and marker geometry), `control` (§7.1–7.3 knob, slider, 
 toggle), `shell` (§3.1–3.3 app bar, view bar, module card, level meter, and columns of cards that end level) and `browser` (§3.1's preset browser opened out: three panes and
 the bank actions, rows in and actions out). `tree` is a card body as data, measured and drawn from one description (the `new-layout` prototype). `flow` lays out wrapping rows; `paging` measures
 hidden cards and derives category-first navigation for every plugin editor. `navigation` is the keyboard cursor over that surface—a card, a parameter inside it and the
-value—and runs in every collection editor.
+value—and runs in every collection editor; `keymaps` is the keymap folder it and newDAWn read
+(below, *One keymap folder for the DAW and every editor*).
 
 ## Dependencies and threads
 
@@ -858,6 +859,29 @@ coverage check presses the language's keys.
 Every editor's cursor reads the language since 2026-10-08, after a pilot on mxm-mono-08 from
 2026-10-07 (the owner: "Roll out the keyboard language"), and BACK alone never reveals the cursor
 (`escape_is_not_a_reveal`).
+
+### One keymap folder for the DAW and every editor
+
+The owner, 2026-10-12: "The idea is to have a unified key language in the daw and in the plugins."
+It came up on another machine, where a plugin's bare arrows edited the value: its `.clap` was built
+from a kit older than the language it was opened beside. The engine is compiled into each program,
+so a plugin keeps the language it was built with until it is rebuilt; that half is the workspace's
+install step. The other half was the keymap: newDAWn read its own folder and every editor the kit's
+built-in default, and they agreed only while the default was used unedited.
+
+So the keymap lives in one folder, `<config>/mxm/keymaps/` beside `editor.json` (`keymaps`), which
+newDAWn seeds with the shipped keymaps and writes `active.txt` into, and which every host and every
+editor window reads with `keymaps::in_use`: a host when it starts and when a keymap is chosen, an
+editor when its window opens. A host reads a keymap with `keymaps::read` before naming it, so a
+file that doesn't read is never chosen and the keys stay as they were. Nothing watches the files (the owner, 2026-10-12: "The keymap is not
+supposed to change"); an editor already open keeps its keys until it opens again, the owner's
+choice, and newDAWn reads them again when asked (a reload from its CLI or MCP server). It sits
+here rather than in
+`mxm-keys`, which stays free of files, and is read from the editor's `build()` rather than `panel`,
+as the theme is, so a test that draws a panel never reads the machine's files and presses its jobs
+on the default keymap. An editor never writes there: choosing a keymap is a host's job, and an
+editor too old to read a newer file keeps its own shipped keymap of that name until it is rebuilt.
+`navigation::tests::a_window_reading_the_keymap_folder_takes_its_keys` and `keymaps::tests` hold it.
 
 ## Selectors and menus
 

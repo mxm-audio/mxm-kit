@@ -9,7 +9,8 @@ Parent: [`../../AGENTS.md`](../../AGENTS.md)
 Dark/Light resolution, bundled typography, the app-bar / view-bar / module-card shell, and the basic
 parameter controls. Modules: `theme`, `typography`, `space`, `visual`, `control`, `shell`,
 `browser`, `tree` (a card body as data), `flow`, `paging`, `navigation` (the keyboard cursor in
-every collection editor) and `reach` (the cursor over every widget, newDAWn's so far) — [NOTES.md § The modules](NOTES.md#the-modules). Each rule below has its
+every collection editor), `keymaps` (the keymap folder newDAWn and every editor share) and `reach`
+(the cursor over every widget, newDAWn's so far) — [NOTES.md § The modules](NOTES.md#the-modules). Each rule below has its
 reasoning, history, measurements and holding tests in [NOTES.md](NOTES.md), under the same topic.
 
 # Ownership
@@ -25,7 +26,8 @@ Does **not** own labels, parameter bindings, or data. Plugins and the player sup
 - **`egui` and nothing else** but `mxm-keys` (no dependencies): no windowing crate, host crate or plugin framework; nothing may
   assume it owns a window, an event loop or a swapchain. `lib.rs`'s `the_crate_is_windowing_free`
   reads the manifest — check what a new dependency pulls in before adding it. `egui_taffy` (pure
-  flexbox rectangles) and `serde_json`/`dirs` (the theme file) fit the rule: none assumes a window.
+  flexbox rectangles) and `serde_json`/`dirs` (the theme file, the keymap folder) fit the rule: none
+  assumes a window.
 - **Blocking native work leaves the frame** (`offthread`): a frame inside a plugin window never
   waits on a modal OS loop. `offthread::start` runs the caller's closure on a named thread,
   `running` disables the trigger, `take` hands the result once to an ordinary frame.
@@ -135,6 +137,14 @@ Does **not** own labels, parameter bindings, or data. Plugins and the player sup
   Tests press jobs, not keys (`navigation::key_of`, test-only), so a remap of the default keymap
   changes no test here. OPEN while a verb is armed keeps the edit and opens nothing. A verb an editor has nothing for
   (DUPLICATE) is ended as soon as it's armed, its end dropped; `Output::Begin` is ignored.
+- **The keys are the keymap in use in the shared folder** `<config>/mxm/keymaps/` (`keymaps`; the
+  owner, 2026-10-12: "a unified key language in the daw and in the plugins"), newDAWn's too. An
+  editor's `build()` calls `navigation::use_shared_keymap` beside `theme::apply`, which reads
+  `active.txt` and the file it names once, when the window opens (`keymaps::in_use`): nothing
+  watches the files (the owner, 2026-10-12: "The keymap is not supposed to change"). A context
+  that reads none (every test that draws `panel`) keeps the default. Only `keymaps::seed` and
+  `set_wanted` write, whole (a temporary file renamed over the old); reading never writes, and a
+  file that doesn't read gives the shipped keymap of its name, or the default.
 - **The map is drawn, not declared**: `navigation::mark` inside the `card` and `at` scopes;
   `navigation::aside` for an editor-only control. Editors drive it with `navigation::paged` (never
   a second card order), or `paged_with_bar` + `navigation::bar_card` for an app-bar parameter.

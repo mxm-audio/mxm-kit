@@ -1024,7 +1024,12 @@ coarse, MICRO the finer layer; ↑ ↓ by the size, ← → to the next line of 
 gesture that OUT keeps and BACK cancels, DELETE the default. BACK also
 cancels a mouse drag: the shared knobs and sliders put back the value it began at, and an editor's
 own dragged widget does the same by asking `mxm_ui::drag::cancelled` when its drag stops. F1
-shows and hides a sheet of the keys in every editor, from the cursor, with nothing to wire. A
+shows and hides a sheet of the keys in every editor, from the cursor, with nothing to wire. **The
+keys are the keymap in use in the folder newDAWn and every MXM editor share** (`<config>/mxm/keymaps/`,
+`mxm_ui::keymaps`; the owner, 2026-10-12): the editor's `build()` calls
+`mxm_ui::navigation::use_shared_keymap(ctx)` beside `theme::apply`, which reads the keymap chosen
+there once, as the window opens; a test that draws `panel` reads none and keeps the default
+keymap. A
 plugin's own key tests press jobs, not keys: `keyboard_checks::key_of(VALUE)` (and `COARSE`,
 `MICRO`, `VIEW`, `OUT`) is the key the default keymap gives the job, so a remap of the default keymap
 changes no plugin's test (the owner, 2026-10-08). `mxm_ui::navigation::running` keeps a *surface* without a cursor — the developer

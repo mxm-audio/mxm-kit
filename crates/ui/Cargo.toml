@@ -25,7 +25,8 @@ egui_taffy = "=0.14.0"
 
 # The theme choice outlives the editor that made it (design system §10), and there is nowhere else
 # for it to live: plugin state is where presets and a host's project go, and §10 forbids a preset
-# carrying the theme. So this crate owns one small file under the config directory.
+# carrying the theme. So this crate owns one small file under the config directory, and the
+# keymap folder beside it that newDAWn and every editor share (`keymaps`).
 #
 # Neither of these is an exception to the rule above: they are a serialiser and a path lookup, with
 # no window, event loop or plugin framework between them. Same versions `mxm-preset` already

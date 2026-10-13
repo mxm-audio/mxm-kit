@@ -30,7 +30,8 @@ on mxm-mono-08 from 2026-10-07), and design system §11 states it. The cursor ov
   study checks its press model with it.
 
 **Not here:** what a gesture changes, focus and spatial navigation, drawing the arrow map, reading
-keys from a toolkit, and where a keymap file lives. Those are the host's.
+keys from a toolkit, and where a keymap file lives. Those are the host's; the folder newDAWn and
+every MXM editor share is `mxm_ui::keymaps`'.
 
 # Local Contracts
 

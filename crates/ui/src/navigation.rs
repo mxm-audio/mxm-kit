@@ -105,6 +105,8 @@ pub struct State {
     sheet: bool,
     /// What a move after a value edit left for the next frame ([`language::read`]).
     waiting: language::Waiting,
+    /// The keymap [`use_shared_keymap`] read for the window, once the engine has it.
+    keymap: Option<std::sync::Arc<mxm_keys::Keymap>>,
 }
 
 impl State {
@@ -176,6 +178,26 @@ fn bars_current_id() -> Id {
 fn bars_last_id() -> Id {
     registry_id().with("bars last")
 }
+fn keymap_id() -> Id {
+    Id::new("mxm-ui navigation keymap")
+}
+
+/// The window's keys are the keymap in use in the shared folder (`crate::keymaps`), the one the
+/// DAW and every MXM editor read, read once here: called where an editor's window is built, beside
+/// `theme::apply`, so it is read when the window opens and a test that draws a panel keeps the
+/// default keymap.
+pub fn use_shared_keymap(ctx: &egui::Context) {
+    if let Some(folder) = crate::keymaps::folder() {
+        use_keymap_in(ctx, &folder);
+    }
+}
+
+/// [`use_shared_keymap`], from another folder: a test's.
+pub fn use_keymap_in(ctx: &egui::Context, folder: &std::path::Path) {
+    let keymap = std::sync::Arc::new(crate::keymaps::in_use(folder).keymap);
+    ctx.data_mut(|data| data.insert_temp(keymap_id(), keymap));
+}
+
 fn value_keys_id() -> Id {
     registry_id().with("value keys")
 }
@@ -516,6 +538,8 @@ pub fn run(
     // **BACK during a mouse drag cancels it, before the inert return** (`crate::drag`): egui has
     // already ended a drag on `Escape` this frame, and a surface holding the keyboard — a focused
     // canvas — must not keep that drag's value either.
+    // The window's keymap first, so BACK, F1's sheet and the keys read it.
+    language::use_keymap(ctx, state, keymap_id());
     let back_spent = language::escape_is_back(state) && crate::drag::notice_escape(ctx);
 
     // **F1 shows and hides the keys** (`sheet`), whatever holds the keyboard, and `Escape` closes
@@ -1729,6 +1753,65 @@ mod tests {
             },
         );
         assert_eq!(state.card(), Some(2), "VIEW + right is the next card");
+    }
+
+    /// **A window that reads the shared keymap folder takes the keys of the keymap in use there**
+    /// (the owner, 2026-10-12: "a unified key language in the daw and in the plugins"), and one
+    /// that reads none keeps the default. Uses another shipped keymap on purpose: `notes`, whose
+    /// VIEW key is another job's in the default.
+    #[test]
+    fn a_window_reading_the_keymap_folder_takes_its_keys() {
+        let notes = mxm_keys::Keymap::shipped("notes").expect("notes ships");
+        let default = mxm_keys::Keymap::default();
+        let view = notes
+            .keys(VIEW)
+            .find(|key| default.job(*key).is_some_and(|job| job != VIEW))
+            .expect("notes puts VIEW on a key the default gives another job");
+        let view = Key::ALL
+            .iter()
+            .copied()
+            .find(|key| language::to_key(*key) == Some(view))
+            .expect("egui has the key");
+        let folder = std::env::current_exe()
+            .expect("the test binary has a path")
+            .parent()
+            .expect("in a folder")
+            .join(format!("mxm-ui-keymap-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&folder);
+        crate::keymaps::set_wanted(&folder, "notes").expect("the choice is written");
+
+        let spots = vec![spot(1, "a", 0.0, 0.0), spot(2, "b", 120.0, 0.0)];
+        let key = |key, pressed| egui::Event::Key {
+            key,
+            physical_key: None,
+            pressed,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        };
+        let card_after = |read: bool| {
+            let ctx = egui::Context::default();
+            if read {
+                use_keymap_in(&ctx, &folder);
+            }
+            let mut state = State::default();
+            frame(&ctx, &mut state, &spots, egui::RawInput::default());
+            frame(
+                &ctx,
+                &mut state,
+                &spots,
+                egui::RawInput {
+                    events: vec![
+                        key(view, true),
+                        key(view, false),
+                        key(Key::ArrowRight, true),
+                    ],
+                    ..Default::default()
+                },
+            );
+            state.card()
+        };
+        assert_eq!(card_after(true), Some(2), "VIEW + right, in notes");
+        assert_eq!(card_after(false), Some(1), "the default's job on that key");
     }
 
     /// **The page changes under the cursor** (a tab chosen, with the keys or the mouse): the
