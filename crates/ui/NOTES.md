@@ -193,7 +193,7 @@ but as small as possible"*). Every cell is `segment_cell_width` — the widest o
 the row no longer stretches into what it is handed; the width caps several editors had grown to
 stop the stretch went with it. **Controls that stand together share one cell**: `shared_cell_width`
 measures the stack and `segmented_with_cell` takes it explicitly, or `segmented_stack` scopes it so
-the collection's binding (`mxm_preset::binding`) needs no new argument. The scope ends with its closure.
+the collection's binding (`mxm_params::binding`) needs no new argument. The scope ends with its closure.
 `a_segmented_control_is_as_wide_as_its_widest_option_and_no_wider`,
 `a_stack_of_segmented_controls_shares_the_widest_cell` and
 `a_scoped_stack_shares_its_width_and_ends_with_its_scope` hold it.
@@ -746,7 +746,7 @@ arrows card to card, and a step key (or VALUE) + arrows edit the value.
   the fall-back is a tenth of fine. An owner with a law that depends on where a press starts — a semitone on a skewed hertz range, a step onto
   the whole semitone a readout shows — hands the control a `control::NextValue` through
   `ParamView::stepping_by`, asked once per press from any value. The plugin's binding implements
-  it over `mxm_preset::StepLaw`; this crate still knows no parameter.
+  it over `mxm_params::StepLaw`; this crate still knows no parameter.
 - **Presses apply one at a time, in the order pressed.** The language publishes a frame's VALUE
   presses in order (`ValueKeys`), and where no cursor runs `take_arrows` walks the event queue the
   same way; `consume_key` returned presses grouped by key, which is harmless for fixed magnitudes

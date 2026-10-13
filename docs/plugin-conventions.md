@@ -66,8 +66,9 @@ the same way when started by hand.
 The checks every plugin's tests share live in **`crates/mxm-plugin-test`**, a `[dev-dependencies]`
 entry of each plugin and compiled into no bundle: `mxm_plugin_test::paging_checks` for the dynamic
 pager, `mxm_plugin_test::opening_size` for the derived opening size,
-`mxm_plugin_test::keyboard_checks` for the keyboard cursor, `mxm_plugin_test::time_text_checks` for a
-time reading's host round trip, `mxm_plugin_test::tree_checks` for the layout tree's per-card checks
+`mxm_plugin_test::keyboard_checks` for the keyboard cursor, `mxm_plugin_test::text_checks` for every
+parameter's text through the host's round trip (every plugin calls it),
+`mxm_plugin_test::time_text_checks` for a time reading's, `mxm_plugin_test::tree_checks` for the layout tree's per-card checks
 and the review pictures, and `mxm_plugin_test::routing_checks` for the modulation standard's plugin
 half — a route parameter held to its DSP's `mxm_modulation::conformance::Declaration`. They are
 shared because a check copied once per consumer is many chances to weaken it; keep them whole rather
@@ -446,13 +447,20 @@ One `#[derive(Params)]` struct behind `Arc<…>`.
   the keyboard's `StepLaw::Semitones` steps them from the semitone shown.) The open case is a
   **bipolar continuous tune**, where `SymmetricalSkewed` about zero is the tool;
   `mxm-creative-sampler`'s Tune is still linear across four octaves and has not been reported.
+- **Value text comes from `mxm_params::text`**: percent, the millisecond-to-second time, the time
+  and percent parsers, the frequency readings, `signed` and `without_negative_zero`, and the
+  `ValueToString`/`StringToValue` types. A plugin writes its own formatter only for a reading that
+  is its own; a second plugin needing the same one moves it there rather than copying it.
 - **A reading that switches units chooses the unit from the rounded reading**, never from the raw
   value, or the host's text round trip is not idempotent at the switch: a raw `< 1.0` printed
   `1000 ms` for a value that parses to one second and reads back as `1.00 s`, in nine plugins at
-  once. `clap-validator`'s fixed grid misses that sliver; only its random values find it. Those
-  nine hold every milliseconds-to-seconds control with `mxm_plugin_test::time_text_checks`, used from
-  `params.rs`; `mxm-grain-fx` and `mxm-creative-sampler` hold theirs with their own round-trip
-  tests, and `mxm-mono-pr1`'s cutoff is the same rule at a kHz boundary.
+  once. `clap-validator`'s fixed grid misses that sliver; only its random values find it. **Every
+  plugin holds every parameter's text** with `mxm_plugin_test::text_checks::every_text_round_trips`,
+  called from `params.rs` with the switch points of its own that the collection's list does not
+  name; `mxm-mono-pr1`'s cutoff is the same rule at a kHz boundary. A new reading that switches
+  somewhere new passes its switch point, or the walk never visits it. **Stored factory text is
+  held the same way**: each plugin's preset tests assert `mxm_preset::stale_factory_texts` is
+  empty, every file read in its own state.
 - User-facing names are sentence case and not cryptic — `Cutoff`, `Filter envelope`, not
   `FREQ` / `F.ENV`. The same name and unit appear in the editor and host automation. A repeated
   module prefix may be omitted inside that module's card/section (§7.1); accessibility and tooltips
@@ -1060,12 +1068,12 @@ An editor is three things, and no new tables:
   Parameters surface uses; `mxm-mono-01` does. The owner's scope (2026-09-23): semitone-stepped
   parameters (coarse tunes, transposes, Shift, every Bend range) take `Semitones`, pitch and filter
   corners in hertz `Hertz`, the ±100/±200-cent tunes `Cents`; continuous semitone tunes, route
-  amounts, rates and %-valued cutoffs keep `Own` — except `mxm-mono-08`'s pitch routes, which read in octaves and step by `StepLaw::Interval` through `mxm_modulation_params::ui::stack_with_law` (owner, same day, for that instrument only), and its five step levels, which step by `StepLaw::Voltage`: to the next semitone coarse, so a one-octave pitch route plays semitones, and by 1 % fine. **Every law has the finer layer, MICRO** (`mxm_preset::StepLaw`, 2026-09-24): `Own` 0.1 %; the pitch laws a cent; `Cents` a tenth of a cent; `Voltage` a tenth of its fine step. A plugin declares nothing more for it.
+  amounts, rates and %-valued cutoffs keep `Own` — except `mxm-mono-08`'s pitch routes, which read in octaves and step by `StepLaw::Interval` through `mxm_modulation_params::ui::stack_with_law` (owner, same day, for that instrument only), and its five step levels, which step by `StepLaw::Voltage`: to the next semitone coarse, so a one-octave pitch route plays semitones, and by 1 % fine. **Every law has the finer layer, MICRO** (`mxm_params::StepLaw`, 2026-09-24): `Own` 0.1 %; the pitch laws a cent; `Cents` a tenth of a cent; `Voltage` a tenth of its fine step. A plugin declares nothing more for it.
   **A law may follow another parameter's value**, because `Bound` is built every frame:
   `mxm-mono-08`'s modulation frequency is a rate in its low range and a pitch in its high one, and
   takes `Hertz` only while the high range is selected.
   This is every control that edits a parameter, wherever it is drawn:
-  the knobs and sliders `mxm_preset::binding` draws, and the switches, selectors and source menus a `sections`
+  the knobs and sliders `mxm_params::binding` draws, and the switches, selectors and source menus a `sections`
   module draws through `mxm_ui::control` directly. Without the scope a control paints identically
   and simply does not join the registry — silently unreachable, which is why every editor carries
   the reachability check below.

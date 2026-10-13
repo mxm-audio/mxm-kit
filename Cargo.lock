@@ -1620,7 +1620,17 @@ version = "0.4.1"
 dependencies = [
  "egui",
  "mxm-modulation",
- "mxm-preset",
+ "mxm-params",
+ "mxm-ui",
+ "nice-plug",
+]
+
+[[package]]
+name = "mxm-params"
+version = "0.4.1"
+dependencies = [
+ "egui",
+ "mxm-tempo",
  "mxm-ui",
  "nice-plug",
 ]
@@ -1650,7 +1660,8 @@ dependencies = [
  "egui",
  "egui_kittest",
  "kittest",
- "mxm-tempo",
+ "mxm-params",
+ "mxm-plugin-test",
  "mxm-ui",
  "nice-plug",
  "serde",

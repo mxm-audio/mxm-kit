@@ -14,7 +14,8 @@ repository.workspace = true
 nice-plug.workspace = true
 egui.workspace = true
 mxm-ui.workspace = true
-mxm-tempo.workspace = true
+# `Instrument::parameters` hands out `&dyn ErasedParam`.
+mxm-params.workspace = true
 
 # A preset file is **user-editable**, so it will arrive malformed, and hand-rolled parsing of
 # hand-edited text is where the bugs live. `dirs` because user presets live under the config
@@ -24,5 +25,7 @@ serde_json = "=1.0.145"
 dirs       = "=5.0.1"
 
 [dev-dependencies]
+# `NoHost`. A dev edge only, and no cycle: nothing under mxm-plugin-test depends on this crate.
+mxm-plugin-test.workspace = true
 egui_kittest = "=0.36.1"
 kittest = "=0.4.0"

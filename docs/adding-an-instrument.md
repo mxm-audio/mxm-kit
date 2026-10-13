@@ -191,7 +191,10 @@ routes are `mxm-modulation-params` pairs beside it — `plugins/mxm-mono-pr1/src
 [mxm-mono-pr1](https://github.com/mxm-audio/mxm-mono-pr1/blob/main/plugins/mxm-mono-pr1/src/routes.rs) is the
 shape — and the paths the machine itself wires are present in the init patch.
 Store gain as linear gain and format as dB. Sentence-case, non-cryptic names, identical in the
-editor and in host automation.
+editor and in host automation. Readings and parsers come from `mxm_params::text` where it has one;
+write your own only for a reading that is this machine's, and call
+`mxm_plugin_test::text_checks::every_text_round_trips` from `params.rs` with any switch point of
+its own. Each factory set is held by `mxm_preset::stale_factory_texts` in `preset.rs`'s tests.
 
 The init patch is a contract, not a preference: **every amount starts at zero, every configuration
 starts somewhere musically useful**, and the init patch and the CLAP `default_value`s are one set of
@@ -251,7 +254,7 @@ browser and the naming row float there — and holds one `PresetUi::new(params)`
 It was five deliberate copies until 2026-09-04, when banks and categories made the extraction due —
 a shared crate is extracted from the evidence of honest copies, not ahead of it. The binding followed
 on 2026-09-24, from eighteen copies: a new editor's `editor/binding.rs` is one line,
-`pub use mxm_preset::binding::*;`, and a plugin's own label table goes in `Bound::panel`.
+`pub use mxm_params::binding::*;`, and a plugin's own label table goes in `Bound::panel`.
 
 ### Phase 5 — the editor
 

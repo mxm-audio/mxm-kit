@@ -1295,30 +1295,9 @@ pub fn init_patch(instrument: &dyn Instrument, setter: &ParamSetter<'_>) {
 mod tests {
     use super::*;
     use crate::testing::TestInstrument;
+    use mxm_plugin_test::NoHost;
     use nice_plug::params::internals::ParamPtr;
     use nice_plug::prelude::{PluginApi, PluginState};
-
-    /// A host that accepts every gesture and does nothing with it.
-    struct NoHost;
-
-    impl nice_plug::context::gui::GuiContextInner for NoHost {
-        // A test double has no host to ask for a restart (nice-plug 0.4).
-        fn request_restart(&self) {}
-        fn plugin_api(&self) -> PluginApi {
-            PluginApi::Clap
-        }
-        unsafe fn raw_begin_set_parameter(&self, _param: ParamPtr) {}
-        unsafe fn raw_set_parameter_normalized(&self, _param: ParamPtr, _normalized: f32) {}
-        unsafe fn raw_end_set_parameter(&self, _param: ParamPtr) {}
-        fn get_state(&self) -> PluginState {
-            PluginState {
-                version: String::new(),
-                params: Default::default(),
-                fields: Default::default(),
-            }
-        }
-        fn set_state(&self, _state: PluginState) {}
-    }
 
     struct CountingHost(std::sync::atomic::AtomicUsize);
 
@@ -1612,7 +1591,7 @@ mod tests {
         fn clap_id(&self) -> &'static str {
             self.inner.clap_id()
         }
-        fn parameters(&self) -> Vec<(&'static str, &dyn crate::ErasedParam)> {
+        fn parameters(&self) -> Vec<(&'static str, &dyn mxm_params::ErasedParam)> {
             self.inner.parameters()
         }
         fn identity(&self) -> &std::sync::RwLock<crate::PresetIdentity> {

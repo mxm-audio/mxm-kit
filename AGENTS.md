@@ -35,13 +35,16 @@ fixes in its `PATCHES.md` — which every repository that builds a plugin patche
 ## The crates
 
 The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.md#the-crate-rules-in-full).
-**Twelve crate rules, deliberately different** — count the bullets before editing this number:
+**Thirteen crate rules, deliberately different** — count the bullets before editing this number:
 
 - `crates/ui` is **shared from day one**: design system §13 exempts the shell, theme tokens,
   typography and basic parameter controls; anything *beyond* them waits for two instruments.
 - `crates/mxm-preset` is shared on evidence from five matching implementations; a plugin supplies
-  `Instrument` and nothing else. It also holds the collection's one parameter `binding`. **Extract on
-  evidence from honest copies, not ahead of it.**
+  `Instrument` and nothing else. **Extract on evidence from honest copies, not ahead of it.**
+- `crates/mxm-params` is **what a parameter is to a control, how an editor binds one, and how it
+  reads**: `ErasedParam` and the step laws, the collection's one `binding` (eighteen copies made
+  one, 2026-09-24), and `text`, the readings the plugins carried as identical copies — never a new
+  policy (the architecture audit's O9, owner-approved 2026-10-13). No shared crate re-exports it.
 - `crates/mxm-modulation`: **every instrument uses it** (the owner, 2026-09-15). It owns *when a value
   is readable*, *which routes are live* and **what a performance source means**; an instrument keeps
   its machine's values and *how they are applied*. Its bounded publication is load-bearing, and it
@@ -129,6 +132,7 @@ cargo +1.87.0 build -p <crate>          # and `test`, which is the harder floor
 | `crates/mxm-audio-file-decode` | **1.87** | symphonia declares 1.85. **Verified on 1.87**, library, unit and fixture tests |
 | `crates/ui` | **1.95** | egui |
 | `crates/mxm-preset` | **1.95** | egui, for the app-bar controls; the format and the library alone would stand at 1.87 |
+| `crates/mxm-params` | **1.95** | The binding draws with egui; no DSP crate needs anything in it |
 | `crates/mxm-vst3-host` | **1.95** | Inherited, not lowered: its two consumers, MXM Player and newDAWn, are at the GUI floor |
 
 ## Licensing
@@ -206,5 +210,6 @@ their own shipped packages.
 | [`crates/mxm-audio-file-decode/AGENTS.md`](crates/mxm-audio-file-decode/AGENTS.md) | Reading audio through symphonia (MPL-2.0): the formats it reads, a second crate rather than a feature, the compiled-in notice, Great-or-Excellent components only, what is bounded and what is not, what is refused and how skipped audio is found, per-file gapless reporting, and fixtures that are our own work |
 | [`crates/ui/AGENTS.md`](crates/ui/AGENTS.md) | The shared interface foundation and its design-system contract |
 | [`crates/mxm-preset/AGENTS.md`](crates/mxm-preset/AGENTS.md) | Shared preset format, library, browser, identity, authored-model Init and durable-content transaction |
+| [`crates/mxm-params/AGENTS.md`](crates/mxm-params/AGENTS.md) | `ErasedParam` and the step laws, the collection's one parameter binding, and the shared value text |
 | [`crates/mxm-vst3-host/AGENTS.md`](crates/mxm-vst3-host/AGENTS.md) | VST3 plugins in a CLAP host: a module as an in-process CLAP entry, the CLAP-to-VST3 mapping, threads and the fixed-size block lists, embedded and floating editors, Linux's run loop, and the checks against installed plugins |
 | [`docs/AGENTS.md`](docs/AGENTS.md) | The normative design system and control map, the plugin conventions, the measured `mxm-measure` page, and the filter, oscillator and modulation theory |

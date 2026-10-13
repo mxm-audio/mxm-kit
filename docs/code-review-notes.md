@@ -745,7 +745,7 @@ Use the current [design system](MXM_DESIGN_SYSTEM.md) §§3.3–4.3, 6–7 and 1
   trip.** `{:+.0}` shows `-0` for a value that rounds to zero; it parses to zero and comes back
   `+0`, so the text is not idempotent and `clap-validator`'s `param-conversions` fails — but only
   when its random values land in that sliver, so a clean run proves nothing. Format a signed reading
-  through `mxm_modulation_params::signed`, which changes nothing but that zero's sign, and test the
+  through `mxm_params::text::signed`, which changes nothing but that zero's sign, and test the
   round trip at amounts either side of zero, not only at the round numbers. It was visible as well
   as latent: `mxm-mono-02`'s negative full scales made every pulse-width route, and Pitch from Auto
   bend, read a negative zero at zero amount, on screen and in all fifty of its factory files.

@@ -4,7 +4,8 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{ErasedParam, Instrument};
+use crate::Instrument;
+use mxm_params::ErasedParam;
 
 /// The schema this build writes and reads.
 ///

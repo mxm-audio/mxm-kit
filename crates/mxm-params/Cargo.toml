@@ -1,0 +1,18 @@
+[package]
+name = "mxm-params"
+description = "What a parameter is to a control, how an editor binds one, and how it reads — for every instrument and effect"
+version.workspace = true
+edition.workspace = true
+# The binding draws with egui, which declares 1.95, and every consumer is a plugin or a crate already
+# at that floor. No DSP crate formats text, so there is no framework-free half to split out.
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+nice-plug.workspace = true
+egui.workspace = true
+mxm-ui.workspace = true
+# `sync_picture` and `synced_widest`: a syncable control's quarter note and its widest reading.
+mxm-tempo.workspace = true

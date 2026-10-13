@@ -117,9 +117,14 @@ extracted on.
   define the collection. Anything *beyond* those still waits until two instruments need it.
 - `crates/mxm-preset` is shared on evidence from five matching instrument implementations. A plugin
   supplies `Instrument` — its id, parameters, identity slot and factory files — and nothing else.
-  **It also holds the collection's one parameter binding** (`binding`, 2026-09-24), extracted from
-  eighteen per-plugin copies under the owner's standardisation principle. The rule remains: extract
-  on evidence from honest copies, not ahead of it.
+  The rule remains: extract on evidence from honest copies, not ahead of it.
+- `crates/mxm-params` holds the collection's one parameter binding (`binding`, 2026-09-24),
+  extracted from eighteen per-plugin copies under the owner's standardisation principle, with
+  `ErasedParam` and the step laws. Both were first extracted into `mxm-preset`, the crate that already
+  named nice-plug and drew with `mxm-ui`, and moved out because neither is a preset and
+  `mxm-modulation-params` depended on the whole preset system for `ErasedParam` alone. Its `text` is
+  the formatter groups the plugins carried as identical copies (80 functions, 47 distinct bodies,
+  the largest group in fifteen plugins), moved with a before-and-after census as proof.
 - `crates/mxm-modulation` is shared on evidence from three instrument source frames, and **every
   instrument uses it** (the owner, 2026-09-15: *it is why it was made*) — all eleven instruments do,
   `plans/plan-modulation-routing.md` (in the private archive) M5 delivered; `mxm-model-drums` for the standard's source and

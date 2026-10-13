@@ -258,7 +258,7 @@ impl DeferredPresetTransaction {
         if !matches!(pending.state, PendingState::Ready) || self.awaiting.is_some() {
             return false;
         }
-        let parameters: BTreeMap<&str, &dyn crate::ErasedParam> =
+        let parameters: BTreeMap<&str, &dyn mxm_params::ErasedParam> =
             instrument.parameters().into_iter().collect();
         for write in &pending.writes {
             let Some(parameter) = parameters.get(write.id.as_str()) else {
@@ -555,7 +555,7 @@ mod tests {
                 self.inner.clap_id()
             }
 
-            fn parameters(&self) -> Vec<(&'static str, &dyn crate::ErasedParam)> {
+            fn parameters(&self) -> Vec<(&'static str, &dyn mxm_params::ErasedParam)> {
                 self.inner.parameters()
             }
 
@@ -667,7 +667,7 @@ mod tests {
         fn clap_id(&self) -> &'static str {
             self.0.clap_id()
         }
-        fn parameters(&self) -> Vec<(&'static str, &dyn crate::ErasedParam)> {
+        fn parameters(&self) -> Vec<(&'static str, &dyn mxm_params::ErasedParam)> {
             self.0.parameters()
         }
         fn identity(&self) -> &std::sync::RwLock<crate::PresetIdentity> {

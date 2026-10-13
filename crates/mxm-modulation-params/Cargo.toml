@@ -14,5 +14,5 @@ repository.workspace = true
 nice-plug.workspace = true
 egui.workspace = true
 mxm-ui.workspace = true
-mxm-preset.workspace = true
+mxm-params.workspace = true
 mxm-modulation.workspace = true

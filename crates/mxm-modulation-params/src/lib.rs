@@ -24,7 +24,7 @@
 pub mod reading;
 pub mod ui;
 
-use mxm_preset::ErasedParam;
+use mxm_params::ErasedParam;
 
 /// One route: the *(target, source)* pair's two parameters, borrowed for a block or a frame.
 ///
@@ -108,21 +108,4 @@ pub fn remove(route: &Route<'_>, setter: &nice_plug::prelude::ParamSetter<'_>) {
     route.present.begin(setter);
     route.present.set(setter, 0.0);
     route.present.end(setter);
-}
-
-/// A route's reading of `value`, signed, to `places` decimals — **never a negative zero**.
-///
-/// `format!("{:+.0}", -0.004)` prints `-0`. A host parses that back to zero and prints `+0`, so the
-/// text is not idempotent through the host's conversion, and `clap-validator`'s `param-conversions`
-/// fails whenever its random values land in the sliver either side of zero — which is why one clean
-/// run proves nothing. **Only a reading that shows zero changes**: every other value prints exactly
-/// as `{:+.N}` does. A stored reading of that zero does change, so a factory file that kept one is
-/// regenerated with it.
-#[must_use]
-pub fn signed(value: f32, places: usize) -> String {
-    let text = format!("{value:+.places$}");
-    match text.strip_prefix('-') {
-        Some(digits) if digits.bytes().all(|b| b == b'0' || b == b'.') => format!("+{digits}"),
-        _ => text,
-    }
 }

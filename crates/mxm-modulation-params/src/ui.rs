@@ -49,7 +49,7 @@
 //! restores the depth. [`crate::remove`] is the single place that happens.
 
 use egui::Ui;
-use mxm_preset::{ErasedParam, StepLaw};
+use mxm_params::{ErasedParam, StepLaw};
 use mxm_ui::control::{self, ControlOutcome, Next, NextValue, ParamView, Press, Steps, Wheel};
 use mxm_ui::space::{MIN_TARGET, SPACE_2};
 

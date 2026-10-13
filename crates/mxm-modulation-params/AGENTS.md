@@ -108,7 +108,7 @@ stored value.
 ## An amount is signed and drawn bipolar
 
 Its centre is *no modulation*, so a half-filled track would read as "half on" when it means "off" —
-`mxm_preset::binding`'s `Bound::bipolar` records that as a shipped defect once already.
+`mxm_params::binding`'s `Bound::bipolar` records that as a shipped defect once already.
 
 ## An amount keeps its own step unless its plugin declares a law
 
@@ -138,7 +138,8 @@ instrument keeps `stack` and the owner's earlier exclusion of route amounts from
 
 ## A route's reading never prints a negative zero
 
-- **Every route's reading formats its number through [`signed`]**, never through `{:+.N}` directly:
+- **Every route's reading formats its number through `mxm_params::text::signed`** (moved there
+  from this crate with the collection's other value text), never through `{:+.N}` directly:
   `-0` is not idempotent through the host's conversion, and `clap-validator`'s `param-conversions`
   fails only when its random values land either side of zero, so one clean run proves nothing.
 - A factory file that stored such a zero's text is regenerated with it.

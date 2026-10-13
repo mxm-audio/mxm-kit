@@ -19,7 +19,9 @@ crate-specific contracts. The full text behind each rule is in [NOTES.md](NOTES.
 Owns `src/` and `Cargo.toml`. Does **not** own any instrument's id, parameters or sounds — those
 arrive through [`Instrument`](#an-instrument-is-four-core-answers-with-instance-setting-sparse-default-factory-preserved-and-durable-content-seams) — and does not own the drawing of the
 browser: `crates/ui`'s `preset_browser` paints the rows and reports what a person did; this crate
-knows what the rows are and what the actions mean.
+knows what the rows are and what the actions mean. `ErasedParam`, the step laws and the
+collection's one binding are [`mxm-params`](../mxm-params/AGENTS.md)'; this crate depends on it for
+`ErasedParam` and re-exports nothing of it.
 
 # Local Contracts
 
@@ -91,6 +93,16 @@ factory preset resolving every parameter and audible, Init first, the user root 
 **A test that would pass unchanged in every plugin belongs here**
 ([NOTES.md § The shared tests](NOTES.md#the-shared-tests-in-full)).
 
+**Stored text is held here, for every plugin** (`stale_factory_texts`, `plans/plan-mxm-params.md`
+P2). Each factory file's `text` must be the plugin's own formatting of the `v` beside it; `text` is
+never loaded, so nothing else notices it going stale (D17: 134 route readings in `mxm-mono-00`). It
+was one plugin's test; every plugin's preset tests now assert the list is empty, and a file that
+does not parse is reported rather than skipped. **Each file is read in its own state**: its values
+are applied first, callbacks and all, because a reading may depend on another parameter
+(`mxm-mono-08`'s Mod frequency reads in the range Mod high selects). A generator writes its texts
+the same way, through `refresh_texts`; formatting each value against a default instrument is what
+left three mono-08 files storing low-range readings beside Mod high on.
+
 ## A sound is saved with its category
 
 - `Category` is one word from a **fixed, collection-wide list** (`Category::ALL`, *Uncategorised*
@@ -123,48 +135,6 @@ factory preset resolving every parameter and audible, Init first, the user root 
 - The name in the bar and CC 117 (`PresetUi::set_browser_open`) open it; a click on the bar does not
   close it. **Left and right move between the panes, up and down within one, Enter is done**
   ([NOTES.md § The browser](NOTES.md#the-browser-in-full)).
-
-## `ErasedParam` lives here
-
-The slice of a nice-plug parameter a control or preset needs, as a trait object. Plugin bindings
-re-export it. It cannot live in `crates/ui`, whose contract excludes plugin frameworks.
-
-**`steps()` is a cell count, not a step size, and using it as one is a trap**: a `with_step_size`
-parameter reports itself continuous. Move a value with **`stepping()`**: 1 % fine and 10 % coarse,
-snapped onto the parameter's own grid and floored at one of its steps
-([NOTES.md § `steps()` and `stepping()`](NOTES.md#steps-and-stepping-in-full)).
-
-## The collection's one binding — `binding`
-
-**Every editor binds its parameters through `binding`**: a plugin's `binding` module is
-`pub use mxm_preset::binding::*;` and keeps only what is its own (mxm-creative-sampler's
-`layer_label`). Tempo sync's `sync_picture` and `synced_widest` live here too, which is why this crate
-depends on `mxm-tempo` ([NOTES.md § The binding](NOTES.md#the-binding-its-history-and-the-laws-in-full)).
-
-- **`Bound::apply` is the one place a control's gesture becomes host automation**: begin before any
-  set, end after the last; a committed text entry is one gesture, a stepped control one
-  instantaneous write, and `set_together` several parameters as one.
-- **`Bound::panel` is the painted label** (§7.1); the parameter's own name stays the accessible and
-  tooltip name (`labelled`, `unlabelled`, `painted`, and a stepped control's `_named` form).
-- **`Escape` cancels an open text entry** in every drawer. **`Bound::stepped` outranks the keyboard
-  law**, and the finer layer (MICRO) does not go under it. Its tests hold all four.
-
-**`StepLaw` and `step_from` are the musical laws.** `step_from(normalised, press, law)` answers where
-one press lands from **any** value; **every law has the finer layer** (MICRO, `Press::finer`), and
-gives a coarser finer step when `coarse` is set as well, which no key asks for. The laws,
-in plain units and clamped to the range: `Own` (`stepping()` at the start value), `Semitones` (±1 and
-±12 from the whole semitone shown), `Cents` (exactly ±1 and ±10, no grid), `Hertz` (×/÷ 2^(1/12) and
-×/÷ 2), `Interval { octaves_per_unit }` (to the **next** whole semitone or octave) and
-`Voltage { octaves_per_unit, fine }` (coarse to the next whole semitone, fine by exactly `fine`).
-**← → snap** (`Press::snap`, newDAWn's owner, 2026-10-09): every law goes to the next line of the
-size on a fixed lattice, `snap_from` — `Own` 10 %, 1 % and 0.1 % of the travel; `Semitones` 12, 1
-and 0.01 semitones from 0; `Cents` 10, 1 and 0.1 cents; `Hertz` the octave, semitone and cent lines
-of A440; `Interval` its own lattice, already snapping; `Voltage` whole semitones coarse and
-multiples of `fine` and a tenth of it. Never less than one of the parameter's own steps.
-**Declared by the owner per parameter, never guessed.** The plain⇄normalised conversion is nice-plug's
-`ParamPtr::preview_plain`/`preview_normalized`, this crate's only `unsafe`; `normalised_of` clamps
-first. `erased.rs`'s tests pin each law. The laws in full:
-[NOTES.md § The binding](NOTES.md#the-binding-its-history-and-the-laws-in-full).
 
 ## The controls know about files; the widget does not
 

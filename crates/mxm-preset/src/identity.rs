@@ -227,7 +227,7 @@ mod tests {
         fn clap_id(&self) -> &'static str {
             self.0.clap_id()
         }
-        fn parameters(&self) -> Vec<(&'static str, &dyn crate::ErasedParam)> {
+        fn parameters(&self) -> Vec<(&'static str, &dyn mxm_params::ErasedParam)> {
             self.0.parameters()
         }
         fn identity(&self) -> &std::sync::RwLock<PresetIdentity> {

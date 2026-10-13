@@ -7,7 +7,7 @@
 
 use mxm_modulation::{Compacted, SourceFrame, sum};
 use mxm_modulation_params::{Route, amounts, presences};
-use mxm_preset::ErasedParam;
+use mxm_params::ErasedParam;
 use nice_plug::prelude::ParamSetter;
 
 const N: usize = 3;

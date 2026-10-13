@@ -14,7 +14,7 @@ use std::sync::Arc;
 use mxm_modulation::standard::Offer;
 use nice_plug::prelude::{FloatParam, FloatRange, SmoothingStyle};
 
-use crate::signed;
+use mxm_params::text::signed;
 
 /// A reading's unit: what it says, how many decimals it shows, and what a target unit is worth in
 /// it.

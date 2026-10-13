@@ -3,6 +3,7 @@ resolver = "3"
 members = [
     "crates/ui",
     "crates/mxm-preset",
+    "crates/mxm-params",
     "crates/mxm-modulation",
     "crates/mxm-modulation-params",
     "crates/mxm-tempo",
@@ -34,6 +35,7 @@ egui = "=0.36.1"
 
 mxm-ui = { path = "crates/ui" }
 mxm-preset = { path = "crates/mxm-preset" }
+mxm-params = { path = "crates/mxm-params" }
 mxm-modulation = { path = "crates/mxm-modulation" }
 mxm-modulation-params = { path = "crates/mxm-modulation-params" }
 mxm-tempo = { path = "crates/mxm-tempo" }

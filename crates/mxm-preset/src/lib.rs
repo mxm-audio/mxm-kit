@@ -24,15 +24,15 @@
 //!   conversion, and there is deliberately no mismatch detection — checking would mean formatting
 //!   `v` back through a nice-plug API, which is the conversion the format exists to avoid.
 
-pub mod binding;
-pub mod erased;
 pub mod format;
 pub mod identity;
 pub mod library;
 pub mod transaction;
 pub mod ui;
 
-pub use erased::{ErasedParam, StepLaw};
+use mxm_params::ErasedParam;
+use nice_plug::prelude::ParamSetter;
+
 pub use format::{Category, EXTENSION, INIT_NAME, Origin, Preset, Refused, SCHEMA_VERSION, Value};
 pub use identity::{
     Loaded, LoadedPreset, PresetIdentity, add_switches_off, loaded, mark_loaded, mark_none,
@@ -189,6 +189,292 @@ pub trait Instrument {
     }
 }
 
+/// Every stored `text` in `instrument`'s factory files that is not its own formatting of the `v`
+/// beside it, one line each naming the file, the id, what is stored and what the plugin prints —
+/// empty when every file is current.
+///
+/// **`text` is never loaded, which is exactly why nothing else notices it going stale**: a changed
+/// reading leaves every file loading the same sound while telling whoever reads it something else.
+/// `mxm-mono-00` shipped 134 route readings from before a scale entered them (`+5.83 oct` where it
+/// prints `+3.50 oct`, `plans/plan-sibling-audit.md` D17). Every plugin's preset tests assert this
+/// is empty. It compares text in a test and never at load: the format's *no mismatch detection* is
+/// about loading. A file that does not parse is reported; an id the instrument does not have is
+/// left to the plugin's own completeness test.
+///
+/// **Each file is checked in its own state.** A reading may depend on another parameter —
+/// `mxm-mono-08`'s Mod frequency reads in the range its Mod high switch selects, through the
+/// switch's callback — so every value the file stores is applied first, callbacks and all, onto the
+/// instrument's own values, and each text is compared with what the instrument prints in that
+/// state. The instrument's values are put back afterwards. [`refresh_texts`] is the same reading
+/// for a generator.
+pub fn stale_factory_texts(instrument: &dyn Instrument) -> Vec<String> {
+    let mut stale = Vec::new();
+    for (name, json) in instrument.factory_files() {
+        let preset = match Preset::parse(json, instrument.clap_id()) {
+            Ok(preset) => preset,
+            Err(refused) => {
+                stale.push(format!("{name:?} does not parse: {refused:?}"));
+                continue;
+            }
+        };
+        for (id, printed) in texts_in_state(instrument, &preset) {
+            let stored = &preset.params[&id].text;
+            if printed != *stored {
+                stale.push(format!(
+                    "{name:?} `{id}` stores {stored:?}, the plugin prints {printed:?}"
+                ));
+            }
+        }
+    }
+    stale
+}
+
+/// Rewrites every `text` in `preset` as `instrument` prints its `v` **in the preset's own state** —
+/// what a factory set's generator stores, so a reading that depends on another parameter (see
+/// [`stale_factory_texts`]) is written in the range the preset selects, not the default's. An id
+/// the instrument does not have keeps its text.
+pub fn refresh_texts(instrument: &dyn Instrument, preset: &mut Preset) {
+    for (id, text) in texts_in_state(instrument, preset) {
+        if let Some(value) = preset.params.get_mut(&id) {
+            value.text = text;
+        }
+    }
+}
+
+/// Each id `preset` stores that `instrument` has, with what the instrument prints for its `v` once
+/// every stored value has been applied onto the instrument's own, callbacks and all. The
+/// instrument's values are put back before it returns.
+fn texts_in_state(instrument: &dyn Instrument, preset: &Preset) -> Vec<(String, String)> {
+    let parameters = instrument.parameters();
+    let host = Applying;
+    let setter = ParamSetter::new(&host);
+    let before: Vec<f32> = parameters.iter().map(|(_, p)| p.normalised()).collect();
+    let stored: Vec<_> = preset
+        .params
+        .iter()
+        .filter_map(|(id, value)| {
+            let (_, param) = parameters.iter().find(|(bound, _)| bound == id)?;
+            Some((id, *param, value.v))
+        })
+        .collect();
+    for (_, param, v) in &stored {
+        param.set(&setter, *v);
+    }
+    let texts = stored
+        .iter()
+        .map(|(id, param, v)| ((*id).clone(), param.format(*v)))
+        .collect();
+    for ((_, param), value) in parameters.iter().zip(before) {
+        param.set(&setter, value);
+    }
+    texts
+}
+
+/// A host that applies each write as it arrives, as the CLAP wrapper does by the next process call,
+/// so a parameter's callbacks run: the state a dependent reading formats against.
+struct Applying;
+
+impl nice_plug::context::gui::GuiContextInner for Applying {
+    // A test or offline host has no host to ask for a restart (nice-plug 0.4).
+    fn request_restart(&self) {}
+    fn plugin_api(&self) -> nice_plug::prelude::PluginApi {
+        nice_plug::prelude::PluginApi::Clap
+    }
+    unsafe fn raw_begin_set_parameter(&self, _param: nice_plug::params::internals::ParamPtr) {}
+    unsafe fn raw_set_parameter_normalized(
+        &self,
+        param: nice_plug::params::internals::ParamPtr,
+        normalized: f32,
+    ) {
+        // SAFETY: `stale_factory_texts` writes only through parameters `instrument` owns, which
+        // outlive the call; this is the setter the wrapper itself applies a host's value with.
+        unsafe {
+            param._internal_set_normalized_value(normalized);
+        }
+    }
+    unsafe fn raw_end_set_parameter(&self, _param: nice_plug::params::internals::ParamPtr) {}
+    fn get_state(&self) -> nice_plug::prelude::PluginState {
+        nice_plug::prelude::PluginState {
+            version: String::new(),
+            params: Default::default(),
+            fields: Default::default(),
+        }
+    }
+    fn set_state(&self, _state: nice_plug::prelude::PluginState) {}
+}
+
+#[cfg(test)]
+mod stale_text_tests {
+    use std::sync::RwLock;
+
+    use super::{Instrument, Preset, PresetIdentity, refresh_texts, stale_factory_texts};
+    use crate::testing::{CLAP_ID, TestInstrument};
+    use mxm_params::ErasedParam;
+
+    /// The test instrument with factory files of the test's own making.
+    struct WithFiles(TestInstrument, &'static [(&'static str, &'static str)]);
+
+    impl Instrument for WithFiles {
+        fn clap_id(&self) -> &'static str {
+            CLAP_ID
+        }
+        fn parameters(&self) -> Vec<(&'static str, &dyn ErasedParam)> {
+            self.0.parameters()
+        }
+        fn identity(&self) -> &RwLock<PresetIdentity> {
+            self.0.identity()
+        }
+        fn factory_files(&self) -> &'static [(&'static str, &'static str)] {
+            self.1
+        }
+    }
+
+    /// One file storing each parameter's own formatting of its value, with `cutoff`'s text replaced
+    /// by `cutoff_text` when given.
+    fn files(cutoff_text: Option<&str>) -> &'static [(&'static str, &'static str)] {
+        let instrument = TestInstrument::new();
+        let params: Vec<String> = instrument
+            .parameters()
+            .into_iter()
+            .map(|(id, param)| {
+                let v = 0.25;
+                let text = match (id, cutoff_text) {
+                    ("cutoff", Some(text)) => text.to_owned(),
+                    _ => param.format(v),
+                };
+                format!("{id:?}: {{ \"v\": {v}, \"text\": {text:?} }}")
+            })
+            .collect();
+        let json = format!(
+            "{{ \"schema_version\": 1, \"plugin\": {CLAP_ID:?}, \"name\": \"Probe\", \"params\": {{ {} }} }}",
+            params.join(", ")
+        );
+        Box::leak(Box::new([("Probe", &*Box::leak(json.into_boxed_str()))]))
+    }
+
+    #[test]
+    fn a_file_storing_the_plugins_own_text_is_current() {
+        let stale = stale_factory_texts(&WithFiles(TestInstrument::new(), files(None)));
+        assert!(stale.is_empty(), "{stale:?}");
+    }
+
+    #[test]
+    fn a_text_the_plugin_no_longer_prints_is_reported_by_file_and_id() {
+        let stale = stale_factory_texts(&WithFiles(TestInstrument::new(), files(Some("stale"))));
+        assert_eq!(stale.len(), 1, "{stale:?}");
+        assert!(
+            stale[0].starts_with("\"Probe\" `cutoff` stores \"stale\""),
+            "{stale:?}"
+        );
+    }
+
+    /// A reading that depends on a switch, as `mxm-mono-08`'s Mod frequency depends on Mod high:
+    /// `level` reads tenfold while `high` is on, through `high`'s callback.
+    struct Dependent {
+        high: nice_plug::prelude::BoolParam,
+        level: nice_plug::prelude::FloatParam,
+        preset: RwLock<PresetIdentity>,
+        files: &'static [(&'static str, &'static str)],
+    }
+
+    impl Dependent {
+        fn new(files: &'static [(&'static str, &'static str)]) -> Self {
+            use nice_plug::prelude::{BoolParam, FloatParam, FloatRange};
+            use std::sync::Arc;
+            use std::sync::atomic::{AtomicBool, Ordering};
+            let flag = Arc::new(AtomicBool::new(false));
+            let reads = flag.clone();
+            Self {
+                high: BoolParam::new("High", false)
+                    .with_callback(Arc::new(move |on| flag.store(on, Ordering::Relaxed))),
+                level: FloatParam::new("Level", 0.5, FloatRange::Linear { min: 0.0, max: 1.0 })
+                    .with_value_to_string(Arc::new(move |v| {
+                        let scale = if reads.load(Ordering::Relaxed) {
+                            10.0
+                        } else {
+                            1.0
+                        };
+                        format!("{:.2}", v * scale)
+                    })),
+                preset: RwLock::new(PresetIdentity::none()),
+                files,
+            }
+        }
+    }
+
+    impl Instrument for Dependent {
+        fn clap_id(&self) -> &'static str {
+            CLAP_ID
+        }
+        fn parameters(&self) -> Vec<(&'static str, &dyn ErasedParam)> {
+            vec![("high", &self.high), ("level", &self.level)]
+        }
+        fn identity(&self) -> &RwLock<PresetIdentity> {
+            &self.preset
+        }
+        fn factory_files(&self) -> &'static [(&'static str, &'static str)] {
+            self.files
+        }
+    }
+
+    /// One file with `high` on and `level` at 0.25, storing `level_text` for it.
+    fn dependent_file(level_text: &str) -> &'static [(&'static str, &'static str)] {
+        let json = format!(
+            "{{ \"schema_version\": 1, \"plugin\": {CLAP_ID:?}, \"name\": \"High\", \"params\": {{ \"high\": {{ \"v\": 1.0, \"text\": \"On\" }}, \"level\": {{ \"v\": 0.25, \"text\": {level_text:?} }} }} }}"
+        );
+        Box::leak(Box::new([("High", &*Box::leak(json.into_boxed_str()))]))
+    }
+
+    /// **A file is read in its own state**: with its switch on, a dependent reading prints in the
+    /// switch's range, so the low-range text a default instrument would print is stale.
+    #[test]
+    fn a_reading_that_depends_on_another_parameter_is_checked_in_the_files_state() {
+        let current = stale_factory_texts(&Dependent::new(dependent_file("2.50")));
+        assert!(current.is_empty(), "{current:?}");
+        let stale = stale_factory_texts(&Dependent::new(dependent_file("0.25")));
+        assert_eq!(stale.len(), 1, "{stale:?}");
+        assert!(stale[0].contains("`level` stores \"0.25\""), "{stale:?}");
+    }
+
+    /// **A generator writes each text in its preset's state**: refreshing the stale file's texts
+    /// makes it current.
+    #[test]
+    fn refreshed_texts_are_written_in_the_presets_own_state() {
+        let instrument = Dependent::new(dependent_file("0.25"));
+        let mut preset =
+            Preset::parse(instrument.factory_files()[0].1, CLAP_ID).expect("the file parses");
+        refresh_texts(&instrument, &mut preset);
+        assert_eq!(preset.params["level"].text, "2.50");
+        assert_eq!(preset.params["high"].text, "On");
+        assert_eq!(
+            instrument.level.format(0.25),
+            "0.25",
+            "the instrument is put back"
+        );
+    }
+
+    /// The instrument's own values are put back once the files have been read.
+    #[test]
+    fn the_instruments_values_are_restored_after_the_check() {
+        let instrument = Dependent::new(dependent_file("2.50"));
+        let _ = stale_factory_texts(&instrument);
+        assert_eq!(instrument.high.normalised(), 0.0);
+        assert_eq!(instrument.level.normalised(), 0.5);
+        assert_eq!(instrument.level.format(0.25), "0.25");
+    }
+
+    #[test]
+    fn a_file_that_does_not_parse_is_reported_rather_than_skipped() {
+        let files: &'static [(&str, &str)] = &[("Broken", "{ not json")];
+        let stale = stale_factory_texts(&WithFiles(TestInstrument::new(), files));
+        assert_eq!(stale.len(), 1, "{stale:?}");
+        assert!(
+            stale[0].starts_with("\"Broken\" does not parse"),
+            "{stale:?}"
+        );
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod testing {
     //! A three-parameter instrument for the tests here: enough to hold every rule and nothing an
@@ -199,7 +485,8 @@ pub(crate) mod testing {
 
     use nice_plug::prelude::{BoolParam, FloatParam, FloatRange, Param};
 
-    use crate::{ErasedParam, Instrument, PresetIdentity};
+    use crate::{Instrument, PresetIdentity};
+    use mxm_params::ErasedParam;
 
     pub(crate) const CLAP_ID: &str = "dk.mxm.test";
 
