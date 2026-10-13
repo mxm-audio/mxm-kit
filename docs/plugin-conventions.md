@@ -1201,7 +1201,7 @@ them as policy.
 cargo test -p mxm-mono-01
 cargo clippy -p mxm-mono-01 --all-targets
 
-cargo xtask bundle mxm-mono-01 --release          # -> target/bundled/mxm-mono-01.clap
+cargo xtask bundle mxm-mono-01 --release          # -> target/bundled/mxm-mono-01.clap, installed
 clap-validator validate "target/bundled/mxm-mono-01.clap"
 ```
 
@@ -1260,8 +1260,16 @@ read a line of code.
 **Building the crate does not build the bundle, and nothing says so.** `cargo build -p mxm-mono-01`,
 `cargo test`, `cargo clippy` and `apps/mxm-mono-01-standalone` all compile the library and all show the
 change immediately. `target/bundled/mxm-mono-01.clap` is a **separate artifact**, and a host loads that
-one. Change the editor, run the standalone, see the change, screenshot it — and the plugin a person
-actually opens is still the previous build.
+one, from the user's CLAP folder `bundle` installs it in. Change the editor, run the standalone, see
+the change, screenshot it — and the plugin a person actually opens is still the previous build.
+
+**Every bundle installs itself** in this user's CLAP folder, where newDAWn, Bitwig and the other
+hosts look (`%LOCALAPPDATA%\Programs\Common\CLAP`, `~/Library/Audio/Plug-Ins/CLAP`, `~/.clap`; the
+owner, 2026-10-13: "So the latest ones are always in the daw and bitwig"). That includes a test's
+bundle and any work in progress: `MXM_INSTALL_CLAP=0` turns it off, and under CI it is off unless
+set to `1`. A host holding the installed plugin doesn't stop it: the held copy is set aside and the
+new one goes in, which the host runs once it loads the plugin again. An install that fails says why
+and never fails the bundle. The rules are `crates/mxm-xtask`'s.
 
 **The standalone is what makes this trap convincing**, because it is the easy thing to drive and it
 is honest about the code it was built from. It is just not the thing being shipped. So: after any
@@ -1270,9 +1278,10 @@ and check the timestamp on the `.clap` if what you see disagrees with what you w
 as *"it didn't stick"*, with a screenshot of the old panel taken minutes after a screenshot of the
 new one.
 
-**Nothing may be holding the bundle when you rebundle.** `cargo xtask bundle` fails with
-`Access is denied (os error 5)` — *"Could not remove file before reflinking"* — if a player still has
-the `.clap` loaded, and the failure is easy to read past. **The dangerous part is what happens next:
+**Nothing may be holding the bundle in `target/bundled` when you rebundle.** A host that loads the
+installed copy never blocks it; one that loads `target/bundled` directly does. `cargo xtask bundle`
+fails with `Access is denied (os error 5)` — *"Could not remove file before reflinking"* — if a
+player still has that `.clap` loaded, and the failure is easy to read past. **The dangerous part is what happens next:
 the previous bundle is still sitting there, so the validator runs and passes against the build you
 meant to replace.** Check that bundling printed `Created a CLAP bundle` before believing a validator
 result, and close the player first.

@@ -1,6 +1,6 @@
 [package]
 name = "mxm-xtask"
-description = "The build tooling every MXM repository's xtask shares: nice-plug's bundler, then each plugin's control map staged beside its bundle."
+description = "The build tooling every MXM repository's xtask shares: nice-plug's bundler, then each plugin's control map staged beside its bundle and both installed in the user's CLAP folder."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -12,5 +12,7 @@ publish = false
 [dependencies]
 nice-plug-xtask = "=0.1.1"
 anyhow = "=1.0.104"
+# The target folder, found as nice-plug's bundler finds it, for the bundles `install` installs.
+cargo_metadata = "=0.23.1"
 # The control-map standard, which a staged map is checked against (`control_maps`).
 mxm-control-map.workspace = true

@@ -166,13 +166,15 @@ pub fn fetch_dir() -> Result<PathBuf> {
 
 /// Cargo, run in a fetched repository as if started there. This command runs under `cargo run`,
 /// whose `CARGO_MANIFEST_DIR` names this repository's xtask, and nice-plug's bundler reads it before
-/// anything else to find the workspace it bundles.
+/// anything else to find the workspace it bundles. It never installs what it bundles: a plugin at
+/// an old tag must not replace the one last built in the user's CLAP folder.
 fn cargo_in(checkout: &Path) -> Command {
     let mut command = Command::new(std::env::var("CARGO").unwrap_or_else(|_| "cargo".to_owned()));
     command
         .current_dir(checkout)
         .env_remove("CARGO_MANIFEST_DIR")
-        .env_remove("CARGO_TARGET_DIR");
+        .env_remove("CARGO_TARGET_DIR")
+        .env(crate::install::SWITCH, "0");
     command
 }
 

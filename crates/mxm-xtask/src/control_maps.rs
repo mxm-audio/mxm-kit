@@ -82,33 +82,40 @@ fn check_text(text: &str) -> Result<()> {
     Ok(())
 }
 
-/// Reads `bundler.toml` for the crate-to-bundle-name mapping.
+/// Each plugin's crate folder and bundle name, from [`bundles`].
+fn bundle_names(workspace_root: &Path) -> Result<Vec<(PathBuf, String)>> {
+    Ok(bundles(workspace_root)?
+        .into_iter()
+        .map(|(package, bundle)| (workspace_root.join("plugins").join(package), bundle))
+        .collect())
+}
+
+/// Reads `bundler.toml`: each package and its bundle's name, as nice-plug's bundler names it (the
+/// package's own name when the section gives none).
 ///
 /// Parsed by hand rather than with a TOML dependency: the file is a flat list of
 /// `[crate]` / `name = "..."` pairs, and adding a dependency to read six lines is not a trade
 /// this repo makes lightly.
-fn bundle_names(workspace_root: &Path) -> Result<Vec<(PathBuf, String)>> {
+pub(crate) fn bundles(workspace_root: &Path) -> Result<Vec<(String, String)>> {
     let path = workspace_root.join("bundler.toml");
     let text = std::fs::read_to_string(&path)
         .with_context(|| format!("Could not read {}", path.display()))?;
 
-    let mut out = Vec::new();
-    let mut current: Option<String> = None;
-
+    let mut out: Vec<(String, String)> = Vec::new();
     for line in text.lines() {
         let line = line.trim();
         if let Some(rest) = line.strip_prefix('[')
             && let Some(name) = rest.strip_suffix(']')
         {
-            current = Some(name.trim().to_owned());
+            let package = name.trim().to_owned();
+            out.push((package.clone(), package));
             continue;
         }
         if let Some(rest) = line.strip_prefix("name")
             && let Some((_, value)) = rest.split_once('=')
-            && let Some(crate_name) = current.as_ref()
+            && let Some((_, bundle)) = out.last_mut()
         {
-            let bundle_name = value.trim().trim_matches('"').to_owned();
-            out.push((workspace_root.join("plugins").join(crate_name), bundle_name));
+            *bundle = value.trim().trim_matches('"').to_owned();
         }
     }
     Ok(out)

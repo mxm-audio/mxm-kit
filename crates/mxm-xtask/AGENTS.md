@@ -4,9 +4,10 @@
 
 The build tooling every MXM repository's `cargo xtask` shares: `main` runs `nice_plug_xtask`, which
 produces the loadable `.clap`, and after a `bundle` stages each plugin's control map beside its
-bundle (`control_maps`). `cargo xtask fetch` builds the plugins of *other* MXM repositories that
-this repository's tests load, at the tags its `test-bundles.txt` pins (`fetch`). A repository's own
-`xtask` passes its workspace root and adds only the commands that repository alone needs.
+bundle (`control_maps`) and installs both in the user's CLAP folder (`install`). `cargo xtask
+fetch` builds the plugins of *other* MXM repositories that this repository's tests load, at the tags
+its `test-bundles.txt` pins (`fetch`). A repository's own `xtask` passes its workspace root and adds
+only the commands that repository alone needs.
 
 It was the root `xtask`'s `main.rs` and `control_maps.rs` until the collection's split into one
 repository per product (`plans/plan-repo-split.md` in the private archive, Phase 1): every product repository bundles, and
@@ -14,9 +15,9 @@ one copy of the tooling is what keeps them bundling the same way.
 
 # Ownership
 
-Owns `Cargo.toml` and `src/{lib.rs, control_maps.rs, fetch.rs}`. Reads the caller's `bundler.toml`
-for display names, `plugins/<crate>/control-map.json` for the maps and `test-bundles.txt` for the
-plugins to fetch; all three belong to the repository being built.
+Owns `Cargo.toml` and `src/{lib.rs, control_maps.rs, fetch.rs, install.rs, install/tests.rs}`.
+Reads the caller's `bundler.toml` for display names, `plugins/<crate>/control-map.json` for the maps
+and `test-bundles.txt` for the plugins to fetch; all three belong to the repository being built.
 
 # Local Contracts
 
@@ -28,6 +29,26 @@ plugins to fetch; all three belong to the repository being built.
   `target/bundled/<Bundle Name>.control-map.json`, which is where MXM Player looks for it. A plugin
   without one is not an error — it simply has no roles filled. Staging never fails the bundle: an
   unmapped plugin still works.
+- **Every bundle installs itself** in this user's CLAP folder (`install::user_folder`), where
+  newDAWn, Bitwig and the other hosts look, so a host always loads the last build (newDAWn's owner,
+  2026-10-13, choosing every build over every commit: "So the latest ones are always in the daw and
+  bitwig"). Here because nice-plug's bundler writes to `target/bundled` alone. `bundle` and
+  `bundle-universal` alike, only the packages the command line bundled that `bundler.toml` names,
+  each with the map staged in the same run, or none: the installed map is set aside before the
+  plugin goes in, so an older map never stays beside a newer plugin.
+  - **On by default** (`install::wanted`): set, `MXM_INSTALL_CLAP` decides, `1` installing and any
+    other value (`0`) not; unset, a bundle installs unless `CI` is set, so CI runners don't.
+  - **Never fatal**: a failed install says why and the bundle succeeds, so a host holding the
+    installed plugin never fails a test's bundle.
+  - **A plugin a host holds is replaced all the same.** Windows won't overwrite or delete a loaded
+    library but renames it (tried 2026-10-13 on a loaded `mxm-mono-01.clap`), so the held copy goes
+    aside as `<name>.clap.<stamp>.old` and the new one is renamed in; a `.old` goes at a later
+    install, once nothing holds it, as does a `.tmp` or `.new` an install cut off left. Installs
+    take turns on `.mxm-install.lock` in the folder. Hosts list only `*.clap`.
+  - A bundle of the same name in a folder newDAWn scans first (`CLAP_PATH`, the system CLAP folder)
+    is warned about: newDAWn would load that one.
+  - The tests install into a temporary folder, never the real one; the held case loads a copy of
+    a system library with `LoadLibraryW`, as a host loads a plugin.
 - **A map that does not hold to the standard fails the bundle**, before anything is built
   (`control_maps::check`, the check a host makes on loading it). That is what keeps a broken map from
   shipping now that no collection-wide test reads every product's map; it replaced MXM Player's
@@ -47,6 +68,8 @@ plugins to fetch; all three belong to the repository being built.
   `.clap` and its control map into `target/bundled/`, or the bare library into `target/debug/`. A
   clone already there is reused, because a tag does not move. `test-bundles.txt` is
   `repository tag profile` per line, the repository name doubling as the package and bundle name.
+  **`fetch` never installs** (`MXM_INSTALL_CLAP=0` for its builds): a plugin at an old tag must not
+  replace the last one built.
 - `bundler.toml` is parsed by hand rather than with a `toml` dependency. Six lines of flat key-value
   do not justify a pinned crate.
 - `publish = false`. Dependencies pinned exactly.
@@ -60,13 +83,13 @@ name; no change here is required for it, and its `control-map.json` is picked up
 
 ```bash
 cargo xtask bundle mxm-mono-01 --release    # -> target/bundled/mxm-mono-01.clap
-                                            #    + mxm-mono-01.control-map.json
+                                            #    + mxm-mono-01.control-map.json, both installed
 cargo xtask fetch                           # every line of test-bundles.txt, built and placed
-cargo test -p mxm-xtask                     # test-bundles.txt parsing
+cargo test -p mxm-xtask                     # test-bundles.txt parsing, installing
 cargo clippy -p mxm-xtask --all-targets
 ```
 
-The check is that the artifacts appear at the paths above and that
+The check is that the artifacts appear at the paths above, `Installed <path>` is printed, and that
 `clap-validator validate "target/bundled/mxm-mono-01.clap"` can load the bundle.
 
 # Child DOX Index

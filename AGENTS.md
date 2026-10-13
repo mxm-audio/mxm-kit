@@ -70,7 +70,8 @@ The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.
   harnesses and their policy, `mxm-measure` rulers (never a threshold or verdict), `mxm-listening`
   interpretation. A harness that verifies one plugin stays with it.
 - `crates/mxm-xtask` is **the build tooling every repository's `xtask` shares** — bundling,
-  control-map staging and `fetch`; mxm-player's root `xtask` adds only `fixtures`.
+  control-map staging, installing each bundle in the user's CLAP folder (2026-10-13) and `fetch`;
+  mxm-player's root `xtask` adds only `fixtures`.
 - `crates/mxm-plugin-test` is **the checks every plugin's tests share** — neither shared DSP nor
   shared interface; a `[dev-dependencies]` entry only, held by the same leak check.
 - `crates/mxm-keys` is **the shared keyboard language's engine**, an owner-approved exception to
@@ -217,7 +218,7 @@ their own shipped packages.
 | [`crates/mxm-measure/AGENTS.md`](crates/mxm-measure/AGENTS.md) | The measurement rulers every test and harness shares: a named computation and never a verdict, the dev-dependency-only rule and its check, the result forms, the extraction gate (its **declined register** in that folder's `NOTES.md`), and the closed-form controls that keep a shared ruler honest |
 | [`crates/mxm-control-map/AGENTS.md`](crates/mxm-control-map/AGENTS.md) | The control-map standard (`control-map.json`) and its schema — layout, instrument maps, parsing, validation and the parameter id hash — read by MXM Player and the plugins' tests |
 | [`crates/mxm-plugin-test/AGENTS.md`](crates/mxm-plugin-test/AGENTS.md) | The checks every plugin's tests share — keyboard coverage, paging, the opening size, layout-tree cards, route parameters, time readings, the bundle's name in `bundler.toml` and the words a player reads (with their word lists) — one copy for all, dev-dependency only |
-| [`crates/mxm-xtask/AGENTS.md`](crates/mxm-xtask/AGENTS.md) | The build tooling every repository's `xtask` shares: bundling through `nice_plug_xtask`, control-map staging, and the outermost-workspace trap |
+| [`crates/mxm-xtask/AGENTS.md`](crates/mxm-xtask/AGENTS.md) | The build tooling every repository's `xtask` shares: bundling through `nice_plug_xtask`, control-map staging, installing every bundle in the user's CLAP folder, and the outermost-workspace trap |
 | [`crates/mxm-audio-file/AGENTS.md`](crates/mxm-audio-file/AGENTS.md) | Writing WAV, AIFF and FLAC through established encoders: the formats and their limits, no MPL code, quantisation as a published definition equal to `mxm-measure`'s at 16 bits, refusal of non-finite samples, reported clipping, atomic writes, the 32-bit WAV size bound, the `acid` exception, and the flacenc STREAMINFO correction |
 | [`crates/mxm-audio-file-decode/AGENTS.md`](crates/mxm-audio-file-decode/AGENTS.md) | Reading audio through symphonia (MPL-2.0): the formats it reads, a second crate rather than a feature, the compiled-in notice, Great-or-Excellent components only, what is bounded and what is not, what is refused and how skipped audio is found, per-file gapless reporting, and fixtures that are our own work |
 | [`crates/ui/AGENTS.md`](crates/ui/AGENTS.md) | The shared interface foundation and its design-system contract |
