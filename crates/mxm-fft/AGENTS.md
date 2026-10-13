@@ -59,7 +59,8 @@ transforms or their flushing: those are the consumer's. No minimum-phase helper 
 `rustfft`'s planner picks its algorithm by the CPU's SIMD features, so results can differ at
 roundoff between machines. That is fine for every display and measurement consumer. A consumer
 with **bit-exact digests** needs the scalar planner, and each digest names its portability domain
-(`plans/plan-mxm-fft.md` §3). That planner arrives with X5, its first user, not before.
+(the archive's `plans/plan-mxm-fft.md` §3). That planner arrives with X5, its first user, not
+before.
 
 ## Dependencies and build
 
