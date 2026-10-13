@@ -125,6 +125,11 @@ extracted on.
   `mxm-modulation-params` depended on the whole preset system for `ErasedParam` alone. Its `text` is
   the formatter groups the plugins carried as identical copies (80 functions, 47 distinct bodies,
   the largest group in fifteen plugins), moved with a before-and-after census as proof.
+- `crates/mxm-telemetry` is shared on evidence from every plugin's `telemetry.rs`: the meter's read
+  side was one body in nineteen plugins and its write side five policies for a non-finite peak,
+  and the developer channel's four request slots were copied into all eleven instruments. Each
+  plugin keeps its own telemetry — envelopes, modulators, stage levels — and holds these as
+  fields; the policy and its history are in that crate's `NOTES.md`.
 - `crates/mxm-modulation` is shared on evidence from three instrument source frames, and **every
   instrument uses it** (the owner, 2026-09-15: *it is why it was made*) — all eleven instruments do,
   `plans/plan-modulation-routing.md` (in the private archive) M5 delivered; `mxm-model-drums` for the standard's source and

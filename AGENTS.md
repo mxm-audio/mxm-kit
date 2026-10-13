@@ -35,7 +35,7 @@ fixes in its `PATCHES.md` — which every repository that builds a plugin patche
 ## The crates
 
 The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.md#the-crate-rules-in-full).
-**Thirteen crate rules, deliberately different** — count the bullets before editing this number:
+**Fourteen crate rules, deliberately different** — count the bullets before editing this number:
 
 - `crates/ui` is **shared from day one**: design system §13 exempts the shell, theme tokens,
   typography and basic parameter controls; anything *beyond* them waits for two instruments.
@@ -45,6 +45,10 @@ The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.
   reads**: `ErasedParam` and the step laws, the collection's one `binding` (eighteen copies made
   one, 2026-09-24), and `text`, the readings the plugins carried as identical copies — never a new
   policy (the architecture audit's O9, owner-approved 2026-10-13). No shared crate re-exports it.
+- `crates/mxm-telemetry` is **what every plugin's DSP→editor channel shares**: the peak meter with
+  its one clip and non-finite policy, and the developer channel's request slots, held as fields of
+  each plugin's `Telemetry` (19 and 11 copies made one; the audit's O10, owner-approved
+  2026-10-13). Zero dependencies and MSRV 1.87.
 - `crates/mxm-modulation`: **every instrument uses it** (the owner, 2026-09-15). It owns *when a value
   is readable*, *which routes are live* and **what a performance source means**; an instrument keeps
   its machine's values and *how they are applied*. Its bounded publication is load-bearing, and it
@@ -133,6 +137,7 @@ cargo +1.87.0 build -p <crate>          # and `test`, which is the harder floor
 | `crates/ui` | **1.95** | egui |
 | `crates/mxm-preset` | **1.95** | egui, for the app-bar controls; the format and the library alone would stand at 1.87 |
 | `crates/mxm-params` | **1.95** | The binding draws with egui; no DSP crate needs anything in it |
+| `crates/mxm-telemetry` | **1.87** | Zero dependencies, atomics only, so a plugin's audio half takes it without the GUI floor. **Verified on 1.87**, library and tests |
 | `crates/mxm-vst3-host` | **1.95** | Inherited, not lowered: its two consumers, MXM Player and newDAWn, are at the GUI floor |
 
 ## Licensing
@@ -211,5 +216,6 @@ their own shipped packages.
 | [`crates/ui/AGENTS.md`](crates/ui/AGENTS.md) | The shared interface foundation and its design-system contract |
 | [`crates/mxm-preset/AGENTS.md`](crates/mxm-preset/AGENTS.md) | Shared preset format, library, browser, identity, authored-model Init and durable-content transaction |
 | [`crates/mxm-params/AGENTS.md`](crates/mxm-params/AGENTS.md) | `ErasedParam` and the step laws, the collection's one parameter binding, and the shared value text |
+| [`crates/mxm-telemetry/AGENTS.md`](crates/mxm-telemetry/AGENTS.md) | The plugin's DSP→editor channel: the peak meter and its one policy, and the developer channel's request slots |
 | [`crates/mxm-vst3-host/AGENTS.md`](crates/mxm-vst3-host/AGENTS.md) | VST3 plugins in a CLAP host: a module as an in-process CLAP entry, the CLAP-to-VST3 mapping, threads and the fixed-size block lists, embedded and floating editors, Linux's run loop, and the checks against installed plugins |
 | [`docs/AGENTS.md`](docs/AGENTS.md) | The normative design system and control map, the plugin conventions, the measured `mxm-measure` page, and the filter, oscillator and modulation theory |

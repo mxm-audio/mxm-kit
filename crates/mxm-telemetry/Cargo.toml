@@ -1,0 +1,13 @@
+[package]
+name = "mxm-telemetry"
+description = "What every MXM plugin's DSP-to-editor channel shares: the peak meter with its clip latch, and the developer channel's request slots"
+version.workspace = true
+edition.workspace = true
+# Zero dependencies and atomics only, so a plugin's audio half takes it without the GUI floor.
+# Verified with `cargo +1.87.0 test -p mxm-telemetry`.
+rust-version = "1.87"
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
