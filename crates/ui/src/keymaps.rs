@@ -37,8 +37,9 @@ pub fn file(folder: &Path, name: &str) -> PathBuf {
 }
 
 /// Makes the folder and copies each shipped keymap in, to be edited. What was copied is kept in
-/// `.shipped/`: a copy nobody has edited follows the shipped keymap when that changes, and an
-/// edited one is left alone. Returns what went wrong, never raises it.
+/// `.shipped/`: a copy nobody has edited follows the shipped keymap when that changes, and goes
+/// when the kit stops shipping it; an edited one is left alone, and is the user's own once its
+/// keymap no longer ships. Returns what went wrong, never raises it.
 pub fn seed(folder: &Path) -> Vec<String> {
     let mut problems = Vec::new();
     if let Err(error) = std::fs::create_dir_all(folder) {
@@ -46,9 +47,9 @@ pub fn seed(folder: &Path) -> Vec<String> {
         return problems;
     }
     let records = folder.join(SHIPPED_RECORDS);
-    if let Err(error) = std::fs::create_dir_all(&records) {
-        problems.push(format!("{} can't be made: {error}", records.display()));
-    }
+    let records_made = std::fs::create_dir_all(&records)
+        .map_err(|error| problems.push(format!("{} can't be made: {error}", records.display())))
+        .is_ok();
     // As bytes, so an edit that isn't UTF-8 still counts as an edit; a file that is there and
     // doesn't read is said and left alone.
     let read = |path: &Path| match std::fs::read(path) {
@@ -92,6 +93,57 @@ pub fn seed(folder: &Path) -> Vec<String> {
         });
         if let Err(error) = written {
             problems.push(format!("{} can't be written: {error}", file.display()));
+        }
+    }
+    // The records of keymaps the kit no longer ships; a records folder that couldn't be made was
+    // said already.
+    let mut gone = Vec::new();
+    let entries = if records_made {
+        std::fs::read_dir(&records)
+            .map_err(|error| problems.push(format!("{}: {error}", records.display())))
+            .into_iter()
+            .flatten()
+            .collect()
+    } else {
+        Vec::new()
+    };
+    for entry in entries {
+        let path = match entry {
+            Ok(entry) => entry.path(),
+            Err(error) => {
+                problems.push(format!("{}: {error}", records.display()));
+                continue;
+            }
+        };
+        let stem = path.file_stem().and_then(|stem| stem.to_str());
+        if let Some(stem) = stem
+            && path
+                .extension()
+                .is_some_and(|extension| extension == "keymap")
+            && !SHIPPED.iter().any(|(shipped, _)| *shipped == stem)
+        {
+            gone.push(stem.to_owned());
+        }
+    }
+    for stem in gone {
+        let record = file(&records, &stem);
+        let copy = file(folder, &stem);
+        let (current, copied) = match (read(&copy), read(&record)) {
+            (Ok(current), Ok(copied)) => (current, copied),
+            (Err(problem), _) | (_, Err(problem)) => {
+                problems.push(problem);
+                continue;
+            }
+        };
+        if current.is_some()
+            && current == copied
+            && let Err(error) = std::fs::remove_file(&copy)
+        {
+            problems.push(format!("{} can't be removed: {error}", copy.display()));
+            continue;
+        }
+        if let Err(error) = std::fs::remove_file(&record) {
+            problems.push(format!("{} can't be removed: {error}", record.display()));
         }
     }
     problems
@@ -227,6 +279,32 @@ mod tests {
     }
 
     #[test]
+    fn a_keymap_no_longer_shipped_goes_unless_it_was_edited() {
+        let folder = scratch("gone");
+        assert!(seed(&folder).is_empty());
+        let records = folder.join(SHIPPED_RECORDS);
+        // Keymaps an older kit shipped and copied: one as copied, one edited since, and one whose
+        // copy was deleted by hand.
+        for stem in ["unedited", "edited", "deleted"] {
+            std::fs::write(file(&folder, stem), "name = Old\n").unwrap();
+            std::fs::write(file(&records, stem), "name = Old\n").unwrap();
+        }
+        std::fs::write(file(&folder, "edited"), "name = Mine\n").unwrap();
+        std::fs::remove_file(file(&folder, "deleted")).unwrap();
+
+        assert!(seed(&folder).is_empty());
+        assert!(!file(&folder, "unedited").exists());
+        assert_eq!(
+            std::fs::read_to_string(file(&folder, "edited")).unwrap(),
+            "name = Mine\n"
+        );
+        for stem in ["unedited", "edited", "deleted"] {
+            assert!(!file(&records, stem).exists(), "{stem}'s record goes");
+        }
+        assert!(file(&folder, DEFAULT).exists() && file(&records, DEFAULT).exists());
+    }
+
+    #[test]
     fn the_keymap_in_use_is_rewritten_whole() {
         let folder = scratch("wanted");
         assert_eq!(
@@ -234,10 +312,10 @@ mod tests {
             DEFAULT,
             "nothing chosen is the default"
         );
-        set_wanted(&folder, "notes").unwrap();
-        assert_eq!(in_use(&folder).name, "notes");
-        set_wanted(&folder, "home-row").unwrap();
-        assert_eq!(in_use(&folder).name, "home-row");
+        set_wanted(&folder, "mine").unwrap();
+        assert_eq!(in_use(&folder).name, "mine");
+        set_wanted(&folder, "yours").unwrap();
+        assert_eq!(in_use(&folder).name, "yours");
         assert!(!folder.join("active.txt.tmp").exists());
     }
 
@@ -257,28 +335,24 @@ mod tests {
     fn the_keymap_named_is_read_from_its_file() {
         let folder = scratch("read");
         assert!(seed(&folder).is_empty());
-        set_wanted(&folder, "home-row").unwrap();
-        assert_eq!(Some(in_use(&folder).keymap), Keymap::shipped("home-row"));
+        set_wanted(&folder, DEFAULT).unwrap();
+        assert_eq!(in_use(&folder).keymap, Keymap::default());
 
-        // Edited: VIEW's key moves, and that's what is read.
-        let notes = file(&folder, "notes");
-        let view = Keymap::shipped("notes")
-            .unwrap()
+        // A keymap of the user's own, the default with VIEW's key moved: that's what is read.
+        let view = Keymap::default()
             .keys(Job::View)
             .next()
-            .expect("notes binds VIEW");
-        let free = Key::Q;
-        assert_eq!(
-            Keymap::shipped("notes").unwrap().job(free),
-            None,
-            "notes leaves Q free"
-        );
-        let text = std::fs::read_to_string(&notes).unwrap().replace(
+            .expect("the default binds VIEW");
+        let free = ('A'..='Z')
+            .filter_map(|letter| Key::from_name(&letter.to_string()))
+            .find(|key| Keymap::default().job(*key).is_none())
+            .expect("the default leaves a letter free");
+        let text = SHIPPED[0].1.replace(
             &format!("view = {}", view.name()),
             &format!("view = {}", free.name()),
         );
-        std::fs::write(&notes, text).unwrap();
-        set_wanted(&folder, "notes").unwrap();
+        std::fs::write(file(&folder, "mine"), text).unwrap();
+        set_wanted(&folder, "mine").unwrap();
         let read = in_use(&folder);
         assert_eq!(
             (read.keymap.job(free), read.problem),
@@ -290,10 +364,10 @@ mod tests {
     fn a_file_that_doesnt_read_is_the_shipped_keymap_of_its_name() {
         let folder = scratch("broken");
         assert!(seed(&folder).is_empty());
-        set_wanted(&folder, "notes").unwrap();
-        std::fs::write(file(&folder, "notes"), "nonsense\n").unwrap();
+        set_wanted(&folder, DEFAULT).unwrap();
+        std::fs::write(file(&folder, DEFAULT), "nonsense\n").unwrap();
         let read = in_use(&folder);
-        assert_eq!(Some(read.keymap), Keymap::shipped("notes"));
+        assert_eq!(Some(read.keymap), Keymap::shipped(DEFAULT));
         assert!(read.problem.is_some());
     }
 

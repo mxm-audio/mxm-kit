@@ -870,7 +870,7 @@ install step. The other half was the keymap: newDAWn read its own folder and eve
 built-in default, and they agreed only while the default was used unedited.
 
 So the keymap lives in one folder, `<config>/mxm/keymaps/` beside `editor.json` (`keymaps`), which
-newDAWn seeds with the shipped keymaps and writes `active.txt` into, and which every host and every
+newDAWn seeds with the shipped keymap and writes `active.txt` into, and which every host and every
 editor window reads with `keymaps::in_use`: a host when it starts and when a keymap is chosen, an
 editor when its window opens. A host reads a keymap with `keymaps::read` before naming it, so a
 file that doesn't read is never chosen and the keys stay as they were. Nothing watches the files (the owner, 2026-10-12: "The keymap is not
@@ -882,6 +882,16 @@ as the theme is, so a test that draws a panel never reads the machine's files an
 on the default keymap. An editor never writes there: choosing a keymap is a host's job, and an
 editor too old to read a newer file keeps its own shipped keymap of that name until it is rebuilt.
 `navigation::tests::a_window_reading_the_keymap_folder_takes_its_keys` and `keymaps::tests` hold it.
+
+One keymap ships, the default, so the keys are the same in every host (newDAWn's owner,
+2026-10-13: "I think it is important to keep it the same, so it also works the same with all the
+plugins"), and it can still change: "I change my mind a lot, so it must keep the option to
+change". So a user's own keymap file beside it is offered too, and the default stays compiled in:
+`seed` writes a deleted copy again, and a copy that doesn't read gives the built-in keymap, and
+says why, until it is mended. When the kit stops
+shipping a keymap, `seed` takes out a copy nobody edited, by its `.shipped/` record, so it leaves
+every machine's choice without anyone deleting it; an edited copy stays as the user's own
+(`keymaps::tests::a_keymap_no_longer_shipped_goes_unless_it_was_edited`).
 
 
 ### A surface

@@ -142,9 +142,11 @@ Does **not** own labels, parameter bindings, or data. Plugins and the player sup
   editor's `build()` calls `navigation::use_shared_keymap` beside `theme::apply`, which reads
   `active.txt` and the file it names once, when the window opens (`keymaps::in_use`): nothing
   watches the files (the owner, 2026-10-12: "The keymap is not supposed to change"). A context
-  that reads none (every test that draws `panel`) keeps the default. Only `keymaps::seed` and
-  `set_wanted` write, whole (a temporary file renamed over the old); reading never writes, and a
-  file that doesn't read gives the shipped keymap of its name, or the default.
+  that reads none (every test that draws `panel`) keeps the default. One keymap ships, the
+  default (2026-10-13). Only `keymaps::seed` and `set_wanted` write, whole (a temporary file
+  renamed over the old), and `seed` takes out a copy nobody edited of a keymap no longer shipped;
+  reading never writes, and a file that doesn't read gives the shipped keymap of its name, or the
+  default.
 - **The map is drawn, not declared**: `navigation::mark` inside the `card` and `at` scopes;
   `navigation::aside` for an editor-only control. Editors drive it with `navigation::paged` (never
   a second card order), or `paged_with_bar` + `navigation::bar_card` for an app-bar parameter.

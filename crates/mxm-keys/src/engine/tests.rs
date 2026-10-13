@@ -1,4 +1,5 @@
-//! One test per rule, named after it. The keys are the shipped `notes` keymap's:
+//! One test per rule, named after it. The keys are [`KEYS`], the tests' own keymap, so tuning the
+//! shipped one never moves a rule's test:
 //!
 //! ```text
 //! W MOVE      E EXTENT    R VALUE         Tab OUT      Escape BACK
@@ -16,6 +17,37 @@ use super::*;
 use crate::key::Direction::{Down, Left, Right, Up};
 use crate::keymap::SHIPPED;
 
+/// The keymap every rule is tested on.
+const KEYS: &str = "\
+move = W
+extent = E
+value = R
+add = A
+select = S
+duplicate = D
+coarse = X
+fine = C
+micro = V
+delete = Delete
+ripple = Backspace
+open = Enter
+back = Escape
+out = Tab
+view = F, Shift
+panel.arrangement = 1
+panel.notes = 2
+panel.tracker = 3
+panel.mixer = 4
+panel.plugins = 5
+panel.parameters = 6
+note.keys = A, W, S, E, D, F, T, G, Y, H, U, J, K, O, L, P, Semicolon, Quote
+note.octave-down = Z
+note.octave-up = X
+tap-arms = yes
+one-arrow = no
+timeout = off
+";
+
 /// A keyboard under test: every input a little later than the last, every output kept.
 struct Board {
     engine: Engine,
@@ -25,7 +57,7 @@ struct Board {
 
 impl Board {
     fn new() -> Board {
-        Board::with(Keymap::shipped("notes").unwrap())
+        Board::with(Keymap::parse(KEYS).unwrap())
     }
 
     fn with(keymap: Keymap) -> Board {
@@ -36,15 +68,15 @@ impl Board {
         }
     }
 
-    /// The `notes` keymap with its settings taken out and `text` added.
+    /// [`KEYS`] with its settings taken out and `text` added.
     fn keymap(text: &str) -> Board {
         let settings = ["tap-arms", "one-arrow", "timeout"];
-        let notes: String = notes_text()
+        let keys: String = KEYS
             .lines()
             .filter(|line| !settings.iter().any(|setting| line.starts_with(setting)))
             .map(|line| format!("{line}\n"))
             .collect();
-        Board::with(Keymap::parse(&format!("{notes}{text}")).unwrap())
+        Board::with(Keymap::parse(&format!("{keys}{text}")).unwrap())
     }
 
     fn press_with(&mut self, key: Key, mods: Mods) -> &mut Board {
@@ -93,10 +125,6 @@ impl Board {
     fn take_all(&mut self) -> Vec<Output> {
         std::mem::take(&mut self.out)
     }
-}
-
-fn notes_text() -> &'static str {
-    SHIPPED.iter().find(|(stem, _)| *stem == "notes").unwrap().1
 }
 
 fn step(verb: Verb, step: Step, direction: Direction) -> Output {
@@ -480,7 +508,7 @@ fn view_on_shift_moves_between_views_and_finishes_the_gesture_first() {
 #[test]
 fn view_on_a_key_is_held_or_tapped_like_coarse() {
     let mut board =
-        Board::with(Keymap::parse(&notes_text().replace("view = F, Shift", "view = F")).unwrap());
+        Board::with(Keymap::parse(&KEYS.replace("view = F, Shift", "view = F")).unwrap());
     board.press(Key::F).tap(&[Key::Right]).release(Key::F);
     board.tap(&[Key::F, Key::Left, Key::Left]);
     assert_eq!(
@@ -590,11 +618,14 @@ fn losing_the_keyboard_forgets_the_keys_held() {
 fn switching_keymaps_finishes_first() {
     let mut board = Board::new();
     board.tap(&[Key::W, Key::Right]);
-    let home_row = Keymap::shipped("home-row").unwrap();
-    let out = board.engine.set_keymap(home_row);
+    // The shipped keymap, MOVE on its own key.
+    let default = Keymap::default();
+    let move_key = default.keys(Job::Verb(Move)).next().expect("MOVE is bound");
+    let out_key = default.keys(Job::Out).next().expect("OUT is bound");
+    let out = board.engine.set_keymap(default);
     assert_eq!(*out, [Output::Finish]);
     board.take();
-    board.tap(&[Key::S, Key::Left, Tab]);
+    board.tap(&[move_key, Key::Left, out_key]);
     assert_eq!(board.take(), [step(Move, Fine, Left), Output::Finish]);
 }
 

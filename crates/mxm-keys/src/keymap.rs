@@ -205,13 +205,9 @@ impl fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
-/// The keymaps the kit ships, as `(file stem, text)`, the default first: starting points to try,
-/// tuned by practice.
-pub const SHIPPED: [(&str, &str); 3] = [
-    ("study", include_str!("../keymaps/study.keymap")),
-    ("notes", include_str!("../keymaps/notes.keymap")),
-    ("home-row", include_str!("../keymaps/home-row.keymap")),
-];
+/// The keymaps the kit ships, as `(file stem, text)`, the default first: one, so the keys are the
+/// same in every host (newDAWn's owner, 2026-10-13). A user's own keymap file still changes them.
+pub const SHIPPED: [(&str, &str); 1] = [("study", include_str!("../keymaps/study.keymap"))];
 
 /// The default keymap's stem: the one the key study proposed (newDAWn's `docs/key-study.md`).
 pub const DEFAULT: &str = "study";

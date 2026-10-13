@@ -22,7 +22,7 @@ on mxm-mono-08 from 2026-10-07), and design system §11 states it. The cursor ov
   `command` is the platform's shortcut modifier.
 - **`keymap`**: `Verb`, `Step`, `Action` and `Job`; `Keymap`, read from text with line-numbered
   errors; `Settings` (`tap-arms`, `one-arrow`, `timeout`); the host's keys, `panel.<name>` and
-  note entry's `note.*`; `SHIPPED`, the keymaps in `keymaps/`, the default first;
+  note entry's `note.*`; `SHIPPED`, the keymap in `keymaps/`, the default and the only one;
   `Keymap::default()` is `DEFAULT`'s.
 - **`engine`**: `Engine`, the state machine; `Output`, what each input means (`Begin` when a
   verb is armed); `Arrows`, what the arrows do now, for the arrow map.
@@ -36,8 +36,9 @@ every MXM editor share is `mxm_ui::keymaps`'.
 # Local Contracts
 
 - **The default keymap's bindings are checked by `the_default_is_the_key_studys` alone**: every
-  other test here, in `mxm-ui` and in newDAWn presses jobs, or uses another shipped keymap on
-  purpose, so a remap of `study.keymap` changes that one test.
+  other test here, in `mxm-ui` and in newDAWn presses jobs, or uses a keymap of its own on
+  purpose (the engine's rule tests their `KEYS`; others the default with a key moved, found from
+  the keymap), so a remap of `study.keymap` changes that one test.
 - **The rules are the engine module's documentation and each has a test named after it.** A change
   to a rule changes newDAWn's `docs/keyboard.md` first, by the owner's decision, then the test.
 - **No keymap can take a standard shortcut away.** The format can't write a chord with `Command`,
@@ -49,13 +50,13 @@ every MXM editor share is `mxm_ui::keymaps`'.
   send the keys"). Nothing works around a host that keeps a key from a plugin's window.
 - **A gesture's steps end in exactly one `Finish` or `Cancel`**, and a gesture with no steps ends
   silently, so a host can preview steps and commit them as one undo step.
-- **The shipped keymaps are starting points, tuned by the owner's practice.** The default,
-  `study.keymap`, comes from newDAWn's key study of 2026-10-06 (its `docs/key-study.md`): 26 known
+- **One keymap ships, tuned by the owner's practice**, so the keys are the same in every host
+  (newDAWn's owner, 2026-10-13); a user's own keymap file still changes them. It is the default,
+  `study.keymap`, from newDAWn's key study of 2026-10-06 (its `docs/key-study.md`): 26 known
   songs made again as an experienced user would, every learnable layout priced for finger travel
   and comfortable chords, held and tapped. Verbs on the top row, step sizes on the home row,
-  actions on the bottom; OUT on Tab until a host reads Caps Lock, the study's pick, as a key.
-  `notes` and `home-row` stay for comparison. A change to the default changes the study's
-  record first.
+  actions on the bottom; OUT on Tab until a host reads Caps Lock, the study's pick, as a key. A
+  change to it changes the study's record first.
 - **On a value a step key is VALUE at its size** (newDAWn's owner, 2026-10-09): the host says so
   before each key (`Engine::set_on_value`), from where its cursor is once the key before is applied,
   and the step key arms VALUE as a verb's key does, held or tapped; ← → are the value's too, for

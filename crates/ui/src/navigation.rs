@@ -1973,16 +1973,24 @@ mod tests {
 
     /// **A window that reads the shared keymap folder takes the keys of the keymap in use there**
     /// (the owner, 2026-10-12: "a unified key language in the daw and in the plugins"), and one
-    /// that reads none keeps the default. Uses another shipped keymap on purpose: `notes`, whose
-    /// VIEW key is another job's in the default.
+    /// that reads none keeps the default. Uses a keymap of the user's own on purpose: the default
+    /// with VIEW and MICRO swapped, so VIEW's key is another job's in the default.
     #[test]
     fn a_window_reading_the_keymap_folder_takes_its_keys() {
-        let notes = mxm_keys::Keymap::shipped("notes").expect("notes ships");
         let default = mxm_keys::Keymap::default();
-        let view = notes
-            .keys(VIEW)
-            .find(|key| default.job(*key).is_some_and(|job| job != VIEW))
-            .expect("notes puts VIEW on a key the default gives another job");
+        let micro = mxm_keys::Job::Step(mxm_keys::Step::Micro);
+        let (old_view, view) = (
+            default.keys(VIEW).next().expect("the default binds VIEW"),
+            default.keys(micro).next().expect("the default binds MICRO"),
+        );
+        let mine = mxm_keys::keymap::SHIPPED[0]
+            .1
+            .replace(&format!("view = {}", old_view.name()), "view = @")
+            .replace(
+                &format!("micro = {}", view.name()),
+                &format!("micro = {}", old_view.name()),
+            )
+            .replace("view = @", &format!("view = {}", view.name()));
         let view = Key::ALL
             .iter()
             .copied()
@@ -1994,7 +2002,8 @@ mod tests {
             .expect("in a folder")
             .join(format!("mxm-ui-keymap-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&folder);
-        crate::keymaps::set_wanted(&folder, "notes").expect("the choice is written");
+        crate::keymaps::set_wanted(&folder, "mine").expect("the choice is written");
+        std::fs::write(crate::keymaps::file(&folder, "mine"), mine).expect("the keymap is written");
 
         let spots = vec![spot(1, "a", 0.0, 0.0), spot(2, "b", 120.0, 0.0)];
         let key = |key, pressed| egui::Event::Key {
@@ -2026,7 +2035,7 @@ mod tests {
             );
             state.card()
         };
-        assert_eq!(card_after(true), Some(2), "VIEW + right, in notes");
+        assert_eq!(card_after(true), Some(2), "VIEW + right, in the user's own");
         assert_eq!(card_after(false), Some(1), "the default's job on that key");
     }
 
