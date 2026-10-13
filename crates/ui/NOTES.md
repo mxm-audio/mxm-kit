@@ -883,6 +883,15 @@ on the default keymap. An editor never writes there: choosing a keymap is a host
 editor too old to read a newer file keeps its own shipped keymap of that name until it is rebuilt.
 `navigation::tests::a_window_reading_the_keymap_folder_takes_its_keys` and `keymaps::tests` hold it.
 
+
+**A surface** (2026-10-13). The cursor reads parameters: a value, its steps and its default. The
+language's other verbs, MOVE, EXTENT, SELECT and DUPLICATE, are newDAWn's for its items, and an
+editor had nothing to apply them to until `mxm-fx-eq-n`'s graph, whose bands are items: MOVE sets a
+band's frequency and gain, EXTENT its width, MICRO's `Within` takes its start or end edge for MOVE
+to move alone, DUPLICATE carries a copy where the arrows go, ADD and REMOVE make and take away a
+band. So the cursor hands those outputs to the editor's own widget rather than learning what a band
+is: the surface keeps the language whole, and the kit still knows no item. VIEW stays the cursor's,
+so moving between the graph and the cards is the same as between any two cards.
 ## Selectors and menus
 
 ### A selector is one row, and §7.4 finally has a shared one

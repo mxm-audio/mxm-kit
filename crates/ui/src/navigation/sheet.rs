@@ -3,7 +3,9 @@
 //! in use, so the sheet never disagrees with the keys. `Escape` closes it too.
 //!
 //! Only the jobs an editor has are named. MOVE, EXTENT, SELECT, ADD and the rest are newDAWn's, and
-//! a key the editor does nothing with stays blank rather than promising something.
+//! a key the editor does nothing with stays blank rather than promising something; an editor with
+//! its own widget for the language to operate ([`super::surface`]) answers MOVE, EXTENT, DUPLICATE,
+//! ADD and REMOVE too, and its sheet names them.
 
 use egui::{Context, Key as E, RichText, Ui};
 use mxm_keys::{Action, Job, Key, Keymap, Modifier, Step, Verb};
@@ -20,8 +22,9 @@ pub(crate) struct Sheet {
     pub steps: Vec<(String, &'static str, &'static str, &'static str)>,
 }
 
-/// The jobs an editor answers to: the ones the cursor and the value keys read.
-fn editor_has(job: Job) -> bool {
+/// The jobs an editor answers to: the ones the cursor and the value keys read, and with a
+/// `surface` the ones its own widget reads.
+fn editor_has(job: Job, surface: bool) -> bool {
     matches!(
         job,
         Job::Verb(Verb::Value)
@@ -30,7 +33,12 @@ fn editor_has(job: Job) -> bool {
             | Job::Out
             | Job::Back
             | Job::View
-    )
+    ) || (surface
+        && matches!(
+            job,
+            Job::Verb(Verb::Move | Verb::Extent | Verb::Duplicate)
+                | Job::Action(Action::Add | Action::Remove)
+        ))
 }
 
 fn label(key: Key) -> String {
@@ -60,8 +68,9 @@ fn job_key(keymap: &Keymap, job: Job) -> String {
     }
 }
 
-/// Every key an editor answers to, from `keymap`.
-pub(crate) fn sheet(keymap: &Keymap) -> Sheet {
+/// Every key an editor answers to, from `keymap`; `surface` when it has its own widget for the
+/// language to operate.
+pub(crate) fn sheet(keymap: &Keymap, surface: bool) -> Sheet {
     const ROWS: [&[Key]; 3] = [
         &[Key::Tab, Key::Q, Key::W, Key::E, Key::R],
         &[Key::CapsLock, Key::A, Key::S, Key::D, Key::F],
@@ -74,7 +83,7 @@ pub(crate) fn sheet(keymap: &Keymap) -> Sheet {
                 .map(|&key| {
                     let job = keymap
                         .job(key)
-                        .filter(|&job| editor_has(job))
+                        .filter(|&job| editor_has(job, surface))
                         .map(|job| job.name().to_uppercase())
                         .unwrap_or_default();
                     (label(key), job)
@@ -90,7 +99,7 @@ pub(crate) fn sheet(keymap: &Keymap) -> Sheet {
         key(Job::Step(Step::Fine)),
         key(Job::Step(Step::Micro))
     );
-    let sections = vec![
+    let mut sections = vec![
         (
             "Moving",
             vec![
@@ -132,6 +141,33 @@ pub(crate) fn sheet(keymap: &Keymap) -> Sheet {
         ),
         ("This sheet", vec![("F1".into(), "show or hide it")]),
     ];
+    if surface {
+        let add = key(Job::Action(Action::Add));
+        sections.insert(
+            2,
+            (
+                "On the editor's own view",
+                vec![
+                    ("← ↑ ↓ →".into(), "the next item that way"),
+                    (
+                        format!("{} ← →", key(Job::Step(Step::Micro))),
+                        "its start or end edge, which MOVE then moves alone",
+                    ),
+                    (format!("{} ← ↑ ↓ →", key(Job::Verb(Verb::Move))), "move it"),
+                    (
+                        format!("{} ← →", key(Job::Verb(Verb::Extent))),
+                        "make it narrower or wider",
+                    ),
+                    (
+                        format!("{} ← ↑ ↓ →", key(Job::Verb(Verb::Duplicate))),
+                        "a copy of it, taken where the arrows go",
+                    ),
+                    (add.clone(), "a new one"),
+                    (format!("Shift {add}"), "take it away"),
+                ],
+            ),
+        );
+    }
     let steps = vec![
         (
             key(Job::Step(Step::Fine)),
@@ -165,11 +201,11 @@ pub(super) fn keys(ctx: &Context, open: &mut bool) -> bool {
 }
 
 /// Draws the sheet over the editor while it is open; its close button closes it.
-pub(super) fn show(ctx: &Context, open: &mut bool, keymap: &Keymap) {
+pub(super) fn show(ctx: &Context, open: &mut bool, keymap: &Keymap, surface: bool) {
     if !*open {
         return;
     }
-    let sheet = sheet(keymap);
+    let sheet = sheet(keymap, surface);
     egui::Window::new("Keys")
         .open(open)
         .collapsible(false)
@@ -252,7 +288,7 @@ mod tests {
     /// The sheet names the keys the default keymap puts each job on, and nothing an editor lacks.
     #[test]
     fn the_sheet_names_the_keymaps_keys_and_only_what_an_editor_has() {
-        let sheet = sheet(&Keymap::default());
+        let sheet = sheet(&Keymap::default(), false);
         let cluster: Vec<&(String, String)> = sheet.cluster.iter().flatten().collect();
         let job_of = |key: &str| {
             cluster
@@ -275,6 +311,28 @@ mod tests {
         assert!(changing.iter().any(|(keys, _)| keys == "S D F ← →"));
     }
 
+    /// With its own widget for the language, an editor's sheet names the jobs that widget reads.
+    #[test]
+    fn a_surface_puts_its_jobs_on_the_sheet() {
+        let sheet = sheet(&Keymap::default(), true);
+        let cluster: Vec<&(String, String)> = sheet.cluster.iter().flatten().collect();
+        let job_of = |key: &str| {
+            cluster
+                .iter()
+                .find(|(k, _)| k == key)
+                .map(|(_, job)| job.as_str())
+        };
+        assert_eq!(job_of("A"), Some("MOVE"));
+        assert_eq!(job_of("V"), Some("ADD"));
+        assert_eq!(job_of("E"), Some("VALUE"), "the value keys stay");
+        assert!(
+            sheet
+                .sections
+                .iter()
+                .any(|(title, _)| *title == "On the editor's own view")
+        );
+    }
+
     /// F1 opens and closes the sheet, `Escape` closes it, and neither reaches anything else.
     #[test]
     fn f1_toggles_the_sheet_and_escape_closes_it() {
@@ -294,7 +352,7 @@ mod tests {
         let frame = |input, open: &mut bool, spent: &mut bool| {
             let mut output = ctx.run_ui(input, |ui| {
                 *spent = keys(ui.ctx(), open);
-                show(ui.ctx(), open, &Keymap::default());
+                show(ui.ctx(), open, &Keymap::default(), false);
             });
             output.textures_delta.clear();
         };

@@ -60,6 +60,9 @@ pub struct Spot {
     /// A value, which a step key changes without VALUE (newDAWn's owner, 2026-10-09): every
     /// control [`mark`]s itself as one, and [`mark_unclaimed`]'s remove mark is not.
     pub value: bool,
+    /// The editor's own widget, which the keyboard language operates while the cursor is on it
+    /// ([`surface`]): a graph of points, not a value.
+    pub surface: bool,
 }
 
 /// What the cursor is on.
@@ -378,16 +381,47 @@ pub fn aside<R>(ui: &mut Ui, body: impl FnOnce(&mut Ui) -> R) -> R {
 /// on screen.
 pub fn mark(ui: &Ui, response: &Response, rect: Rect) {
     let pointed = response.is_pointer_button_down_on() || response.clicked();
-    register(ui, response.id, rect, pointed, true);
+    register(ui, response.id, rect, pointed, true, false);
 }
 
 /// [`mark`], for a control a press must not select: `control::remove_mark`, whose press deletes
 /// the row it sits on, so the cursor would be left on a parameter that is gone.
 pub fn mark_unclaimed(ui: &Ui, id: Id, rect: Rect) {
-    register(ui, id, rect, false, false);
+    register(ui, id, rect, false, false, false);
 }
 
-fn register(ui: &Ui, id: Id, rect: Rect, pointed: bool, value: bool) {
+/// Records the editor's own widget — a graph of points, a canvas — as one stop of the cursor that
+/// **the keyboard language operates directly**: while the cursor is on it, every output but VIEW
+/// goes to the editor ([`surface_outputs`]) instead of moving the cursor or a value. That is the
+/// arrows, MICRO's start and end edges (`Within`), every verb's steps (DUPLICATE's too, which a
+/// value has no use for), the gesture's end, the actions and BACK; VIEW still goes card to card.
+/// Inside a [`card`] or [`bar_card`] and an [`at`] scope, as a control is; a press on it moves the
+/// cursor there. It is not a value: a step key off a verb is the language's coarse move.
+pub fn surface(ui: &Ui, response: &Response, rect: Rect) {
+    let pointed = response.is_pointer_button_down_on() || response.clicked();
+    register(ui, response.id, rect, pointed, false, true);
+}
+
+fn surface_id() -> Id {
+    registry_id().with("surface")
+}
+
+/// What the keyboard language did this frame on the [`surface`] the cursor is on, in the order
+/// pressed. Read once a frame, after [`paged`] or [`paged_with_bar`] and before the surface is
+/// drawn, so its moves land in the frame they were typed.
+pub fn surface_outputs(ctx: &egui::Context) -> Vec<mxm_keys::Output> {
+    ctx.data_mut(|d| d.remove_temp::<Vec<mxm_keys::Output>>(surface_id()))
+        .unwrap_or_default()
+}
+
+fn push_surface(ctx: &egui::Context, output: mxm_keys::Output) {
+    ctx.data_mut(|d| {
+        d.get_temp_mut_or_default::<Vec<mxm_keys::Output>>(surface_id())
+            .push(output)
+    });
+}
+
+fn register(ui: &Ui, id: Id, rect: Rect, pointed: bool, value: bool, surface: bool) {
     let (Some(card), Some(key)) = (
         ui.ctx().data(|d| d.get_temp::<u64>(card_id())),
         ui.ctx().data(|d| d.get_temp::<String>(scope_id())),
@@ -424,6 +458,7 @@ fn register(ui: &Ui, id: Id, rect: Rect, pointed: bool, value: bool) {
             pointed,
             pointed_cell: 0,
             value,
+            surface,
         });
     });
 }
@@ -546,7 +581,8 @@ pub fn run(
     // the sheet before anything else hears it.
     let mut open = state.sheet;
     sheet::keys(ctx, &mut open);
-    sheet::show(ctx, &mut open, language::engine(state).keymap());
+    let surfaces = spots.iter().any(|spot| spot.surface);
+    sheet::show(ctx, &mut open, language::engine(state).keymap(), surfaces);
     state.sheet = open;
     if inert {
         if let Some(engine) = state.language.as_mut() {
@@ -648,7 +684,10 @@ pub fn run(
         }
         Step::Any(dir) => move_any(state, &spots, dir),
     };
-    language::read(ctx, state, back_spent, &on_value, &mut apply);
+    let on_surface = |state: &State| {
+        state.bar.is_none() && current_spot(state, &spots).is_some_and(|spot| spot.surface)
+    };
+    language::read(ctx, state, back_spent, &on_value, &on_surface, &mut apply);
 
     // In a bar, the cards keep their place but give up the keyboard, and the bar's own cursor is
     // outlined over it while the keyboard is in use.
@@ -1057,6 +1096,7 @@ mod tests {
             pointed: false,
             pointed_cell: 0,
             value: true,
+            surface: false,
         }
     }
 
@@ -1149,6 +1189,110 @@ mod tests {
         });
         output.textures_delta.clear();
         ctx.data(|d| d.get_temp::<u64>(outline_id()))
+    }
+
+    /// **The editor's own widget is operated by the language** ([`surface`]): on it, the arrows,
+    /// the verbs' steps (DUPLICATE's too) and the gesture's end go to the editor, the cursor stays,
+    /// and VIEW still leaves it for the next card.
+    #[test]
+    fn a_surface_takes_the_language_and_view_leaves_it() {
+        use mxm_keys::{Direction, Output, Step as Size, Verb};
+        let ctx = egui::Context::default();
+        let mut graph = spot(1, "graph", 0.0, 0.0);
+        graph.value = false;
+        graph.surface = true;
+        let spots = vec![graph, spot(2, "gain", 100.0, 0.0)];
+        let mut state = State::default();
+        state.settle(&spots[0]);
+        let keys = |events: Vec<(Key, bool)>| egui::RawInput {
+            events: events
+                .into_iter()
+                .map(|(key, pressed)| egui::Event::Key {
+                    key,
+                    physical_key: None,
+                    pressed,
+                    repeat: false,
+                    modifiers: egui::Modifiers::NONE,
+                })
+                .collect(),
+            ..Default::default()
+        };
+        let read = |ctx: &egui::Context| {
+            ctx.data_mut(|d| d.remove_temp::<Vec<Output>>(surface_id()))
+                .unwrap_or_default()
+        };
+        const MOVE: mxm_keys::Job = mxm_keys::Job::Verb(Verb::Move);
+
+        frame(
+            &ctx,
+            &mut state,
+            &spots,
+            keys(vec![(Key::ArrowRight, true)]),
+        );
+        assert_eq!(
+            read(&ctx),
+            vec![Output::Navigate {
+                direction: Direction::Right,
+                coarse: false
+            }]
+        );
+        assert_eq!(
+            state.parameter(),
+            Some("graph"),
+            "the arrow is the surface's"
+        );
+
+        frame(
+            &ctx,
+            &mut state,
+            &spots,
+            keys(vec![
+                (key_of(MOVE), true),
+                (Key::ArrowUp, true),
+                (key_of(MOVE), false),
+            ]),
+        );
+        let moved = read(&ctx);
+        assert!(
+            moved.contains(&Output::Step {
+                verb: Verb::Move,
+                step: Size::Fine,
+                direction: Direction::Up
+            }),
+            "{moved:?}"
+        );
+        assert!(moved.contains(&Output::Finish), "{moved:?}");
+
+        frame(
+            &ctx,
+            &mut state,
+            &spots,
+            keys(vec![(key_of(DUPLICATE), true), (Key::ArrowRight, true)]),
+        );
+        let copied = read(&ctx);
+        assert!(
+            copied.iter().any(|output| matches!(
+                output,
+                Output::Step {
+                    verb: Verb::Duplicate,
+                    ..
+                }
+            )),
+            "DUPLICATE stays armed on a surface: {copied:?}"
+        );
+        frame(
+            &ctx,
+            &mut state,
+            &spots,
+            keys(vec![(key_of(DUPLICATE), false), (key_of(OUT), true)]),
+        );
+        let _ = read(&ctx);
+
+        let modifiers = egui::Modifiers::NONE;
+        frame(&ctx, &mut state, &spots, press(key_of(VIEW), modifiers));
+        frame(&ctx, &mut state, &spots, press(Key::ArrowRight, modifiers));
+        assert_eq!(state.parameter(), Some("gain"), "VIEW leaves the surface");
+        assert!(read(&ctx).is_empty(), "and nothing more is the surface's");
     }
 
     fn press(key: Key, modifiers: egui::Modifiers) -> egui::RawInput {
@@ -1594,7 +1738,14 @@ mod tests {
                     ..Default::default()
                 },
                 |ui| {
-                    language::read(ui.ctx(), state, false, &|_| false, &mut |_, _| {});
+                    language::read(
+                        ui.ctx(),
+                        state,
+                        false,
+                        &|_| false,
+                        &|_| false,
+                        &mut |_, _| {},
+                    );
                     left = ui.input(|input| {
                         input.events.iter().any(|event| {
                             matches!(
@@ -1650,7 +1801,14 @@ mod tests {
                     ..Default::default()
                 },
                 |ui| {
-                    language::read(ui.ctx(), state, false, &|_| false, &mut |_, _| {});
+                    language::read(
+                        ui.ctx(),
+                        state,
+                        false,
+                        &|_| false,
+                        &|_| false,
+                        &mut |_, _| {},
+                    );
                     keys = take_value_keys(ui.ctx());
                 },
             );

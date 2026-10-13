@@ -937,6 +937,14 @@ the adjacent card in the paging plan. A multi-cell control is one parameter targ
 per cell. A cardless surface has no cursor and MUST NOT retain invisible keyboard ownership from a
 previous card surface.
 
+**An editor's own view of items** — a graph of bands, not a row of parameters — joins as one stop of
+the cursor that the language operates directly (`navigation::surface`, `mxm-fx-eq-n`'s graph,
+2026-10-13). On it the arrows go to the next item; MICRO + ← → take the item's start or end edge,
+which MOVE then moves on its own; MOVE + arrows move the item; EXTENT + ← → make it narrower or
+wider; DUPLICATE + arrows carry a copy where they go; ADD makes one and REMOVE (Shift + ADD) takes it
+away; OUT keeps the gesture as one undo step and BACK reverts it. VIEW + arrows leave it as they
+leave any card, and the sheet names these keys where such a view is drawn.
+
 The cursor's own state — selected card and selected parameter — MUST be visible, MUST NOT rely on
 hue alone, and MUST NOT occupy layout space, so arriving on a control cannot move anything. That
 visible target remains authoritative if a custom-painted control loses native widget focus between

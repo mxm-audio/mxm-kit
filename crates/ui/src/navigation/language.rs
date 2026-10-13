@@ -151,6 +151,7 @@ pub(super) fn read(
     state: &mut State,
     back_spent: bool,
     on_value: &dyn Fn(&State) -> bool,
+    on_surface: &dyn Fn(&State) -> bool,
     apply: &mut dyn FnMut(&mut State, Step),
 ) {
     let mut back_spent = back_spent;
@@ -208,13 +209,22 @@ pub(super) fn read(
         });
     }
     let mut keys = ValueKeys::default();
-    let mut left = handle(ctx, state, &mut back_spent, &mut keys, outputs, apply);
+    let mut left = handle(
+        ctx,
+        state,
+        &mut back_spent,
+        &mut keys,
+        outputs,
+        on_surface,
+        apply,
+    );
     let mut keys_in = keys_in.into_iter().peekable();
     while left.is_empty() && state.awaiting.is_none() {
         let Some((key, mods, pressed, ..)) = keys_in.next() else {
             break;
         };
         let on = on_value(state);
+        let surface = on_surface(state);
         let engine = engine(state);
         engine.set_on_value(on);
         let mut read = Vec::new();
@@ -228,14 +238,17 @@ pub(super) fn read(
                     && !matches!(output, Output::Begin { .. })
             }));
             // An editor has nothing to duplicate: a press that arms DUPLICATE is ended at once,
-            // and the end that makes is dropped, so it keeps or cancels nothing.
-            if matches!(
-                engine.arrows(),
-                Arrows::Edit {
-                    verb: Verb::Duplicate,
-                    ..
-                }
-            ) {
+            // and the end that makes is dropped, so it keeps or cancels nothing. A surface has
+            // its items to copy, so there it stays armed.
+            if !surface
+                && matches!(
+                    engine.arrows(),
+                    Arrows::Edit {
+                        verb: Verb::Duplicate,
+                        ..
+                    }
+                )
+            {
                 let _ = engine.interrupt();
             }
             if armed_open {
@@ -259,11 +272,27 @@ pub(super) fn read(
         } else {
             read.extend(engine.release(key));
         }
-        left = handle(ctx, state, &mut back_spent, &mut keys, read, apply);
+        left = handle(
+            ctx,
+            state,
+            &mut back_spent,
+            &mut keys,
+            read,
+            on_surface,
+            apply,
+        );
     }
     if left.is_empty() && keys_in.peek().is_none() {
         let polled: Vec<Output> = engine(state).poll(at).into_iter().collect();
-        left = handle(ctx, state, &mut back_spent, &mut keys, polled, apply);
+        left = handle(
+            ctx,
+            state,
+            &mut back_spent,
+            &mut keys,
+            polled,
+            on_surface,
+            apply,
+        );
     }
     let rest: Vec<_> = keys_in.map(|(.., event, kept)| (event, kept)).collect();
     if !left.is_empty() || !rest.is_empty() {
@@ -292,15 +321,18 @@ pub(super) fn read(
 }
 
 /// One key's outputs, in order: VIEW between the cards and to the bars, the bars' keys to their
-/// widgets, the cursor's moves to `apply`, and the value keys gathered for the parameter. A move
-/// after value keys were gathered stops it: that move and the outputs after it are returned, to
-/// wait for the next frame ([`Waiting`]).
+/// widgets, every other output to the [`super::surface`] the cursor is on, the cursor's moves to
+/// `apply`, and the value keys gathered for the parameter. A move after value keys were gathered
+/// stops it: that move and the outputs after it are returned, to wait for the next frame
+/// ([`Waiting`]).
+#[allow(clippy::too_many_arguments)]
 fn handle(
     ctx: &Context,
     state: &mut State,
     back_spent: &mut bool,
     keys: &mut ValueKeys,
     outputs: Vec<Output>,
+    on_surface: &dyn Fn(&State) -> bool,
     apply: &mut dyn FnMut(&mut State, Step),
 ) -> Vec<Output> {
     // Any of the language's keys reveal the cursor but BACK alone: it closes and cancels, and a
@@ -343,6 +375,11 @@ fn handle(
             if let Some(ui) = ui {
                 state.reach.key(bar, reach::Region::Inside(ui), output);
             }
+            continue;
+        }
+        // On the editor's own widget the language operates it: everything but VIEW is its.
+        if on_surface(state) {
+            super::push_surface(ctx, output);
             continue;
         }
         match output {
