@@ -4,10 +4,13 @@ Parent: [`../../AGENTS.md`](../../AGENTS.md).
 
 # Purpose
 
-The collection's shared DSP primitives, each moved verbatim from copies the instruments carried
-byte for byte (the architecture audit's O1 and O2, owner-approved 2026-10-13): `guard::{flush,
-finite_or}`, `shape::{tanh_approx, tan_approx, diode_clamp}`, `blep::{poly_blep, clamp_pulse_width}`,
-`envelope::{Adsr, Stage, ZERO_THRESHOLD}` and `delay::AgeLine`, the line read by age that the
+The collection's shared DSP primitives (the architecture audit's O1 and O2, owner-approved
+2026-10-13). O1's moved verbatim from copies the instruments carried byte for byte — `guard::flush`,
+`shape::{tanh_approx, tan_approx, diode_clamp}`, `blep::{poly_blep, clamp_pulse_width}`,
+`envelope::{Adsr, Stage, ZERO_THRESHOLD}`; O2's are `guard::finite_or`, verbatim from its copies,
+and `delay::AgeLine`, **not** a verbatim copy but the storage and age read fifteen lines had in common,
+proved bit-identical per consumer while each keeps its own age origin, interpolation, clamps and
+write flush — the line read by age that the
 effects' and synths' delays store their samples in.
 
 # Ownership

@@ -88,8 +88,9 @@ The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.
   to the copies it replaced (the audit's O3, owner-approved 2026-10-13). A consumer keeps its seeds,
   its seeding rule and its own mappings, and never changes family; a copy written elsewhere is a
   defect (which remain, and when a sixth family arrives: NOTES). Zero dependencies, MSRV 1.87.
-- `crates/mxm-dsp` is **the collection's shared DSP primitives**, moved verbatim from byte-identical
-  copies (the audit's O1 and O2; its AGENTS lists them). An item moves here when its copies are
+- `crates/mxm-dsp` is **the collection's shared DSP primitives**: verbatim from byte-identical copies,
+  but for the delay line, the copies' common part proved bit-identical per consumer (the audit's O1
+  and O2; its AGENTS lists them). An item moves here when its copies are
   byte-identical, or on the owner's ruling for one that differs; a copy that differs stays with its
   instrument. Zero dependencies, MSRV 1.87.
 
