@@ -3,9 +3,9 @@ name = "mxm-measure"
 description = "Measurement rulers for the collection's tests and harnesses. Ships nothing."
 version.workspace = true
 edition.workspace = true
-# Zero dependencies, so every crate that measures sound can take it as a dev-dependency
-# without inheriting the 1.95 GUI floor — the same argument that earns `mxm-modulation`
-# its place inside `mxm-mono-01-dsp`.
+# No dependency but `mxm-rng`, itself zero-dependency at 1.87, so every crate that measures sound
+# can take it as a dev-dependency without inheriting the 1.95 GUI floor — the same argument that
+# earns `mxm-modulation` its place inside `mxm-mono-01-dsp`.
 rust-version = "1.87"
 license.workspace = true
 authors.workspace = true
@@ -13,3 +13,4 @@ repository.workspace = true
 publish = false
 
 [dependencies]
+mxm-rng.workspace = true

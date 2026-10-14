@@ -141,23 +141,15 @@ pub fn trivial_saw(n: usize, periods: usize) -> Vec<f32> {
 /// Deterministic white noise from an explicitly seeded generator.
 ///
 /// **Seeded, never from the clock.** The collection's randomness is bit-repeatable by contract, and
-/// a measurement excited by an unseeded source is not reproducible from a clone. The generator is an
-/// xorshift64\*, which is adequate for excitation and is not claimed to be adequate for anything
-/// else.
+/// a measurement excited by an unseeded source is not reproducible from a clone. The generator is
+/// `mxm-rng`'s xorshift64\* (a zero seed becomes its golden-ratio constant), which is adequate for
+/// excitation and is not claimed to be adequate for anything else.
 pub fn noise(n: usize, seed: u64, amplitude: f32) -> Vec<f32> {
-    let mut state = if seed == 0 {
-        0x9E37_79B9_7F4A_7C15
-    } else {
-        seed
-    };
+    let mut rng = mxm_rng::Xorshift64Star::new(seed);
     (0..n)
         .map(|_| {
-            state ^= state >> 12;
-            state ^= state << 25;
-            state ^= state >> 27;
-            let value = state.wrapping_mul(0x2545_F491_4F6C_DD1D);
             // The top 24 bits into -1..1: enough entropy for excitation, and exactly reproducible.
-            let unit = ((value >> 40) as f64 / (1u64 << 24) as f64) * 2.0 - 1.0;
+            let unit = (f64::from(rng.next_u32() >> 8) / 16_777_216.0) * 2.0 - 1.0;
             (unit * f64::from(amplitude)) as f32
         })
         .collect()

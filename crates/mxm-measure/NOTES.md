@@ -56,7 +56,7 @@ strict sense that the format or the arithmetic fixes them. The clearest example 
 the 16-bit WAV encoder's `32767` scale and clamp. **That encoder retired into
 [`../mxm-audio-file`](../mxm-audio-file/AGENTS.md) on 2026-09-15**, with every harness that called it;
 the rule is now that crate's published `quantise`, byte-identical at 16 bits, and `showcase`'s
-truncation figure states it inline so this crate keeps no dependencies.
+truncation figure states it inline so this crate does not depend on the encoder.
 
 ## The dev-dependency rule's one unshipped exception
 

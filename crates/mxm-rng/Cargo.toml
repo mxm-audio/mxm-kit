@@ -1,0 +1,13 @@
+[package]
+name = "mxm-rng"
+description = "The MXM collection's pseudo-random generators: xorshift32, xorshift64, xorshift64*, SplitMix64 and the Numerical Recipes LCG, each bit-exact to the copies it replaced"
+version.workspace = true
+edition.workspace = true
+# Zero dependencies, so every DSP crate takes it without the GUI floor.
+# Verified with `cargo +1.87.0 test -p mxm-rng`.
+rust-version = "1.87"
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]

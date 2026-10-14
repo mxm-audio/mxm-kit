@@ -148,7 +148,7 @@ Two rate sets, both taken from existing suites rather than invented:
 
 ```bash
 cargo test -p mxm-measure                       # the closed-form controls, on both rate sets
-cargo tree -e normal,build -p mxm-measure       # zero dependencies
+cargo tree -e normal,build -p mxm-measure       # mxm-rng alone
 cargo clippy -p mxm-measure --all-targets
 cargo +1.87.0 build -p mxm-measure              # MSRV: the library
 cargo +1.87.0 test  -p mxm-measure              # and its tests, which are the harder floor

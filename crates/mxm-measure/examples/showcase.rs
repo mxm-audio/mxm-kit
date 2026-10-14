@@ -6,8 +6,8 @@
 //!
 //! **Every number on that page comes from here**, which is the point: a page explaining a
 //! measurement library with hand-drawn curves would be exactly the thing this crate exists to stop.
-//! JSON is written by hand because the crate has no dependencies and an example is not the place to
-//! start acquiring them.
+//! JSON is written by hand because the crate depends on nothing but `mxm-rng` and an example is not
+//! the place to start acquiring dependencies.
 
 use mxm_measure::{convert, level, observe, pitch, spectrum, stimulus};
 
@@ -223,7 +223,7 @@ fn quantisation() -> String {
         let exact = f64::from(sample) * 32_767.0;
         let old = (sample.clamp(-1.0, 1.0) * 32_767.0) as i16;
         // The encoder's published 16-bit rule (`mxm_audio_file::quantise`), stated inline so this
-        // crate keeps no dependencies: clamp, scale by 32767, round to nearest.
+        // crate does not depend on the encoder: clamp, scale by 32767, round to nearest.
         let new = (sample.clamp(-1.0, 1.0) * 32_767.0).round() as i16;
         truncated.push(f64::from(old) - exact);
         rounded.push(f64::from(new) - exact);

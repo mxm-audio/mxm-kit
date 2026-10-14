@@ -1617,6 +1617,9 @@ version = "0.4.1"
 [[package]]
 name = "mxm-measure"
 version = "0.4.1"
+dependencies = [
+ "mxm-rng",
+]
 
 [[package]]
 name = "mxm-modulation"
@@ -1675,6 +1678,10 @@ dependencies = [
  "serde",
  "serde_json",
 ]
+
+[[package]]
+name = "mxm-rng"
+version = "0.4.1"
 
 [[package]]
 name = "mxm-telemetry"

@@ -129,7 +129,8 @@ extracted on.
   side was one body in nineteen plugins and its write side five policies for a non-finite peak,
   and the developer channel's four request slots were copied into all eleven instruments. Each
   plugin keeps its own telemetry — envelopes, modulators, stage levels — and holds these as
-  fields; the policy and its history are in that crate's `NOTES.md`.
+  fields; the policy and its history are in that crate's `NOTES.md`. The architecture audit's O10,
+  owner-approved 2026-10-13, made the 19 and 11 copies one.
 - `crates/mxm-modulation` is shared on evidence from three instrument source frames, and **every
   instrument uses it** (the owner, 2026-09-15: *it is why it was made*) — all eleven instruments do,
   `plans/plan-modulation-routing.md` (in the private archive) M5 delivered; `mxm-model-drums` for the standard's source and
@@ -211,7 +212,32 @@ it. The owner ruled on 2026-10-12, and `rustfft`/`realfft` do the arithmetic so 
 not the collection's to maintain. Planning was checked before the dependency was committed:
 neither crate reserves fallibly, so planning cannot fail cleanly and the convolution plans its
 fixed audio-path sizes at activation. The plan and its migration order are the archive's
-`plans/plan-mxm-fft.md`.
+`plans/plan-mxm-fft.md`. The owner's words: *"make a shared fft crate. Havine 3 or for
+implementations is non DRY"*. It owns the conventions: an unnormalised forward, a 1/N inverse,
+planning ahead, execution with caller scratch that allocates nothing, and a scoped hardware flush of
+subnormals.
+
+**`crates/mxm-vst3-host`** is an owner-approved exception to evidence-first extraction
+(2026-10-09: "We need VST3 support ourselves in the player and daw"): a `.vst3` module offered as
+an in-process CLAP plugin entry, so MXM Player and newDAWn host VST3 through the CLAP code they
+have.
+
+**`crates/mxm-keys`** is an owner-approved exception to evidence-first extraction (2026-10-05: the
+keyboard library is built here from the start, so the DAW and the instruments share one). Every
+editor's cursor reads it since 2026-10-08: the owner decided on 2026-10-07 that the editors convert,
+keys first in newDAWn and the collection; `mxm_ui::reach` is the first shared part.
+
+**`crates/mxm-rng`** (2026-10-14, the architecture audit's O3). The collection carried its
+generators as copies: xorshift32 in seven byte-identical synth `Rng`s and nine more places,
+xorshift64 in the player, both drum engines, the delay and the reverb's tests, Vigna's xorshift64\*
+in grain-fx, the model drums, `mxm-measure` and `mxm-listening`, SplitMix64 in the sampler, the
+909's sample noise and room-ir, and the Numerical Recipes LCG in the reverb's shaped path and four
+products' tests — about forty shipped and seventy test copies, each written again with its own
+seeding rule and output mapping. The seeds are load-bearing: golden digests and recorded renders
+depend on every stream, so the owner's ruling was *one crate offering each family bit-exactly; no
+consumer changes generator*. The crate's reference test pins each family against the first outputs
+of the copies themselves, printed before they were removed, and every consumer's goldens held
+unchanged. The plan is `ops/plans/plan-mxm-rng.md` in the workspace.
 
 ## Why every MSRV floor is compiled against
 
