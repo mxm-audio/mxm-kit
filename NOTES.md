@@ -264,7 +264,8 @@ split before it wraps. Fourteen lines adopted it, each proved bit-identical to t
 each keeps its length, interpolation, clamps, write flush and age origin. fx-delay's generation-tagged
 line and fx-oldify's transport (its sinc read takes the raw buffer) keep their own. The rate guards
 take `finite_or` and keep their bounds. The effects' other flushes and their SVFs and biquads differ
-in every copy, and unifying them is the owner's to rule on. The plan is
+in every copy; unifying them would change bits and goldens for an inaudible gain, so each effect
+keeps its own for now (the owner, 2026-10-14). The plan is
 `ops/plans/plan-mxm-dsp-effects.md` in the workspace.
 
 ## Why every MSRV floor is compiled against

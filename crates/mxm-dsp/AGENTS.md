@@ -17,7 +17,8 @@ machine's 0.4 ms floor), mono-01's (without the decay stall fix), mono-pr1's env
 `tan_approx` (libm's `tan` under that name), para-07's and mono-08's BLEPs and pulse clamp: those stay
 with their instruments, and each instrument's NOTES says which of its items moved and which stayed.
 Nor the effects' other flushes (`MIN_POSITIVE`, `1e-30`, NaN-zeroing) or their SVFs and biquads: unifying
-those changes bits and goldens, and the owner has been asked. fx-delay's generation-tagged line is its
+those would change bits and goldens for an inaudible gain, so each effect keeps its own for now (the
+owner, 2026-10-14). fx-delay's generation-tagged line is its
 own (its crate publishes the memory it costs), and fx-oldify's transport keeps its ring (its sinc read
 takes the raw buffer).
 
