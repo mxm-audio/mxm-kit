@@ -1,0 +1,13 @@
+[package]
+name = "mxm-dsp"
+description = "The MXM collection's shared DSP primitives, each moved from byte-identical copies in the instruments"
+version.workspace = true
+edition.workspace = true
+# Zero dependencies, so every DSP crate takes it without the GUI floor.
+# Verified with `cargo +1.87.0 test -p mxm-dsp`.
+rust-version = "1.87"
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]

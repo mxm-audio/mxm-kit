@@ -92,6 +92,13 @@ Child DOX Index
 5. Run existing verification when relevant
 6. Report any docs intentionally left unchanged and why
 
+### Stale text: what moves and what is deleted
+
+Stale or misplaced text is corrected and its history moved to `NOTES.md`, never just deleted (the
+owner, 2026-10-06). **What moves is the reasoning behind what is still in force; a discarded idea is
+deleted, not archived** (the owner, 2026-10-08: "it is a discarded idea that we are never gonna use
+again"): no copied old tables, no "until <date> it was…" asides.
+
 ## What the kit holds
 
 **The MXM instrument kit**: the MIT-licensed libraries every MXM instrument and effect is built
@@ -238,6 +245,17 @@ depend on every stream, so the owner's ruling was *one crate offering each famil
 consumer changes generator*. The crate's reference test pins each family against the first outputs
 of the copies themselves, printed before they were removed, and every consumer's goldens held
 unchanged. The plan is `ops/plans/plan-mxm-rng.md` in the workspace.
+
+**`crates/mxm-dsp`** (2026-10-14, the architecture audit's O1). The synth DSP crates were honest
+copies by design, each carrying an evidence row for the extraction plan. The census found nine
+byte-identical `flush`es, six `tanh_approx`, five `tan_approx` and `poly_blep`, four
+`clamp_pulse_width`, three `diode_clamp`, and three whole `envelope.rs` files (mono-02's, para-07's
+and poly-06's ADSR). Those moved verbatim; the copies that differ stayed: mono-00's ADSR (its
+machine's 0.4 ms floor), mono-01's (without the decay stall fix the others gained), mono-pr1's
+envelope, mono-03's `tan_approx` (libm's `tan`), para-07's and mono-08's BLEPs and pulse clamp. The
+ladders, one-poles, DC blockers and SVFs differ in every copy and wait for a parametrised decision of
+their own. The owner's recommendation was *byte-identical items first, golden digests as the proof;
+warts stay per crate*. The plan is `ops/plans/plan-mxm-dsp.md` in the workspace.
 
 ## Why every MSRV floor is compiled against
 

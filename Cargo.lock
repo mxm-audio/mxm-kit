@@ -1603,6 +1603,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "mxm-dsp"
+version = "0.4.1"
+
+[[package]]
 name = "mxm-fft"
 version = "0.4.1"
 dependencies = [

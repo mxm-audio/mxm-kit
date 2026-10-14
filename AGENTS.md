@@ -35,7 +35,7 @@ fixes in its `PATCHES.md` — which every repository that builds a plugin patche
 ## The crates
 
 The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.md#the-crate-rules-in-full).
-**Sixteen crate rules, deliberately different** — count the bullets before editing this number:
+**Seventeen crate rules, deliberately different** — count the bullets before editing this number:
 
 - `crates/ui` is **shared from day one**: design system §13 exempts the shell, theme tokens,
   typography and basic parameter controls; anything *beyond* them waits for two instruments.
@@ -65,9 +65,8 @@ The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.
   read and validated, never how a host applies a map.
 - **The unshipped measurement crates** — `crates/mxm-measure` here, `dsp-lab` and `mxm-listening` in
   `mxm-tools` — are **not shared DSP and not an exception**: no shipped DSP moves in and none
-  appears in a shipped graph (`crates/mxm-measure/AGENTS.md`'s Verification). `dsp-lab` holds
-  harnesses and their policy, `mxm-measure` rulers (never a threshold or verdict), `mxm-listening`
-  interpretation. A harness that verifies one plugin stays with it.
+  appears in a shipped graph (`crates/mxm-measure/AGENTS.md`'s Verification); how the three split
+  the job is in NOTES.
 - `crates/mxm-xtask` is **the build tooling every repository's `xtask` shares** — bundling,
   control-map staging, installing each bundle in the user's CLAP folder (2026-10-13) and `fetch`;
   mxm-player's root `xtask` adds only `fixtures`.
@@ -88,6 +87,11 @@ The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.
   elsewhere is a defect; the two that remain move one consumer at a time (room-ir's with O6,
   mxm-fx-eq-n's in its own work). A sixth family arrives with its second copy; a machine's own
   register (the 909's LFSR) is the machine, not a generator. Zero dependencies, MSRV 1.87.
+- `crates/mxm-dsp` is **the collection's shared DSP primitives**, moved verbatim from the instruments'
+  byte-identical copies (the audit's O1): the denormal guard, the saturators and prewarp, the
+  PolyBLEP residual and pulse clamp, the ADSR. An item moves here when its copies are byte-identical,
+  or on the owner's ruling for one that differs; a copy that differs stays with its instrument. The
+  effects' primitives join with O2. Zero dependencies, MSRV 1.87.
 
 # Local Contracts
 
@@ -107,7 +111,7 @@ The full wording, with the hierarchy and a child doc's shape: [NOTES.md § The D
   effects, artifacts, the owner's preferences, or AGENTS.md files and indexes change, and the
   parents and children it affects; correct stale or contradictory text at once, moving its history
   to `NOTES.md` rather than deleting it, but deleting a discarded idea or replaced design outright
-  (git keeps it; the owner, 2026-10-08). A small edit that changes no behaviour may leave docs
+  (git keeps it; the owner, 2026-10-08): no copied old tables, no "until <date> it was…" asides. A small edit that changes no behaviour may leave docs
   unchanged, but the pass still happens.
 - **An AGENTS.md is the contract and stays under about 200 lines.** History, measurements, rationale
   and worked examples go in the `NOTES.md` beside it, linked from the rule they explain.
@@ -145,6 +149,7 @@ cargo +1.87.0 build -p <crate>          # and `test`, which is the harder floor
 | `crates/mxm-telemetry` | **1.87** | Zero dependencies, atomics only, so a plugin's audio half takes it without the GUI floor. **Verified on 1.87**, library and tests |
 | `crates/mxm-vst3-host` | **1.95** | Inherited, not lowered: its two consumers, MXM Player and newDAWn, are at the GUI floor |
 | `crates/mxm-rng` | **1.87** | Zero dependencies, so every DSP crate takes it without the GUI floor. **Verified on 1.87**, library and tests |
+| `crates/mxm-dsp` | **1.87** | Zero dependencies, so every DSP crate takes it without the GUI floor. **Verified on 1.87**, library and tests |
 | `crates/mxm-fft` | **1.87** | `rustfft` 6.4.1 (MSRV 1.61) and `realfft` 3.5.0, pinned, so a DSP crate can take it. **Verified on 1.87**, library and tests |
 
 ## Licensing
@@ -177,19 +182,12 @@ implemented. A dependency that does not support all three cannot be taken.
 
 - **Style**: concise, current, operational; stable contracts, not diary entries; broad rules in
   parents, concrete detail in children; direct bullets with explicit names; no rule repeated across
-  files unless each scope needs it; stale or misplaced text corrected and its history moved to
-  `NOTES.md`, never just deleted (the owner, 2026-10-06). **What moves is the reasoning behind what
-  is still in force; a discarded idea is deleted, not archived** (the owner, 2026-10-08: "it is a
-  discarded idea that we are never gonna use again"): no copied old tables, no "until <date> it
-  was…" asides.
+  files unless each scope needs it; stale text handled as *DOX* says.
 - **A value the code holds is named, not copied** (the owner, 2026-09-24): a size a test derives or a
   constant the code declares is stated as its rule, its constant and the test that holds it, never
   its number. Two exceptions: the design system's own tokens and rules, and a plan's dated revision
   history.
-- **Closeout**: re-check changed paths against the DOX chain; update the nearest owning docs and any
-  affected parents or children; refresh every affected Child DOX Index; correct (never just delete)
-  stale or contradictory text, but delete a discarded idea outright; run existing verification
-  when relevant; report any docs intentionally left unchanged and why.
+- **Closeout**: the steps in [NOTES.md § Closeout](NOTES.md#closeout), stale text handled as *DOX* says.
 
 # Verification
 
@@ -226,5 +224,6 @@ their own shipped packages.
 | [`crates/mxm-telemetry/AGENTS.md`](crates/mxm-telemetry/AGENTS.md) | The plugin's DSP→editor channel: the peak meter and its one policy, and the developer channel's request slots |
 | [`crates/mxm-fft/AGENTS.md`](crates/mxm-fft/AGENTS.md) | The one FFT: its conventions, planning ahead and allocation-free execution, the scoped hardware flush of subnormals, determinism, and the finding that planning cannot fail cleanly |
 | [`crates/mxm-rng/AGENTS.md`](crates/mxm-rng/AGENTS.md) | The five pseudo-random generators: bit-exact for ever, seeding and mappings left to the consumer, the zero-seed rule, the exact laws and the two kept inexact ones |
+| [`crates/mxm-dsp/AGENTS.md`](crates/mxm-dsp/AGENTS.md) | The shared DSP primitives: the byte-identical gate, bit-exact for ever, and which differing copies stay with their instruments |
 | [`crates/mxm-vst3-host/AGENTS.md`](crates/mxm-vst3-host/AGENTS.md) | VST3 plugins in a CLAP host: a module as an in-process CLAP entry, the CLAP-to-VST3 mapping, threads and the fixed-size block lists, embedded and floating editors, Linux's run loop, and the checks against installed plugins |
 | [`docs/AGENTS.md`](docs/AGENTS.md) | The normative design system and control map, the plugin conventions, the measured `mxm-measure` page, and the filter, oscillator and modulation theory |
