@@ -167,6 +167,10 @@ mod tests {
         line.clear();
         assert_eq!(line.written(), 0);
         assert!((0..=5).all(|age| line.read(age) == 0.0));
+        assert!(
+            line.buf.iter().all(|&x| x != 0.0),
+            "clearing touches no sample: a consumer may clear a line sized for 768 kHz in `process`"
+        );
         line.push(7.0);
         assert_eq!(line.read(1), 7.0);
         assert_eq!(line.read(2), 0.0);

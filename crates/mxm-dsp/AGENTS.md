@@ -18,7 +18,8 @@ machine's 0.4 ms floor), mono-01's (without the decay stall fix), mono-pr1's env
 with their instruments, and each instrument's NOTES says which of its items moved and which stayed.
 Nor the effects' other flushes (`MIN_POSITIVE`, `1e-30`, NaN-zeroing) or their SVFs and biquads: unifying
 those changes bits and goldens, and the owner has been asked. fx-delay's generation-tagged line is its
-own (its crate publishes the memory it costs).
+own (its crate publishes the memory it costs), and fx-oldify's transport keeps its ring (its sinc read
+takes the raw buffer).
 
 # Local Contracts
 
