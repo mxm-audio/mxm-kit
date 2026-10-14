@@ -1412,6 +1412,36 @@ pub fn scroll_list(ui: &Ui) -> egui::ScrollArea {
     })
 }
 
+/// What an editor applies once, when its window opens: the theme, the type, the theme the player
+/// chose, and the keymap in the shared folder. **One call**, so no editor misses one — mxm-model-drums
+/// read no keymap until this was shared (the architecture audit's O7).
+pub fn install(ctx: &egui::Context) {
+    crate::theme::apply(ctx);
+    crate::typography::apply(ctx);
+    ctx.set_theme(crate::theme::preference());
+    crate::navigation::use_shared_keymap(ctx);
+}
+
+/// The output meter from a plugin's telemetry: the peak since the last frame, drawn with the clip
+/// latch ([`level_meter`]), the latch cleared when it is clicked. Where it sits is the caller's.
+pub fn peak_meter(ui: &mut Ui, tokens: &Tokens, meter: &mxm_telemetry::PeakMeter) {
+    let peak = meter.take();
+    let clipped = meter.clipped();
+    if level_meter(ui, tokens, peak, clipped) {
+        meter.clear_clip();
+    }
+}
+
+/// A theme request from the developer channel, applied and not stored: how a screenshot run and a
+/// test reach a theme without overwriting the choice made in the control.
+pub fn developer_theme(ctx: &egui::Context, dev: &mxm_telemetry::DevRequests) {
+    if let Some(index) = dev.take_theme()
+        && let Some(preference) = crate::theme::from_index(index)
+    {
+        ctx.set_theme(preference);
+    }
+}
+
 /// A compact output level and clip indicator, §3.1 slot 6 and §7.5.
 ///
 /// §7.5's two rules that are easy to miss and expensive to retrofit: **peak and clip states are
@@ -2351,5 +2381,67 @@ mod compact_bar_tests {
         chosen.set(None);
         narrow.run_steps(2);
         assert_eq!(chosen.get(), None, "once");
+    }
+}
+
+#[cfg(test)]
+mod install_tests {
+    use super::{developer_theme, install, peak_meter};
+    use std::sync::Arc;
+
+    fn keymap(ctx: &egui::Context) -> Option<Arc<mxm_keys::Keymap>> {
+        ctx.data(|d| d.get_temp::<Arc<mxm_keys::Keymap>>(egui::Id::new("mxm-ui navigation keymap")))
+    }
+
+    /// The architecture audit's O7: mxm-model-drums' window read no keymap while every other
+    /// editor's did. One call does all four, so no editor can miss one.
+    #[test]
+    fn install_styles_the_window_and_reads_the_shared_keymap() {
+        let ctx = egui::Context::default();
+        assert!(
+            keymap(&ctx).is_none(),
+            "the premise: a fresh context holds no keymap"
+        );
+        install(&ctx);
+        assert_eq!(
+            ctx.options(|o| o.theme_preference),
+            crate::theme::preference()
+        );
+        if crate::keymaps::folder().is_some() {
+            assert!(
+                keymap(&ctx).is_some(),
+                "install did not read the shared keymap"
+            );
+        }
+    }
+
+    #[test]
+    fn the_meter_takes_the_peak_once_and_keeps_the_clip_until_clicked() {
+        let meter = mxm_telemetry::PeakMeter::default();
+        meter.publish(2.0);
+        let ctx = egui::Context::default();
+        let tokens = crate::theme::tokens(&ctx);
+        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+            peak_meter(ui, tokens, &meter)
+        });
+        output.textures_delta.clear();
+        assert_eq!(meter.take(), 0.0, "the frame took the peak");
+        assert!(
+            meter.clipped(),
+            "drawn, not clicked: the clip stays latched"
+        );
+    }
+
+    #[test]
+    fn a_theme_request_is_applied_once() {
+        let dev = mxm_telemetry::DevRequests::default();
+        let ctx = egui::Context::default();
+        dev.request_theme(1);
+        developer_theme(&ctx, &dev);
+        assert_eq!(
+            ctx.options(|o| o.theme_preference),
+            egui::ThemePreference::Dark
+        );
+        assert_eq!(dev.take_theme(), None, "consumed");
     }
 }

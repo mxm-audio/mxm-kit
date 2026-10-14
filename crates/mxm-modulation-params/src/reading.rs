@@ -235,3 +235,15 @@ pub fn amount_param_at(
         .with_value_to_string(Arc::new(move |value| reading(reach, value)))
         .with_string_to_value(Arc::new(move |text| parse(reach, fader, text)))
 }
+
+/// The name a route's amount takes, the one a host shows: `"<target> from <source>"`.
+#[must_use]
+pub fn amount_name(target: &str, source: &str) -> String {
+    format!("{target} from {source}")
+}
+
+/// The name of a route's presence switch: `"<target> from <source> on"`.
+#[must_use]
+pub fn presence_name(target: &str, source: &str) -> String {
+    format!("{target} from {source} on")
+}

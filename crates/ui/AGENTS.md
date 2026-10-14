@@ -23,7 +23,8 @@ Does **not** own labels, parameter bindings, or data. Plugins and the player sup
 
 ## Dependencies and threads — [NOTES.md § Dependencies and threads](NOTES.md#dependencies-and-threads)
 
-- **`egui` and nothing else** but `mxm-keys` (no dependencies): no windowing crate, host crate or plugin framework; nothing may
+- **`egui` and nothing else** but `mxm-keys` and `mxm-telemetry` (no dependencies; the second is the plugin channel the shell's meter
+  reads): no windowing crate, host crate or plugin framework; nothing may
   assume it owns a window, an event loop or a swapchain. `lib.rs`'s `the_crate_is_windowing_free`
   reads the manifest — check what a new dependency pulls in before adding it. `egui_taffy` (pure
   flexbox rectangles) and `serde_json`/`dirs` (the theme file, the keymap folder) fit the rule: none
@@ -139,7 +140,8 @@ Does **not** own labels, parameter bindings, or data. Plugins and the player sup
   (DUPLICATE) is ended as soon as it's armed, its end dropped; `Output::Begin` is ignored.
 - **The keys are the keymap in use in the shared folder** `<config>/mxm/keymaps/` (`keymaps`; the
   owner, 2026-10-12: "a unified key language in the daw and in the plugins"), newDAWn's too. An
-  editor's `build()` calls `navigation::use_shared_keymap` beside `theme::apply`, which reads
+  editor's `build()` calls `shell::install` — `theme::apply`, `typography::apply`, the theme preference
+  and `navigation::use_shared_keymap`, one call so no editor misses one (the audit's O7) — which reads
   `active.txt` and the file it names once, when the window opens (`keymaps::in_use`): nothing
   watches the files (the owner, 2026-10-12: "The keymap is not supposed to change"). A context
   that reads none (every test that draws `panel`) keeps the default. One keymap ships, the
@@ -197,6 +199,9 @@ Does **not** own labels, parameter bindings, or data. Plugins and the player sup
   source-panel controls visible (§3.3), 75–200 % zoom, no scroll-wheel editing by default, tooltips
   and text entry on every parameter control, a quarter-4K window (§4.2), no shared `MINIMUM` token.
 - `shell::vertical_level_meter` never relies on red/green alone; nothing feeds back into DSP.
+- `shell::peak_meter` is the app bar's meter from a plugin's `mxm_telemetry::PeakMeter` (take, latch,
+  draw, clear on a click), and `shell::developer_theme` its theme request; a product that reads the
+  peak for a display of its own keeps its own sequence around `level_meter`.
 - Only the §13 foundation skips evidence-before-sharing. **A new rule is piloted** behind
   `pilot::on`; roll it out by deleting the check, never by copying it into a plugin.
 - Editors call `shell::editor_theme_control` (`<config>/mxm/editor.json`), the player

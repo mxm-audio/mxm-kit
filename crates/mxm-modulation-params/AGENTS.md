@@ -124,7 +124,8 @@ instrument keeps `stack` and the owner's earlier exclusion of route amounts from
 
 - **What a route reads is what it delivers, in its target's unit** — `+12.00 st`, `−4.00 oct`,
   `+20 %/oct` for a Key route. `reading` is the one formatter, its parse and its parameter
-  (`amount_param`), for every instrument; never a per-plugin copy
+  (`amount_param`), and the names a host shows (`amount_name`, `<target> from <source>`;
+  `presence_name`, the same with ` on`), for every instrument; never a per-plugin copy
   ([NOTES.md § Why a route's reading is formatted once](NOTES.md#why-a-routes-reading-is-formatted-once)).
 - The plugin supplies the `Reach` (its scale table, frame unit and sources' peaks), and
   `Reach::below` where a machine's law is not a mirror.

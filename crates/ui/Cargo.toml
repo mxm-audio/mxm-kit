@@ -36,6 +36,9 @@ dirs       = "=5.0.1"
 
 # The keyboard language's engine, for `reach`: zero dependencies, so it brings no window either.
 mxm-keys.workspace = true
+# The plugin's DSP->editor channel the shell draws (its meter and the developer's theme request):
+# atomics alone, no framework and no dependencies, so the rule above holds.
+mxm-telemetry.workspace = true
 
 [dev-dependencies]
 egui_kittest = "=0.36.1"
