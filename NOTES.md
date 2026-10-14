@@ -244,7 +244,10 @@ seeding rule and output mapping. The seeds are load-bearing: golden digests and 
 depend on every stream, so the owner's ruling was *one crate offering each family bit-exactly; no
 consumer changes generator*. The crate's reference test pins each family against the first outputs
 of the copies themselves, printed before they were removed, and every consumer's goldens held
-unchanged. The plan is `ops/plans/plan-mxm-rng.md` in the workspace.
+unchanged. The plan is `ops/plans/plan-mxm-rng.md` in the workspace. A copy of one of the five written
+elsewhere is a defect; the two that remain move one consumer at a time (room-ir's with O6,
+mxm-fx-eq-n's in its own work). A sixth family arrives with its second copy; a machine's own
+register (the 909's LFSR) is the machine, not a generator.
 
 **`crates/mxm-dsp`** (2026-10-14, the architecture audit's O1). The synth DSP crates were honest
 copies by design, each carrying an evidence row for the extraction plan. The census found nine
@@ -267,6 +270,18 @@ take `finite_or` and keep their bounds. The effects' other flushes and their SVF
 in every copy; unifying them would change bits and goldens for an inaudible gain, so each effect
 keeps its own for now (the owner, 2026-10-14). The plan is
 `ops/plans/plan-mxm-dsp-effects.md` in the workspace.
+
+**`crates/mxm-drum-engine`, and note ownership in `crates/mxm-part-routing`** (2026-10-14, the
+architecture audit's O4). `mxm-model-drums` was built after `mxm-drum-machine` and took its shell and
+engine scaffolding whole: fifteen engine items (88 lines) and the plugins' event group and its impl
+(138 lines) proved identical, and the two plugins' resolution of a group (~150 lines) differed only in
+comments, the first key and the chromatic reference. The engine items moved to the new crate, the
+LFO as `value` then `advance` (the drum machine's `tick` was those two in that order). The note half
+moved into `mxm-part-routing` as mechanism — `EventGroup` and `PartState::resolve` — with every choice
+passed in through `PartPolicy` and `ResolveFlags`, as that crate's policy-neutral contract requires:
+the plugins keep the CLAP translation and its ranges, the priority order, the strike reduction and
+which strike sounds, the chromatic offset and the response to a flood. The plan is
+`ops/plans/plan-drum-shared.md` in the workspace.
 
 ## Why every MSRV floor is compiled against
 

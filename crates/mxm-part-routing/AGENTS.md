@@ -4,7 +4,7 @@ Parent: [`../../AGENTS.md`](../../AGENTS.md)
 
 ## Purpose
 
-Framework-free routing laws for instruments with independently addressed parts: bounded assignment values, fixed-note/channel matching, same-offset monophonic arbitration, CLAP-style note-owner matching and click-free destination transfer.
+Framework-free routing laws for instruments with independently addressed parts: bounded assignment values, fixed-note/channel matching, same-offset monophonic arbitration, note ownership across parts, CLAP-style note-owner matching and click-free destination transfer.
 
 ## Ownership
 
@@ -13,6 +13,7 @@ Framework-free routing laws for instruments with independently addressed parts: 
 - Owns fixed-capacity same-offset monophonic arbitration with consumer-supplied owner priority and strike reduction, plus an in-place `retain` for removals that depend on the note alone (a same-offset choke), so a consumer pays them once per group rather than once per part.
 - `ArbitrationResult` reports both strikes and the consumer picks: `strike` is every accepted candidate's, combined by its `reduce_strike`, and `owner_strike` is the winning candidate's own. Reduction still has to run either way, because it is what makes the result independent of host event order; which of the two *sounds* is a product choice and stays with the consumer. `mxm-drum-machine` takes `owner_strike`, because a hit there is its own velocity.
 - Owns note owner/address value types and wildcard matching.
+- Owns note ownership across parts (the audit's O4, the mechanism both drum plugins carried): `EventGroup`, one offset's note-ons, releases, chokes, tunings and channel expression, collected so host order cannot matter; and `PartState::resolve`, each part's owner, expression and pitch. Every choice arrives through `PartPolicy` (admission, priority, strike reduction, the sounding strike, the chromatic offset) and `ResolveFlags` (a flood's release and tuning response).
 - Owns allocation-free equal-gain destination transfer, in-place reversal and latest-wins pending reassignment.
 - Consumers own CLAP event translation, the selected musical policies, parameter IDs, port layouts and output naming.
 
@@ -20,8 +21,8 @@ Framework-free routing laws for instruments with independently addressed parts: 
 
 - Zero runtime dependencies; MSRV 1.87.
 - Assignment constructors contain hostile parameter values to the consumer-declared channel and auxiliary bounds.
-- Arbitration capacity is a consumer const generic; overflow is reported without partial insertion, and the consumer decides the safety response.
-- `tests/policy_neutral.rs` deliberately uses three parts, two auxiliaries, lowest-note priority, summed strike and layering so no drum-machine count or musical choice enters the shared API.
+- Arbitration capacity is a consumer const generic; overflow is reported without partial insertion, and the consumer decides the safety response. The same holds for `EventGroup`: a refused note-on and a stored-event overflow are reported, never answered here.
+- `tests/policy_neutral.rs` deliberately uses three parts, two auxiliaries, lowest-note priority, summed strike and layering so no drum-machine count or musical choice enters the shared API; the ownership cases use the same kind of choices.
 - A destination transfer exposes at most two destinations per part per sample.
 - A request for the origin reverses the current transfer in place; a third destination is one latest-wins pending request.
 - `None` in `NoteAddress` represents CLAP's `-1` wildcard. Explicit note ID matching takes precedence over key; an ID wildcard matches key or all keys.

@@ -12,6 +12,7 @@ members = [
     "crates/mxm-tempo",
     "crates/mxm-keys",
     "crates/mxm-part-routing",
+    "crates/mxm-drum-engine",
     "crates/mxm-control-map",
     "crates/mxm-audio-file",
     "crates/mxm-audio-file-decode",
@@ -48,6 +49,7 @@ mxm-modulation-params = { path = "crates/mxm-modulation-params" }
 mxm-tempo = { path = "crates/mxm-tempo" }
 mxm-keys = { path = "crates/mxm-keys" }
 mxm-part-routing = { path = "crates/mxm-part-routing" }
+mxm-drum-engine = { path = "crates/mxm-drum-engine" }
 mxm-control-map = { path = "crates/mxm-control-map" }
 mxm-audio-file = { path = "crates/mxm-audio-file" }
 mxm-audio-file-decode = { path = "crates/mxm-audio-file-decode" }

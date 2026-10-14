@@ -3,6 +3,10 @@
 //! Consumers own parameter identities, audio-port layouts and musical policy. This crate owns the
 //! bounded assignment, matching, arbitration and destination-transfer mechanisms those policies use.
 
+mod ownership;
+
+pub use ownership::{EventGroup, PartEvent, PartPolicy, PartResolution, PartState, ResolveFlags};
+
 /// The host-facing destination of one independently routed part.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Destination {

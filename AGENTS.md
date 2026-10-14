@@ -35,7 +35,7 @@ fixes in its `PATCHES.md` — which every repository that builds a plugin patche
 ## The crates
 
 The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.md#the-crate-rules-in-full).
-**Seventeen crate rules, deliberately different** — count the bullets before editing this number:
+**Eighteen crate rules, deliberately different** — count the bullets before editing this number:
 
 - `crates/ui` is **shared from day one**: design system §13 exempts the shell, theme tokens,
   typography and basic parameter controls; anything *beyond* them waits for two instruments.
@@ -56,8 +56,11 @@ The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.
   division, the reach clamp and the tempo in force — never a plugin's range, smoothing or transition
   law. Zero dependencies and MSRV 1.87.
 - `crates/mxm-part-routing` is an **owner-approved exception to evidence-first extraction**
-  (2026-09-18): policy-neutral part assignment mechanics; consumers keep musical policy, parameter IDs
-  and CLAP layouts. Zero dependencies and MSRV 1.87.
+  (2026-09-18): policy-neutral part assignment and note-ownership mechanics; consumers keep musical
+  policy, event translation, parameter IDs and CLAP layouts. Zero dependencies and MSRV 1.87.
+- `crates/mxm-drum-engine` is **what the sixteen-slot drum engines share**, moved verbatim (the audit's
+  O4): the kit LFO, the modulation and output frames, the trigger group, the seeds. An engine, a voice
+  or anything one instrument alone uses stays with it. MSRV 1.87; its dependencies have none.
 - `crates/mxm-audio-file` and `crates/mxm-audio-file-decode` own bytes ↔ samples and nothing a
   consumer decides. **Two crates, not a feature**: the decoder holds MPL-2.0 symphonia, so an
   export-only consumer never carries it.
@@ -83,15 +86,12 @@ The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.
   defect; the remaining copies move to it one consumer at a time. MSRV 1.87.
 - `crates/mxm-rng` is **the collection's pseudo-random generators**: five families, each bit-exact
   to the copies it replaced (the audit's O3, owner-approved 2026-10-13). A consumer keeps its seeds,
-  its seeding rule and its own mappings, and never changes family. A copy of one of the five written
-  elsewhere is a defect; the two that remain move one consumer at a time (room-ir's with O6,
-  mxm-fx-eq-n's in its own work). A sixth family arrives with its second copy; a machine's own
-  register (the 909's LFSR) is the machine, not a generator. Zero dependencies, MSRV 1.87.
-- `crates/mxm-dsp` is **the collection's shared DSP primitives**, moved verbatim from the instruments'
-  byte-identical copies (the audit's O1 and O2): the denormal and finite guards, the saturators and
-  prewarp, the PolyBLEP residual and pulse clamp, the ADSR, the line read by age. An item moves here
-  when its copies are byte-identical, or on the owner's ruling for one that differs; a copy that
-  differs stays with its instrument. Zero dependencies, MSRV 1.87.
+  its seeding rule and its own mappings, and never changes family; a copy written elsewhere is a
+  defect (which remain, and when a sixth family arrives: NOTES). Zero dependencies, MSRV 1.87.
+- `crates/mxm-dsp` is **the collection's shared DSP primitives**, moved verbatim from byte-identical
+  copies (the audit's O1 and O2; its AGENTS lists them). An item moves here when its copies are
+  byte-identical, or on the owner's ruling for one that differs; a copy that differs stays with its
+  instrument. Zero dependencies, MSRV 1.87.
 
 # Local Contracts
 
@@ -138,6 +138,7 @@ cargo +1.87.0 build -p <crate>          # and `test`, which is the harder floor
 | `crates/mxm-control-map` | **1.95** | Inherited, not lowered: serde alone would allow less, but every consumer (the player, the plugins' tests) is at the GUI floor and none needs lower |
 | `crates/mxm-keys` | **1.87** | Zero dependencies and no egui, so any editor or host can take it without inheriting the GUI floor. **Verified on 1.87**, library and tests |
 | `crates/mxm-part-routing` | **1.87** | Zero dependencies; framework-free part assignments, claimed-channel matching, fixed-capacity arbitration, owner matching and bounded destination transfer. **Verified on 1.87**, library and tests |
+| `crates/mxm-drum-engine` | **1.87** | Its dependencies are the kit's dependency-free `mxm-dsp`, `mxm-modulation` and `mxm-rng`, so a drum DSP crate takes it without the GUI floor. **Verified on 1.87**, library and tests |
 | `crates/mxm-measure` | **1.87** | No dependency but `mxm-rng` (zero-dependency, 1.87), so every crate that measures sound can dev-depend on it without inheriting the GUI floor. **Verified on 1.87**, library and tests |
 | `crates/mxm-xtask` | **1.95** | Build tooling, inherited: it runs on the developer's toolchain, never in a plugin |
 | `crates/mxm-plugin-test` | **1.95** | Every check paints a real panel through egui; a dev-dependency of the plugins, which are at this floor already |
@@ -210,7 +211,8 @@ their own shipped packages.
 | [`crates/mxm-modulation/AGENTS.md`](crates/mxm-modulation/AGENTS.md) | Shared source frames, route compaction, combination laws and bounded publication |
 | [`crates/mxm-tempo/AGENTS.md`](crates/mxm-tempo/AGENTS.md) | Tempo sync: the one sixteen-step division ladder, a control's span and direction, position → division, the clamp-never-rescale reach law, and the tempo in force |
 | [`crates/mxm-keys/AGENTS.md`](crates/mxm-keys/AGENTS.md) | The shared keyboard language's engine: physical keys, the jobs, the plain-text keymap and its refusals, held and tapped gestures and their rules, and why no keymap can take a standard shortcut |
-| [`crates/mxm-part-routing/AGENTS.md`](crates/mxm-part-routing/AGENTS.md) | Shared part assignments, claimed-channel matching, fixed-capacity arbitration, CLAP-style note-owner matching and bounded destination transfer |
+| [`crates/mxm-part-routing/AGENTS.md`](crates/mxm-part-routing/AGENTS.md) | Shared part assignments, claimed-channel matching, fixed-capacity arbitration, note ownership across parts, CLAP-style note-owner matching and bounded destination transfer |
+| [`crates/mxm-drum-engine/AGENTS.md`](crates/mxm-drum-engine/AGENTS.md) | What the sixteen-slot drum engines share: the kit LFO, the frames, the trigger group, the seeds; and what stays with each engine |
 | [`crates/mxm-modulation-params/AGENTS.md`](crates/mxm-modulation-params/AGENTS.md) | The routing's parameter and interface half: why it is a second crate rather than a feature, removal as one parameter write with the amount left alone, rows derived from values rather than editor state, and the source as a label because a row *is* its source |
 | [`crates/mxm-measure/AGENTS.md`](crates/mxm-measure/AGENTS.md) | The measurement rulers every test and harness shares: a named computation and never a verdict, the dev-dependency-only rule and its check, the result forms, the extraction gate (its **declined register** in that folder's `NOTES.md`), and the closed-form controls that keep a shared ruler honest |
 | [`crates/mxm-control-map/AGENTS.md`](crates/mxm-control-map/AGENTS.md) | The control-map standard (`control-map.json`) and its schema — layout, instrument maps, parsing, validation and the parameter id hash — read by MXM Player and the plugins' tests |

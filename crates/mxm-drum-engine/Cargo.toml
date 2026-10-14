@@ -1,0 +1,16 @@
+[package]
+name = "mxm-drum-engine"
+description = "What the MXM collection's sixteen-slot drum engines share: the kit LFO, the modulation and output frames, the trigger group and the engines' seeds"
+version.workspace = true
+edition.workspace = true
+# Its dependencies are themselves dependency-free at this floor, so a drum DSP crate takes it
+# without the GUI floor. Verified with `cargo +1.87.0 test -p mxm-drum-engine`.
+rust-version = "1.87"
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+mxm-dsp.workspace = true
+mxm-modulation.workspace = true
+mxm-rng.workspace = true
