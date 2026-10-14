@@ -257,6 +257,16 @@ ladders, one-poles, DC blockers and SVFs differ in every copy and wait for a par
 their own. The owner's recommendation was *byte-identical items first, golden digests as the proof;
 warts stay per crate*. The plan is `ops/plans/plan-mxm-dsp.md` in the workspace.
 
+The effects' half joined with **O2** (2026-10-14): `guard::finite_or` (ten helpers under several names,
+three of them with a fallback of zero; inline expressions stay) and `delay::AgeLine`, the ring fifteen
+lines kept — age 1 the newest, zero past the written history, a constant-time clear, the fractional age
+split before it wraps. Fourteen lines adopted it, each proved bit-identical to the ring it replaced;
+each keeps its length, interpolation, clamps, write flush and age origin. fx-delay's generation-tagged
+line and fx-oldify's transport (its sinc read takes the raw buffer) keep their own. The rate guards
+take `finite_or` and keep their bounds. The effects' other flushes and their SVFs and biquads differ
+in every copy, and unifying them is the owner's to rule on. The plan is
+`ops/plans/plan-mxm-dsp-effects.md` in the workspace.
+
 ## Why every MSRV floor is compiled against
 
 **Every floor in this table has been compiled against, and a floor that has not is a guess.** Cargo
