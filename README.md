@@ -7,17 +7,25 @@ resizable, one design system — and that work fully in newDAWn.
 | Crate | What it is |
 |---|---|
 | [`mxm-ui`](crates/ui) | The interface foundation: theme, typography, controls, paging, the layout tree and keyboard navigation |
-| [`mxm-preset`](crates/mxm-preset) | Preset format, library, browser and the parameter binding |
+| [`mxm-editor`](crates/mxm-editor) | The plugin editor's window: one app, its setup and lifecycle, around each plugin's panel |
+| [`mxm-preset`](crates/mxm-preset) | Preset format, library and browser |
+| [`mxm-params`](crates/mxm-params) | What a parameter is to a control, how an editor binds one, and how it reads |
+| [`mxm-telemetry`](crates/mxm-telemetry) | The plugin's DSP-to-editor channel: the peak meter and the developer's requests |
 | [`mxm-modulation`](crates/mxm-modulation) | Modulation routing: source frames, compaction, combination laws |
 | [`mxm-modulation-params`](crates/mxm-modulation-params) | Its parameter and interface half |
 | [`mxm-tempo`](crates/mxm-tempo) | Tempo sync: one ladder of musical divisions |
 | [`mxm-keys`](crates/mxm-keys) | The keyboard language: keys in, gestures out, and the keymap |
-| [`mxm-part-routing`](crates/mxm-part-routing) | Drum part routing, note arbitration and click-free destinations |
+| [`mxm-part-routing`](crates/mxm-part-routing) | Part routing, note arbitration and ownership, and click-free destinations |
+| [`mxm-drum-engine`](crates/mxm-drum-engine) | What the sixteen-slot drum engines share: the kit LFO, the frames, the trigger group |
+| [`mxm-dsp`](crates/mxm-dsp) | Shared DSP primitives: the guards, saturators, PolyBLEP, the ADSR and the line read by age |
+| [`mxm-rng`](crates/mxm-rng) | The pseudo-random generators, each bit-exact to the copies it replaced |
+| [`mxm-fft`](crates/mxm-fft) | The collection's one FFT |
 | [`mxm-control-map`](crates/mxm-control-map) | The controller-map standard and its schema |
 | [`mxm-audio-file`](crates/mxm-audio-file) | WAV, AIFF and FLAC writing |
 | [`mxm-audio-file-decode`](crates/mxm-audio-file-decode) | Audio reading through symphonia (MPL-2.0) |
 | [`mxm-measure`](crates/mxm-measure) | The measurement rulers every DSP test uses |
 | [`mxm-plugin-test`](crates/mxm-plugin-test) | The headless checks every plugin's tests share |
+| [`mxm-vst3-host`](crates/mxm-vst3-host) | VST3 hosting for the CLAP hosts |
 | [`mxm-xtask`](crates/mxm-xtask) | Bundling and control-map staging for a repository's `cargo xtask` |
 
 `docs/` holds the normative [design system](docs/MXM_DESIGN_SYSTEM.md) and
@@ -32,6 +40,7 @@ builds with:
 ```toml
 [dependencies]
 mxm-ui = { git = "https://github.com/mxm-audio/mxm-kit", branch = "main" }
+mxm-editor = { git = "https://github.com/mxm-audio/mxm-kit", branch = "main" }
 mxm-preset = { git = "https://github.com/mxm-audio/mxm-kit", branch = "main" }
 
 [patch.crates-io]
