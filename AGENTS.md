@@ -88,10 +88,10 @@ The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.
   mxm-fx-eq-n's in its own work). A sixth family arrives with its second copy; a machine's own
   register (the 909's LFSR) is the machine, not a generator. Zero dependencies, MSRV 1.87.
 - `crates/mxm-dsp` is **the collection's shared DSP primitives**, moved verbatim from the instruments'
-  byte-identical copies (the audit's O1): the denormal guard, the saturators and prewarp, the
-  PolyBLEP residual and pulse clamp, the ADSR. An item moves here when its copies are byte-identical,
-  or on the owner's ruling for one that differs; a copy that differs stays with its instrument. The
-  effects' primitives join with O2. Zero dependencies, MSRV 1.87.
+  byte-identical copies (the audit's O1 and O2): the denormal and finite guards, the saturators and
+  prewarp, the PolyBLEP residual and pulse clamp, the ADSR, the line read by age. An item moves here
+  when its copies are byte-identical, or on the owner's ruling for one that differs; a copy that
+  differs stays with its instrument. Zero dependencies, MSRV 1.87.
 
 # Local Contracts
 
