@@ -7,7 +7,8 @@
 //!
 //! # What this crate may depend on
 //!
-//! **`egui` and nothing else**, but for `mxm-keys`, the keyboard language's engine, which has no
+//! **`egui` and nothing else**, but for `mxm-keys`, the keyboard language's engine, and
+//! `mxm-telemetry`, the plugin channel whose meter and theme request the shell draws — neither has
 //! dependencies at all. Not the player, not `clack`, not a plugin framework, and above
 //! all **no windowing crate**. The same controls are drawn by the player as a pane today and by
 //! mxm-mono-01's editor inside a DAW's window later, so nothing here may assume it owns a window, an
