@@ -18,7 +18,7 @@ plugin's own repository (`https://github.com/mxm-audio/<plugin>`), `apps/mxm-pla
 The CLAP plugins the collection ships. Each is a thin nice-plug shell over a framework-free DSP
 crate: parameter definitions, host contract, event handling, and an editor.
 
-Twenty-one plugins — eleven instruments and ten effects:
+Twenty-two plugins — eleven instruments and eleven effects:
 
 | | |
 |---|---|
@@ -40,6 +40,7 @@ Twenty-one plugins — eleven instruments and ten effects:
 | [`mxm-fx-delay/`](https://github.com/mxm-audio/mxm-fx-delay/blob/main/plugins/mxm-fx-delay/AGENTS.md) | General-purpose Clean, Vintage digital and Tape delay with three routing and time-change laws |
 | [`mxm-shimmer/`](https://github.com/mxm-audio/mxm-shimmer/blob/main/plugins/mxm-shimmer/AGENTS.md) | Pitch-shifted feedback reverb with outer-tap placement, reverse sweeps and Freeze |
 | [`mxm-classic-verb/`](https://github.com/mxm-audio/mxm-classic-verb/blob/main/plugins/mxm-classic-verb/AGENTS.md) | Everyday algorithmic reverb whose spaces are fitted from impulse responses |
+| [`mxm-fx-oldify/`](https://github.com/mxm-audio/mxm-fx-oldify/blob/main/plugins/mxm-fx-oldify/AGENTS.md) | Makes sound old: cassette tape and old records, from a new deck to a battered 78 on a radiogram |
 | [`mxm-creative-sampler/`](https://github.com/mxm-audio/mxm-creative-sampler/blob/main/plugins/mxm-creative-sampler/AGENTS.md) | Original small-sample instrument with Repitch, Stretch and Grain readers and embedded asset state |
 | [`mxm-drum-machine/`](https://github.com/mxm-audio/mxm-drum-machine/blob/main/plugins/mxm-drum-machine/AGENTS.md) | Original sixteen-slot drum instrument over an append-only pool of machine-specific circuits; all 94 admitted models owner listening-approved, Kit or chromatic MIDI per slot, twenty general controls and four routes a slot like mxm-model-drums (651 parameters since 2026-10-07, from 3,227), stereo main plus sixteen mono outputs, nine source-family audition presets on one canonical role map |
 | [`mxm-model-drums/`](https://github.com/mxm-audio/mxm-model-drums/blob/main/plugins/mxm-model-drums/AGENTS.md) | Sixteen slots of realistic synthesized drums that reach far past the real ones; twenty general controls and four routes a slot (650 parameters); the Ringing kick its first model; built and bundled, clap-validator clean. *Private and unreleased since 2026-10-06, so the link works only for the maintainer* |
@@ -1374,6 +1375,7 @@ per-plugin DAW checks recorded in each child doc still have to be run and report
 | [`mxm-grain-fx/AGENTS.md`](https://github.com/mxm-audio/mxm-grain-fx/blob/main/plugins/mxm-grain-fx/AGENTS.md) | Provisional identity, granular laws, activity and editor |
 | [`mxm-fx-convolution/AGENTS.md`](https://github.com/mxm-audio/mxm-fx-convolution/blob/main/plugins/mxm-fx-convolution/AGENTS.md) | Identity, embedded response state, the collection's impulses folder, presets, activity and editor |
 | [`mxm-fx-curve/AGENTS.md`](https://github.com/mxm-audio/mxm-fx-curve/blob/main/plugins/mxm-fx-curve/AGENTS.md) | Identity, schema, Input gain / Auto makeup / Mix parameters, sixty durable-state factory presets, stretch-to-window canvas with post-gain In and post-Mix Out meter rails, bounded undo, host dirty-state, fixed-slot publication and transitions |
-| [`mxm-fx-eq-n/AGENTS.md`](https://github.com/mxm-audio/mxm-fx-eq-n/blob/main/plugins/mxm-fx-eq-n/AGENTS.md) | Identity, the 146 permanent parameters and their reserved stepped domains, the empty-EQ Init, solo, the analyser and meter, the graph-and-column editor, the graph as a surface, plain undo |
+| [`mxm-fx-eq-n/AGENTS.md`](https://github.com/mxm-audio/mxm-fx-eq-n/blob/main/plugins/mxm-fx-eq-n/AGENTS.md) | Identity, the 266 permanent parameters and their reserved stepped domains, dynamic bands and their side chain, the empty-EQ Init, solo, the analyser and meter, the graph-and-column editor, the graph as a surface, plain undo |
 | [`mxm-fx-delay/AGENTS.md`](https://github.com/mxm-audio/mxm-fx-delay/blob/main/plugins/mxm-fx-delay/AGENTS.md) | Identity, synced Time, factory Mix preservation, layouts, activity, presets and five-card editor |
+| [`mxm-fx-oldify/AGENTS.md`](https://github.com/mxm-audio/mxm-fx-oldify/blob/main/plugins/mxm-fx-oldify/AGENTS.md) | Identity, tempo sync, latency and tail, presets, map, telemetry and the eight-card editor over both engines, record and cassette |
 | [`mxm-creative-sampler/AGENTS.md`](https://github.com/mxm-audio/mxm-creative-sampler/blob/main/plugins/mxm-creative-sampler/AGENTS.md) | Identity, native acquisition, embedded assets, transactions, events and editor |
