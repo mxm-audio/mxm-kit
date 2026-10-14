@@ -436,7 +436,8 @@ None of this shows up on a frequency plot and all of it is audible.
 A digital filter at rest is *exactly* zero. It will never start oscillating, because `0 × anything`
 is `0`, whereas a real filter has thermal noise to grow from. Inject a tiny amount of noise — this
 repo uses `1e-6` (about −120 dB) above a resonance threshold of 0.9, which is inaudible against any
-real signal and enough to seed oscillation. Use a deterministic RNG so tests are reproducible.
+real signal and enough to seed oscillation. Use a deterministic RNG (`crates/mxm-rng`, seeded) so
+tests are reproducible.
 
 ### Component tolerance, per voice
 
