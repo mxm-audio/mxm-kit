@@ -2,6 +2,7 @@
 resolver = "3"
 members = [
     "crates/ui",
+    "crates/mxm-editor",
     "crates/mxm-preset",
     "crates/mxm-params",
     "crates/mxm-telemetry",
@@ -37,8 +38,10 @@ repository = "https://github.com/mxm-audio/mxm-kit"
 # (a plugin must not install a global subscriber into its host).
 nice-plug = { version = "=0.4.2", default-features = false, features = ["editor", "assert_process_allocs"] }
 egui = "=0.36.1"
+nice-plug-egui = { version = "=0.5.1", default-features = false, features = ["opengl"] }
 
 mxm-ui = { path = "crates/ui" }
+mxm-editor = { path = "crates/mxm-editor" }
 mxm-preset = { path = "crates/mxm-preset" }
 mxm-params = { path = "crates/mxm-params" }
 mxm-rng = { path = "crates/mxm-rng" }
@@ -81,7 +84,9 @@ inherits = "release"
 debug = true
 strip = "none"
 
-# nice-plug 0.3.0 as published plus the patches in its fork's PATCHES.md. (A plugin repository also
-# patches egui-baseview, which only its editor's nice-plug-egui pulls in; no crate here does.)
+# nice-plug and egui-baseview as published plus the patches in each fork's PATCHES.md, as every
+# repository that builds a plugin patches them: `mxm-editor` builds nice-plug-egui, so the kit tests
+# it on the window stack that ships.
 [patch.crates-io]
 nice-plug = { git = "https://github.com/mxm-audio/nice-plug", branch = "main" }
+egui-baseview = { git = "https://github.com/mxm-audio/egui-baseview", branch = "main" }

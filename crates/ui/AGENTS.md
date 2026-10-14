@@ -140,8 +140,9 @@ Does **not** own labels, parameter bindings, or data. Plugins and the player sup
   (DUPLICATE) is ended as soon as it's armed, its end dropped; `Output::Begin` is ignored.
 - **The keys are the keymap in use in the shared folder** `<config>/mxm/keymaps/` (`keymaps`; the
   owner, 2026-10-12: "a unified key language in the daw and in the plugins"), newDAWn's too. An
-  editor's `build()` calls `shell::install` — `theme::apply`, `typography::apply`, the theme preference
-  and `navigation::use_shared_keymap`, one call so no editor misses one (the audit's O7) — which reads
+  editor's window calls `shell::install` when it opens (`mxm-editor`'s app does, for every plugin) —
+  `theme::apply`, `typography::apply`, the theme preference and `navigation::use_shared_keymap`, one
+  call so no editor misses one (the audit's O7) — which reads
   `active.txt` and the file it names once, when the window opens (`keymaps::in_use`): nothing
   watches the files (the owner, 2026-10-12: "The keymap is not supposed to change"). A context
   that reads none (every test that draws `panel`) keeps the default. One keymap ships, the

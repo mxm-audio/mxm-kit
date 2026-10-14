@@ -35,10 +35,13 @@ fixes in its `PATCHES.md` — which every repository that builds a plugin patche
 ## The crates
 
 The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.md#the-crate-rules-in-full).
-**Eighteen crate rules, deliberately different** — count the bullets before editing this number:
+**Nineteen crate rules, deliberately different** — count the bullets before editing this number:
 
 - `crates/ui` is **shared from day one**: design system §13 exempts the shell, theme tokens,
   typography and basic parameter controls; anything *beyond* them waits for two instruments.
+- `crates/mxm-editor` is **the plugin editor's window**: the egui app every editor runs, its setup
+  and lifecycle, around the `Panel` each plugin keeps (the audit's O7). The one crate that knows
+  nice-plug's editor; `crates/ui` stays framework-free.
 - `crates/mxm-preset` is shared on evidence from five matching implementations; a plugin supplies
   `Instrument` and nothing else. **Extract on evidence from honest copies, not ahead of it.**
 - `crates/mxm-params` is **what a parameter is to a control, how an editor binds one, and how it
@@ -146,6 +149,7 @@ cargo +1.87.0 build -p <crate>          # and `test`, which is the harder floor
 | `crates/mxm-audio-file` | **1.87** | hound, aifc and flacenc build there, so a DSP crate's harness can dev-depend on it without inheriting the GUI floor. **Verified on 1.87**, library and tests — the run caught a `let` chain stable had accepted |
 | `crates/mxm-audio-file-decode` | **1.87** | symphonia declares 1.85. **Verified on 1.87**, library, unit and fixture tests |
 | `crates/ui` | **1.95** | egui |
+| `crates/mxm-editor` | **1.95** | The GUI floor: nice-plug-egui and egui, with `egui-baseview` patched to the plugins' fork |
 | `crates/mxm-preset` | **1.95** | egui, for the app-bar controls; the format and the library alone would stand at 1.87 |
 | `crates/mxm-params` | **1.95** | The binding draws with egui; no DSP crate needs anything in it |
 | `crates/mxm-telemetry` | **1.87** | Zero dependencies, atomics only, so a plugin's audio half takes it without the GUI floor. **Verified on 1.87**, library and tests |
@@ -222,6 +226,7 @@ their own shipped packages.
 | [`crates/mxm-audio-file/AGENTS.md`](crates/mxm-audio-file/AGENTS.md) | Writing WAV, AIFF and FLAC through established encoders: the formats and their limits, no MPL code, quantisation as a published definition equal to `mxm-measure`'s at 16 bits, refusal of non-finite samples, reported clipping, atomic writes, the 32-bit WAV size bound, the `acid` exception, and the flacenc STREAMINFO correction |
 | [`crates/mxm-audio-file-decode/AGENTS.md`](crates/mxm-audio-file-decode/AGENTS.md) | Reading audio through symphonia (MPL-2.0): the formats it reads, a second crate rather than a feature, the compiled-in notice, Great-or-Excellent components only, what is bounded and what is not, what is refused and how skipped audio is found, per-file gapless reporting, and fixtures that are our own work |
 | [`crates/ui/AGENTS.md`](crates/ui/AGENTS.md) | The shared interface foundation and its design-system contract |
+| [`crates/mxm-editor/AGENTS.md`](crates/mxm-editor/AGENTS.md) | The plugin editor's window: create, the app and its lifecycle, the `Panel` each plugin implements |
 | [`crates/mxm-preset/AGENTS.md`](crates/mxm-preset/AGENTS.md) | Shared preset format, library, browser, identity, authored-model Init and durable-content transaction |
 | [`crates/mxm-params/AGENTS.md`](crates/mxm-params/AGENTS.md) | `ErasedParam` and the step laws, the collection's one parameter binding, and the shared value text |
 | [`crates/mxm-telemetry/AGENTS.md`](crates/mxm-telemetry/AGENTS.md) | The plugin's DSP→editor channel: the peak meter and its one policy, and the developer channel's request slots |

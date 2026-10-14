@@ -1,0 +1,16 @@
+[package]
+name = "mxm-editor"
+description = "The MXM plugin editor's window: the app every plugin's editor runs, its setup and its lifecycle, around the panel each plugin keeps"
+version.workspace = true
+edition.workspace = true
+# The GUI floor: nice-plug-egui and egui.
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+egui.workspace = true
+mxm-ui.workspace = true
+nice-plug.workspace = true
+nice-plug-egui.workspace = true
