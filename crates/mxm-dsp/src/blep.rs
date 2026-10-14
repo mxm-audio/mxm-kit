@@ -6,7 +6,8 @@
 /// corrects the two samples either side of a discontinuity, which removes most of
 /// the aliasing energy for the cost of a few operations (Välimäki and Huovilainen,
 /// *Antialiasing Oscillators in Subtractive Synthesis*, IEEE Signal Processing
-/// Magazine 24(2), 2007).
+/// Magazine 24(2), 2007). The residual is for a rising step of height 2 at the phase wrap: add it
+/// for a rising step, subtract it for a falling one.
 #[inline]
 pub fn poly_blep(t: f32, dt: f32) -> f32 {
     if t < dt {
