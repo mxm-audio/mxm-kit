@@ -1603,6 +1603,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "mxm-drum-engine"
+version = "0.4.1"
+dependencies = [
+ "mxm-dsp",
+ "mxm-modulation",
+ "mxm-rng",
+]
+
+[[package]]
 name = "mxm-dsp"
 version = "0.4.1"
 
@@ -1705,6 +1714,7 @@ dependencies = [
  "egui_taffy",
  "kittest",
  "mxm-keys",
+ "mxm-telemetry",
  "serde_json",
 ]
 
