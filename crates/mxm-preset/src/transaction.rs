@@ -325,6 +325,7 @@ impl DeferredPresetTransaction {
             IdentityTarget::None => mark_none(instrument),
         }
         *slot = None;
+        instrument.patch_replaced();
         true
     }
 
@@ -741,7 +742,9 @@ mod tests {
         assert!(transaction.ready(request.id));
         assert!(transaction.publish_ready(&instrument, &setter, |_| {}));
         assert_eq!(loaded(&instrument).name(), Some("Before"));
+        assert_eq!(instrument.replaced(), 0, "not until it is acknowledged");
         assert!(transaction.acknowledge(request.id, &instrument));
         assert_eq!(loaded(&instrument), Loaded::None);
+        assert_eq!(instrument.replaced(), 1);
     }
 }

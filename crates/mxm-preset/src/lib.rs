@@ -164,6 +164,24 @@ pub trait Instrument {
     /// its own, so it must be idempotent and cheap. Parameter-only instruments need nothing here.
     fn commit_preset_state(&self) {}
 
+    /// A preset load or Init is replacing the patch, whatever it carried: the moment to drop what
+    /// the instrument keeps outside the patch but owes to it. MXM Drum Machine's typed slot names
+    /// go back to the ones it makes up, because the drums changed. Content the preset itself
+    /// carries is [`Self::apply_preset_state`]'s. The default does nothing.
+    ///
+    /// Called once for every successful load ([`ui::apply_preset_checked`] and everything that goes
+    /// through it: the preset bar, the browser, stepping), every Init ([`ui::init_patch`]) and every
+    /// deferred transaction the audio callback acknowledged
+    /// ([`DeferredPresetTransaction::acknowledge`]); never for a refused one.
+    ///
+    /// **It must not read the patch.** On a synchronous load or Init it runs as the gestures are
+    /// emitted, which a CLAP host may apply in a later process or flush, so the parameters may still
+    /// hold the patch being replaced; and a load installs its identity after this returns. A
+    /// deferred transaction calls it from `acknowledge`, after the callback confirmed publication
+    /// and after the identity is installed. Either way, act on what the instrument holds itself,
+    /// never on live parameter values or [`Self::identity`].
+    fn patch_replaced(&self) {}
+
     /// Whether this parameter describes the **loaded source** rather than the patch around it.
     ///
     /// A root note and a region are measurements of one particular recording. Writing them from
@@ -481,7 +499,7 @@ pub(crate) mod testing {
     //! instrument would have to be consulted about.
 
     use std::sync::RwLock;
-    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
     use nice_plug::prelude::{BoolParam, FloatParam, FloatRange, Param};
 
@@ -497,6 +515,8 @@ pub(crate) mod testing {
         observed_bits: [AtomicU64; 3],
         revisions: [AtomicU64; 3],
         preset: RwLock<PresetIdentity>,
+        /// How many times [`Instrument::patch_replaced`] was called.
+        pub replaced: AtomicUsize,
     }
 
     impl TestInstrument {
@@ -508,7 +528,12 @@ pub(crate) mod testing {
                 observed_bits: std::array::from_fn(|_| AtomicU64::new(0)),
                 revisions: std::array::from_fn(|_| AtomicU64::new(0)),
                 preset: RwLock::new(PresetIdentity::none()),
+                replaced: AtomicUsize::new(0),
             }
+        }
+
+        pub(crate) fn replaced(&self) -> usize {
+            self.replaced.load(Ordering::Acquire)
         }
 
         pub(crate) fn observe_revision(&self, id: &str) -> Option<u64> {
@@ -551,6 +576,10 @@ pub(crate) mod testing {
 
         fn factory_files(&self) -> &'static [(&'static str, &'static str)] {
             FACTORY
+        }
+
+        fn patch_replaced(&self) {
+            self.replaced.fetch_add(1, Ordering::AcqRel);
         }
     }
 

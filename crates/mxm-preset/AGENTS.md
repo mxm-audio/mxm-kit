@@ -57,7 +57,7 @@ The seams ([NOTES.md § The instrument's seams in full](NOTES.md#the-instruments
   `preset_row`, `overlays`, `apply_preset_checked` and `init_patch` never dispatch through it and stay
   synchronous.
 
-The rules, all the crate's, not a plugin's ([NOTES.md § The six rules in full](NOTES.md#the-six-rules-in-full)):
+The rules, all the crate's, not a plugin's ([NOTES.md § The rules in full](NOTES.md#the-rules-in-full)):
 
 - **Factory preservation requires trusted provenance.** Only an entry compiled as `Origin::Factory`
   may omit an id named by `is_factory_preserved`; everything else reports the omission. Captures and
@@ -66,6 +66,12 @@ The rules, all the crate's, not a plugin's ([NOTES.md § The six rules in full](
   parameter write, so a rejected payload costs no gesture and is not marked loaded;
   `commit_preset_state` runs once after the whole burst, even for a recipe with no content. Generated
   Init follows the same order when `init_preset_state` is supplied.
+- **`patch_replaced` follows every successful load and every Init**, a deferred one when it is
+  acknowledged, and never a refused one. It is for what an instrument keeps outside the patch but
+  owes to it: MXM Drum Machine's typed slot names go back to the ones it makes up. A synchronous
+  load or Init calls it as the gestures are emitted, before a host may apply them and before the
+  identity is installed; a deferred one at `acknowledge`, after both. So it never reads the
+  parameters or the identity.
 - **A preset writes source-owned parameters only when it brings the source they describe.**
   `Preset::resolve` skips them whenever `state` is null; Init skips them too.
 - **Instance settings are host state, never preset sound.** `is_instance_setting(id)` parameters are

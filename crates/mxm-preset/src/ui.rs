@@ -1258,6 +1258,7 @@ fn apply_preset_checked_from_with_baseline(
     // The durable half of the sound becomes audible only now, with the patch that describes it
     // already written. See `Instrument::commit_preset_state`.
     instrument.commit_preset_state();
+    instrument.patch_replaced();
     (true, problems, Some(baseline))
 }
 
@@ -1289,6 +1290,7 @@ pub fn init_patch(instrument: &dyn Instrument, setter: &ParamSetter<'_>) {
     if state.is_some() {
         instrument.commit_preset_state();
     }
+    instrument.patch_replaced();
 }
 
 #[cfg(test)]
@@ -1610,6 +1612,9 @@ mod tests {
         fn commit_preset_state(&self) {
             self.log.borrow_mut().push("commit");
         }
+        fn patch_replaced(&self) {
+            self.log.borrow_mut().push("replaced");
+        }
     }
 
     /// **The commit barrier.** An asset instrument prepares its audio before any gesture — so a
@@ -1628,7 +1633,7 @@ mod tests {
         instrument.log.borrow_mut().clear();
         let (applied, problems) = apply_preset_checked(&instrument, &setter, &preset);
         assert!(applied, "{problems:?}");
-        assert_eq!(*instrument.log.borrow(), ["prepare", "commit"]);
+        assert_eq!(*instrument.log.borrow(), ["prepare", "commit", "replaced"]);
 
         // A recipe that carries no content of its own is still committed, so an instrument that
         // staged something earlier is not left holding it.
@@ -1636,7 +1641,67 @@ mod tests {
         recipe.state = None;
         instrument.log.borrow_mut().clear();
         assert!(apply_preset_checked(&instrument, &setter, &recipe).0);
-        assert_eq!(*instrument.log.borrow(), ["prepare", "commit"]);
+        assert_eq!(*instrument.log.borrow(), ["prepare", "commit", "replaced"]);
+    }
+
+    /// `patch_replaced` follows every load and every Init, whatever they carried, and no refused
+    /// load.
+    #[test]
+    fn the_patch_is_replaced_by_every_load_and_init_and_no_refused_load() {
+        let instrument = TestInstrument::new();
+        let host = NoHost;
+        let setter = ParamSetter::new(&host);
+        let preset = Preset::capture("Plain", Category::Uncategorised, &instrument);
+        assert!(apply_preset_checked(&instrument, &setter, &preset).0);
+        assert_eq!(instrument.replaced(), 1, "a load");
+        init_patch(&instrument, &setter);
+        assert_eq!(
+            instrument.replaced(),
+            2,
+            "Init, which carries no content here"
+        );
+
+        let mut refused = preset.clone();
+        refused.state = Some(serde_json::json!({"unexpected": true}));
+        let (applied, _) = apply_preset_checked(&instrument, &setter, &refused);
+        assert!(
+            !applied,
+            "the premise: a parameter-only instrument refuses content"
+        );
+        assert_eq!(instrument.replaced(), 2, "a refused load replaced nothing");
+    }
+
+    /// Through the bar and the browser, as a user loads: stepping, a browser row, Init.
+    #[test]
+    fn the_bar_and_the_browser_replace_the_patch() {
+        use kittest::Queryable;
+
+        let instrument = std::rc::Rc::new(TestInstrument::new());
+        let presets = std::rc::Rc::new(std::cell::RefCell::new(PresetUi::at(
+            Library::at(None),
+            instrument.as_ref(),
+        )));
+        let mut harness = harness(
+            std::rc::Rc::clone(&presets),
+            std::rc::Rc::clone(&instrument),
+        );
+        harness.run_steps(2);
+
+        harness.get_by_label("›").click();
+        harness.run_steps(2);
+        assert_eq!(instrument.replaced(), 1, "stepping to the next preset");
+
+        harness.get_by_label("…").click();
+        harness.run_steps(2);
+        harness.get_by_label("Init patch").click();
+        harness.run_steps(2);
+        assert_eq!(instrument.replaced(), 2, "Init from the bar");
+
+        harness.get_by_label("No preset").click();
+        harness.run_steps(2);
+        harness.get_by_label("Sub bass").click();
+        harness.run_steps(2);
+        assert_eq!(instrument.replaced(), 3, "a row in the browser");
     }
 
     /// The bar and what floats under it, laid out in the accessibility harness.

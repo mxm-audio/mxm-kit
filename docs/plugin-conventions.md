@@ -804,6 +804,12 @@ voice-info extension, for a reason the routing did not change: that extension ad
 offsetting a *parameter* for one voice, and routing added per-voice sources, not per-voice parameter
 destinations.
 
+## A drum instrument names its keys
+
+A plugin that plays a drum per key names each one through the nice-plug fork's note-name capability
+(`ClapPlugin::note_names`; the fork's `PATCHES.md`, *Note names*), so a host's drum lanes are titled
+as the plugin's slots are. MXM Drum Machine names each Kit key with its slot's name (2026-10-14).
+
 ## Realtime rules for `process()`
 
 Non-negotiable, and the source of most "fine in tests, crackles in the DAW" bugs:

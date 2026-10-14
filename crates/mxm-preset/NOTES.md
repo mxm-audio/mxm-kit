@@ -55,9 +55,9 @@ API: existing `preset_row`, `overlays`,
 `apply_preset_checked` and `init_patch` do not dispatch through it and remain byte-for-behavior
 synchronous.
 
-## The six rules in full
+## The rules in full
 
-Six rules follow from those seams, and all are the crate's, not a plugin's:
+These rules follow from those seams, and all are the crate's, not a plugin's:
 
 - **Factory preservation requires trusted provenance.** Only a library entry compiled as
   `Origin::Factory` may omit an id named by `is_factory_preserved`; origin-less calls, writable
@@ -116,6 +116,19 @@ Six rules follow from those seams, and all are the crate's, not a plugin's:
   callback slot, and cancelling or rejecting it cannot remove the predecessor's retained identity.
   Editor close cancels unpublished work by id, while an already published request retains its callback
   acknowledgement outside the editor's lifetime.
+- **`patch_replaced` follows every replacement, whatever it carried, and never reads the patch**
+  (2026-10-14). MXM Drum Machine names each slot, and a name typed over one belongs to the drum in
+  it: when a kit load or Init changes the drums, the names go back to the ones it makes up (the
+  owner, 2026-10-14). The bar and the browser load inside this crate and report nothing back, and
+  `commit_preset_state` is no signal: Init calls it only when it carries content of its own. So
+  `patch_replaced` is called once for every successful load, every Init and every acknowledged
+  deferred transaction, and for no refused load. A synchronous load or Init calls it as the
+  gestures are emitted: a host may apply them later (below), and a load installs its identity after
+  it returns. A deferred transaction calls it at `acknowledge`, after the callback confirmed
+  publication and after the identity is installed. Since the two orders differ, it acts only on
+  what the instrument holds outside the patch, never on live parameters or the identity. Tests:
+  `the_patch_is_replaced_by_every_load_and_init_and_no_refused_load`,
+  `the_bar_and_the_browser_replace_the_patch`, and the deferred Init's acknowledgement.
 
 **Synchronous gestures are not synchronous parameter application.** A CLAP host may queue every
 GUI-authored begin/value/end and apply it only in a later process or `params.flush()` call. An
