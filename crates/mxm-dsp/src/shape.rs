@@ -50,6 +50,9 @@ pub fn tanh_approx(x: f32) -> f32 {
 /// root; `f` is odd, so it adds no even harmonics and no DC; and `f'(0) = 1`, so
 /// the small-signal loop is the ideal ladder and the oscillation threshold is
 /// unchanged from the linear theory.
+///
+/// `knee` must be positive and finite, as every caller's constant is; the expression is the copies'
+/// own and checks nothing.
 #[inline]
 pub fn diode_clamp(x: f32, knee: f32) -> (f32, f32) {
     let a = x / knee;

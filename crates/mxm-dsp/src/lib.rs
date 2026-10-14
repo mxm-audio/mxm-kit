@@ -10,8 +10,8 @@
 //! - [`blep`]: the PolyBLEP residual and the pulse-width clamp it needs.
 //! - [`envelope`]: the analog-style ADSR.
 //!
-//! Plain values in, plain values out: no framework types, no allocation, nothing that can panic on a
-//! finite input.
+//! Plain values in, plain values out: no framework types, no allocation, and no panic on any input a
+//! function's own documentation admits (`diode_clamp`'s knee is positive, as every caller passes).
 
 #![forbid(unsafe_code)]
 
