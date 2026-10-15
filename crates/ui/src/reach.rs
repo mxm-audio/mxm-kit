@@ -200,7 +200,6 @@ pub fn context_menu(response: &egui::Response, keys: Option<Rect>, add: impl FnO
         egui::Popup::open_id(ctx, id);
     }
     if egui::Popup::is_id_open(ctx, id) {
-        ctx.data_mut(|data| data.insert_temp(Id::new(CONTEXT_MENU), id));
         let rect = anchor
             .or_else(|| ctx.data(|data| data.get_temp::<Rect>(id)))
             .unwrap_or(response.rect);
@@ -220,14 +219,6 @@ const PENDING: &str = "newdawn reach: this frame's edits";
 const EDITING: &str = "newdawn reach: the value being edited";
 const TIP: &str = "newdawn reach: the tip where the keyboard's cursor is";
 const TYPING: &str = "newdawn reach: the value being typed";
-const CONTEXT_MENU: &str = "newdawn reach: the right-click menu open";
-
-/// Whether a [`context_menu`] is open: the editors walk it with the keys (`navigation`), as
-/// newDAWn walks every menu.
-pub(crate) fn context_menu_open(ctx: &Context) -> bool {
-    ctx.data(|data| data.get_temp::<Id>(Id::new(CONTEXT_MENU)))
-        .is_some_and(|id| egui::Popup::is_id_open(ctx, id))
-}
 
 /// The hand-drawn value widgets that read their edits, as drawn on a frame, and those of them
 /// that have a default.

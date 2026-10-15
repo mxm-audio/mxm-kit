@@ -362,14 +362,6 @@ fn handle(
         {
             continue;
         }
-        // An open right-click menu is walked with the keys (`reach`): the arrows item to item,
-        // OPEN presses one, MENU closes it.
-        if let Some(rect) = state.menu {
-            state
-                .reach
-                .key(super::MENU_VIEW, reach::Region::Menu(rect), output);
-            continue;
-        }
         // VIEW + arrows: card to card (the owner, 2026-10-09: "Shift + arrows goes to the next
         // card"); up from the top cards to the bars above them, and through the bars and back;
         // past the edge, out of the window (S11). Not while a card asked for is on its way.

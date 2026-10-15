@@ -3600,15 +3600,19 @@ fn tooltip(response: Response, param: &ParamView<'_>) -> Response {
 
 /// A continuous control's right-click menu, which MENU opens too: *Type a value* opens its direct
 /// entry with the value as the plugin writes it, as OPEN does from the keys (newDAWn's
-/// keyboard-reach plan, S12).
+/// keyboard-reach plan, S12). Its row takes egui's focus, so Enter or Space presses it: an open
+/// menu walks with egui's focus, the cursor standing aside (`navigation::run`).
 fn type_menu(response: &Response, param: &ParamView<'_>, text_entry: &mut Option<String>) {
     if param.read_only {
         return;
     }
     crate::reach::context_menu(response, None, |ui| {
-        if ui.button("Type a value").clicked() {
+        let item = ui.button("Type a value");
+        if item.clicked() {
             *text_entry = Some(param.text.to_owned());
             ui.close();
+        } else if !item.has_focus() {
+            item.request_focus();
         }
     });
 }
@@ -4603,8 +4607,9 @@ mod tests {
     }
 
     /// **A knob's right-click menu types a value** (newDAWn's keyboard-reach plan, S12): *Type a
-    /// value* opens its direct entry holding the value as the plugin writes it, and the entry has
-    /// the keyboard, so typing starts at once.
+    /// value* has the keyboard as the menu opens, Enter presses it, and it opens the direct entry
+    /// holding the value as the plugin writes it, the entry with the keyboard, so typing starts at
+    /// once.
     #[test]
     fn a_knobs_right_click_menu_opens_its_text_entry_with_the_keyboard() {
         use egui_kittest::kittest::Queryable as _;
@@ -4630,7 +4635,8 @@ mod tests {
             .get_by_role_and_label(egui::accesskit::Role::Slider, "Cutoff")
             .click_secondary();
         harness.run();
-        harness.get_by_label("Type a value").click();
+        // The menu's row has the keyboard: Enter presses it, as a click does.
+        harness.key_press(egui::Key::Enter);
         harness.run();
         assert_eq!(harness.state().as_deref(), Some("1.2 kHz"));
         assert!(

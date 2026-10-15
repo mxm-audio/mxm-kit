@@ -131,12 +131,12 @@ Does **not** own labels, parameter bindings, or data. Plugins and the player sup
   (`reach::State::on_value_in`); **a tip is the keys' too** (`reach::Tip`, newDAWn's owner,
   2026-10-15): it shows beside the cursor (`State::tip`, `tip_at`), and a label or a disabled
   widget with one is a stop, `Kind::Info`, that OPEN leaves alone; menus `reach::context_menu`,
-  which MENU opens (`State::key`) and, pressed again, closes; in an editor, where the cursor is inert
-  while another popup is open, a right-click menu is walked as newDAWn's are (`State::menu`,
-  `reach::context_menu_open`: the arrows, OPEN presses, the menu shown before the keys so a pressed
-  item has its click before its menu closes), and `navigation::run` closes it on MENU unless a
-  text field has the keyboard. A menu counts as open once egui has shown it, not in the pass that
-  sizes it, unseen and over what it was opened from. A
+  which MENU opens (`State::key`; in an editor `navigation`'s, on the cursor's control) and,
+  pressed again, closes; in an editor, where the cursor is inert while a popup is open, a menu
+  walks with egui's focus (↑ ↓, Enter), a row taking it as the menu opens (a control's *Type a
+  value*, the EQ's band menu), and `navigation::run` closes it on MENU unless a text field has
+  the keyboard. A menu counts as open once egui has shown it, not in the pass that sizes it,
+  unseen and over what it was opened from. A
   request lasts the pass it was made in and the next, so a widget that draws a menu only later never
   opens one unasked.
 - **The cursor reads the keyboard language** (`navigation/language.rs`, design system §11; piloted on

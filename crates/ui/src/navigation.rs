@@ -102,10 +102,8 @@ pub struct State {
     bar_cards: Vec<u64>,
     /// VIEW + down just brought the cursor back from the bars to the cards.
     home: bool,
-    /// The cursor among a bar's widgets, and an open right-click menu's ([`MENU_VIEW`]).
+    /// The cursor among a bar's widgets.
     reach: crate::reach::State<usize>,
-    /// A right-click menu is open, there: the keys walk it this frame.
-    menu: Option<Rect>,
     /// F1's sheet of the keys is open (`sheet`).
     sheet: bool,
     /// What a move after a value edit left for the next frame ([`language::read`]).
@@ -159,9 +157,6 @@ fn current_id() -> Id {
 fn last_id() -> Id {
     registry_id().with("last")
 }
-/// The cursor's place in an open right-click menu, among `reach`'s views (the bars count from 0).
-pub(super) const MENU_VIEW: usize = usize::MAX;
-
 fn type_id() -> Id {
     registry_id().with("type")
 }
@@ -629,23 +624,11 @@ pub fn run(
     //
     // `Popup::is_any_open` and not `Context::any_popup_open`: this runs before anything is drawn,
     // and the context's answer is built from the popups drawn so far in this pass — none yet.
-    // egui's memory keeps a menu's open state from frame to frame.
-    //
-    // **But a right-click menu is walked with the keys**, as newDAWn's are (its keyboard-reach
-    // plan, S12): the arrows go item to item and OPEN presses one, `reach` walking it as it walks
-    // the bars. A control's menu has *Type a value*, which MENU reaches so. Other popups, a
-    // selector's list among them, keep their own keys.
-    state.menu = (!inert && !ctx.text_edit_focused() && crate::reach::context_menu_open(ctx))
-        .then(|| state.reach.menu())
-        .flatten();
-    // Before the keys: an item OPEN pressed last frame has had its click, and its menu closes now
-    // (`reach::State::show`), unless the item opened another.
-    if state.menu.is_some() {
-        state.reach.show(MENU_VIEW, None);
-        state.menu = state.menu.filter(|_| egui::Popup::is_any_open(ctx));
-    }
-    let inert =
-        inert || ctx.text_edit_focused() || (egui::Popup::is_any_open(ctx) && state.menu.is_none());
+    // egui's memory keeps a menu's open state from frame to frame. A menu walks with egui's own
+    // focus: ↑ ↓ row to row, Enter or Space clicks the focused one, its current row taking the
+    // focus as it opens (mxm-fx-eq-n's band menu, the owner, 2026-10-15; a control's *Type a
+    // value*).
+    let inert = inert || ctx.text_edit_focused() || egui::Popup::is_any_open(ctx);
 
     // **BACK during a mouse drag cancels it, before the inert return** (`crate::drag`): egui has
     // already ended a drag on `Escape` this frame, and a surface holding the keyboard — a focused
@@ -824,24 +807,6 @@ pub fn run(
         state.bar.is_none() && current_spot(state, &spots).is_some_and(|spot| spot.surface)
     };
     language::read(ctx, state, back_spent, &on_value, &on_surface, &mut apply);
-
-    // In an open menu, the cursor is outlined on its item, and the cards keep their place.
-    if state.menu.is_some() {
-        clear_target(ctx);
-        if let Some((widget, true)) = &state.reach.now {
-            ctx.layer_painter(egui::LayerId::new(
-                egui::Order::Tooltip,
-                registry_id().with("menu cursor"),
-            ))
-            .rect_stroke(
-                widget.rect.expand(2.0),
-                RADIUS,
-                Stroke::new(2.0, ctx.global_style().visuals.selection.stroke.color),
-                StrokeKind::Outside,
-            );
-        }
-        return None;
-    }
 
     // In a bar, the cards keep their place but give up the keyboard, and the bar's own cursor is
     // outlined over it while the keyboard is in use.
@@ -1983,15 +1948,14 @@ mod tests {
         assert!(!opened.get(), "MENU closed it");
     }
 
-    /// **MENU on a card's control opens its right-click menu**, as in newDAWn, and the keys walk
-    /// it: a knob's *Type a value* is reached from the keys.
+    /// **MENU on a card's control opens its right-click menu**, as in newDAWn: a knob's *Type a
+    /// value* is reached from the keys (its row takes egui's focus, `control`'s test).
     #[test]
     fn menu_opens_the_menu_of_the_control_the_cursor_is_on() {
         const MENU: mxm_keys::Job = mxm_keys::Job::Action(mxm_keys::Action::Menu);
         let ctx = egui::Context::default();
         let mut state = State::default();
         let opened = std::cell::Cell::new(false);
-        let typed = std::cell::Cell::new(false);
         let frame = |state: &mut State, events: Vec<egui::Event>| {
             let input = egui::RawInput {
                 screen_rect: Some(Rect::from_min_size(Pos2::ZERO, egui::vec2(400.0, 300.0))),
@@ -2010,9 +1974,7 @@ mod tests {
                             let response = ui.button("Cutoff");
                             mark(ui, &response, response.rect);
                             crate::reach::context_menu(&response, None, |ui| {
-                                if ui.button("Type a value").clicked() {
-                                    typed.set(true);
-                                }
+                                let _ = ui.button("Type a value");
                             });
                         });
                     });
@@ -2035,17 +1997,6 @@ mod tests {
         frame(&mut state, vec![menu(true), menu(false)]);
         frame(&mut state, Vec::new());
         assert!(opened.get(), "MENU opened the control's menu");
-        // OPEN presses the item the menu's cursor is on, its only one.
-        let open = |pressed| egui::Event::Key {
-            key: key_of(OPEN),
-            physical_key: None,
-            pressed,
-            repeat: false,
-            modifiers: egui::Modifiers::NONE,
-        };
-        frame(&mut state, vec![open(true), open(false)]);
-        frame(&mut state, Vec::new());
-        assert!(typed.get(), "OPEN pressed Type a value");
     }
 
     /// **The keyboard language**: VIEW + ↑ leaves the cards for the bar

@@ -910,7 +910,7 @@ size (newDAWn's owner, 2026-10-09: "sdf value left right should change in musica
 | BACK (`Escape`) | Cancel the edit back to where it began, a mouse drag included, or close transient UI |
 | DELETE | Return the selected parameter to its default |
 | OPEN (`Enter`) | Choose the segmented cell the cursor is on, or type the value of the parameter it is on (§7.1's direct entry); while a verb is armed, keep the edit and open nothing, as in newDAWn |
-| MENU (`R`) | Open the right-click menu of what the cursor is on, drawn with `reach::context_menu`, which the arrows and OPEN then walk; pressed again, close it (newDAWn's owner, 2026-10-14). An editor's continuous control has one, *Type a value* (2026-10-15) |
+| MENU (`R`) | Open the right-click menu of what the cursor is on, drawn with `reach::context_menu`; pressed again, close it (newDAWn's owner, 2026-10-14). In an editor an open menu walks with egui's focus, ↑ ↓ and Enter, its row taking the focus as it opens. An editor's continuous control has one, *Type a value* (2026-10-15) |
 | `Home` / `End` | Minimum / maximum where safe |
 | `Ctrl/Cmd+Z` | Undo |
 | `Ctrl/Cmd+Shift+Z` | Redo |
