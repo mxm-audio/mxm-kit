@@ -245,8 +245,8 @@ depend on every stream, so the owner's ruling was *one crate offering each famil
 consumer changes generator*. The crate's reference test pins each family against the first outputs
 of the copies themselves, printed before they were removed, and every consumer's goldens held
 unchanged. The plan is `ops/plans/plan-mxm-rng.md` in the workspace. A copy of one of the five written
-elsewhere is a defect; the two that remain move one consumer at a time (room-ir's with O6,
-mxm-fx-eq-n's in its own work). A sixth family arrives with its second copy; a machine's own
+elsewhere is a defect. Room-ir's moved with O6 (2026-10-15, bit-exact); the one that remains,
+mxm-fx-eq-n's, moves in its own work. A sixth family arrives with its second copy; a machine's own
 register (the 909's LFSR) is the machine, not a generator.
 
 **`crates/mxm-dsp`** (2026-10-14, the architecture audit's O1). The synth DSP crates were honest
