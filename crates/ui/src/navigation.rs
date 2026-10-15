@@ -585,17 +585,67 @@ pub fn run(
     let surfaces = spots.iter().any(|spot| spot.surface);
     sheet::show(ctx, &mut open, language::engine(state).keymap(), surfaces);
     state.sheet = open;
+
+    // **MENU closes an open menu, as BACK does** (newDAWn's owner, 2026-10-14): egui closes a
+    // popup on `Escape` by itself, not on MENU's key, and the cursor is inert while one is open.
+    // A text field with the keyboard keeps the key, as the letter it types.
+    if egui::Popup::is_any_open(ctx) && !ctx.text_edit_focused() {
+        let menu_keys: Vec<mxm_keys::Key> = language::engine(state)
+            .keymap()
+            .keys(mxm_keys::Job::Action(mxm_keys::Action::Menu))
+            .collect();
+        let pressed = ctx.input_mut(|input| {
+            let at = input.events.iter().position(|event| {
+                matches!(
+                    event,
+                    egui::Event::Key { key, physical_key, pressed: true, repeat: false, modifiers }
+                        if !modifiers.command
+                            && !modifiers.alt
+                            && language::to_key(physical_key.unwrap_or(*key))
+                                .is_some_and(|key| menu_keys.contains(&key))
+                )
+            });
+            if let Some(at) = at {
+                input.events.remove(at);
+            }
+            at.is_some()
+        });
+        if pressed {
+            egui::Popup::close_all(ctx);
+        }
+    }
     if inert {
         // The interrupt keeps whatever was armed. A surface hears that end as it heard the
         // gesture's steps, so the editor's own transaction closes too.
         let surface =
             state.bar.is_none() && current_spot(state, &spots).is_some_and(|spot| spot.surface);
+        // The keys let go meanwhile are let go to the engine too, whose answers are nothing now: a
+        // key held as the keyboard was taken (MENU opening its menu) must not be thought still
+        // down, or its next press reads as the key repeating, and does nothing.
+        let released: Vec<mxm_keys::Key> = ctx.input(|input| {
+            input
+                .events
+                .iter()
+                .filter_map(|event| match event {
+                    egui::Event::Key {
+                        key,
+                        physical_key,
+                        pressed: false,
+                        ..
+                    } => language::to_key(physical_key.unwrap_or(*key)),
+                    _ => None,
+                })
+                .collect()
+        });
         if let Some(engine) = state.language.as_mut() {
             let ended = engine.interrupt();
             if surface {
                 for output in ended {
                     push_surface(ctx, output);
                 }
+            }
+            for key in released {
+                let _ = engine.release(key);
             }
         }
         clear_target(ctx);
@@ -1706,6 +1756,137 @@ mod tests {
         output.textures_delta.clear();
         assert_ne!(state.parameter(), Some("b"), "the field's keys are its own");
         assert!(!shown(&ctx));
+    }
+
+    /// MENU, pressed in one frame and let go in a later one while the menu it opened makes the
+    /// cursor inert, opens its menu again once that one is closed: the engine heard the release.
+    #[test]
+    fn menu_opens_again_after_its_key_was_let_go_while_its_menu_was_open() {
+        const MENU: mxm_keys::Job = mxm_keys::Job::Action(mxm_keys::Action::Menu);
+        let ctx = egui::Context::default();
+        let mut state = State::default();
+        let opened = std::cell::Cell::new(false);
+        let event = |key, pressed| egui::Event::Key {
+            key,
+            physical_key: None,
+            pressed,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        };
+        let frame = |state: &mut State, events: Vec<egui::Event>| {
+            let input = egui::RawInput {
+                screen_rect: Some(Rect::from_min_size(Pos2::ZERO, egui::vec2(400.0, 300.0))),
+                events,
+                ..Default::default()
+            };
+            let mut output = ctx.run_ui(input, |ui| {
+                let cards = [(
+                    0,
+                    Rect::from_min_size(Pos2::new(0.0, 60.0), egui::vec2(400.0, 240.0)),
+                )];
+                let _ = run(ui.ctx(), state, &[0], &cards, false);
+                egui::Panel::top("a bar").show(ui, |ui| {
+                    bar(ui);
+                    let response = ui.button("Presets");
+                    crate::reach::context_menu(&response, None, |ui| {
+                        let _ = ui.button("Rename");
+                    });
+                });
+                egui::CentralPanel::default().show(ui, |ui| {
+                    card(ui, 0, |ui| {
+                        at(ui, "a", |ui| {
+                            let response = ui.button("a");
+                            mark(ui, &response, response.rect);
+                        });
+                    });
+                });
+                opened.set(egui::Popup::is_any_open(ui.ctx()));
+            });
+            output.textures_delta.clear();
+        };
+        for _ in 0..3 {
+            frame(&mut state, Vec::new());
+        }
+        let view_up = vec![
+            event(key_of(VIEW), true),
+            event(Key::ArrowUp, true),
+            event(Key::ArrowUp, false),
+            event(key_of(VIEW), false),
+        ];
+        frame(&mut state, view_up);
+        assert_eq!(state.bar(), Some(0), "the premise: on the bar");
+        frame(&mut state, Vec::new());
+
+        // MENU down: its menu opens; MENU up a frame later, while it's open.
+        frame(&mut state, vec![event(key_of(MENU), true)]);
+        frame(&mut state, Vec::new());
+        assert!(opened.get(), "MENU opened the bar button's menu");
+        frame(&mut state, vec![event(key_of(MENU), false)]);
+        // Closed otherwise, as a click elsewhere would.
+        egui::Popup::close_all(&ctx);
+        frame(&mut state, Vec::new());
+        assert!(!opened.get());
+
+        // MENU again: a press, not a repeat.
+        frame(&mut state, vec![event(key_of(MENU), true)]);
+        frame(&mut state, vec![event(key_of(MENU), false)]);
+        frame(&mut state, Vec::new());
+        assert!(opened.get(), "MENU opened it again");
+    }
+
+    /// MENU closes an open menu in an editor, through the cursor's own path, though the cursor is
+    /// inert while it's open and the menu holds nothing to choose.
+    #[test]
+    fn menu_closes_an_open_menu_in_an_editor() {
+        const MENU: mxm_keys::Job = mxm_keys::Job::Action(mxm_keys::Action::Menu);
+        let ctx = egui::Context::default();
+        let mut state = State::default();
+        let open_it = std::cell::Cell::new(true);
+        let opened = std::cell::Cell::new(false);
+        let tap = |key| {
+            [true, false].map(|down| egui::Event::Key {
+                key,
+                physical_key: None,
+                pressed: down,
+                repeat: false,
+                modifiers: egui::Modifiers::NONE,
+            })
+        };
+        let frame = |state: &mut State, events: Vec<egui::Event>| {
+            let input = egui::RawInput {
+                screen_rect: Some(Rect::from_min_size(Pos2::ZERO, egui::vec2(400.0, 300.0))),
+                events,
+                ..Default::default()
+            };
+            let mut output = ctx.run_ui(input, |ui| {
+                let cards = [(
+                    0,
+                    Rect::from_min_size(Pos2::new(0.0, 0.0), egui::vec2(400.0, 300.0)),
+                )];
+                let _ = run(ui.ctx(), state, &[0], &cards, false);
+                egui::CentralPanel::default().show(ui, |ui| {
+                    card(ui, 0, |ui| {
+                        at(ui, "a", |ui| {
+                            let response = ui.button("Kick");
+                            mark(ui, &response, response.rect);
+                            let keys = open_it.replace(false).then_some(response.rect);
+                            crate::reach::context_menu(&response, keys, |ui| {
+                                ui.add_enabled(false, egui::Button::new("Paste here"));
+                            });
+                        });
+                    });
+                });
+                opened.set(egui::Popup::is_any_open(ui.ctx()));
+            });
+            output.textures_delta.clear();
+        };
+        for _ in 0..3 {
+            frame(&mut state, Vec::new());
+        }
+        assert!(opened.get(), "the premise: the menu is open");
+        frame(&mut state, tap(key_of(MENU)).to_vec());
+        frame(&mut state, Vec::new());
+        assert!(!opened.get(), "MENU closed it");
     }
 
     /// **The keyboard language**: VIEW + ↑ leaves the cards for the bar

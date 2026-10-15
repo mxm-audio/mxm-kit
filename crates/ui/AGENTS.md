@@ -124,7 +124,11 @@ Does **not** own labels, parameter bindings, or data. Plugins and the player sup
 
 - **`reach` walks every widget egui describes to screen readers** (the owner, 2026-10-07; the editors
   convert to it, keys first in newDAWn and the collection): nothing registers; a painted control
-  names itself or stays out; a value in its own units reads `reach::edit`; menus `reach::context_menu`.
+  names itself or stays out; a value in its own units reads `reach::edit`; menus `reach::context_menu`,
+  which MENU opens (`State::key`) and, pressed again, closes; in an editor, where the cursor is inert
+  while a popup is open, `navigation::run` closes it on MENU unless a text field has the keyboard. A
+  request lasts the pass it was made in and the next, so a widget that draws a menu only later never
+  opens one unasked.
 - **The cursor reads the keyboard language** (`navigation/language.rs`, design system §11; piloted on
   mxm-mono-08, rolled out 2026-10-08): arrows parameter to parameter, VIEW + arrows card to card
   and up to the bars, a step key (or VALUE) + arrows the value (fine, COARSE coarse, MICRO the finer

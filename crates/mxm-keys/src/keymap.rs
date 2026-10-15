@@ -70,13 +70,17 @@ pub enum Step {
 pub enum Action {
     Add,
     /// Takes away what ADD gives. Shift with ADD's key does it, so it needs no key of its own:
-    /// Z gives, Shift+Z takes away (the owner, 2026-10-07).
+    /// V gives, Shift+V takes away (the owner, 2026-10-07).
     Remove,
     Delete,
     /// Deletes and closes the gap: what came after moves up to where it began.
     Ripple,
     /// Opens the item: goes in.
     Open,
+    /// Opens the right-click menu of what the cursor is on; pressed again, closes it (the owner,
+    /// 2026-10-14: "What about using R to open right click menus? There are enough of them to
+    /// warrant its own key").
+    Menu,
 }
 
 /// Every job a key can do.
@@ -95,7 +99,7 @@ pub enum Job {
 
 impl Job {
     /// Every job, in the order a keymap file lists them.
-    pub const ALL: [Job; 16] = [
+    pub const ALL: [Job; 17] = [
         Job::Verb(Verb::Move),
         Job::Verb(Verb::Extent),
         Job::Verb(Verb::Value),
@@ -109,6 +113,7 @@ impl Job {
         Job::Action(Action::Delete),
         Job::Action(Action::Ripple),
         Job::Action(Action::Open),
+        Job::Action(Action::Menu),
         Job::Out,
         Job::Back,
         Job::View,
@@ -130,6 +135,7 @@ impl Job {
             Job::Action(Action::Delete) => "delete",
             Job::Action(Action::Ripple) => "ripple",
             Job::Action(Action::Open) => "open",
+            Job::Action(Action::Menu) => "menu",
             Job::Out => "out",
             Job::Back => "back",
             Job::View => "view",
@@ -524,6 +530,21 @@ coarse = S
         assert_eq!(keymap.job(Key::S), Some(Job::Step(Step::Coarse)));
     }
 
+    /// A keymap written before MENU still reads, its user's keys as they were, with MENU unbound:
+    /// a copy in the shared folder someone edited keeps its text.
+    #[test]
+    fn a_keymap_without_menu_reads_with_menu_unbound() {
+        let keymap = Keymap::parse(
+            "move = A
+open = Enter
+",
+        )
+        .expect("it reads");
+        assert_eq!(keymap.keys(Job::Action(Action::Menu)).next(), None);
+        assert_eq!(keymap.job(Key::R), None);
+        assert_eq!(keymap.job(Key::A), Some(Job::Verb(Verb::Move)));
+    }
+
     #[test]
     fn every_job_name_reads_back() {
         for job in Job::ALL {
@@ -537,7 +558,11 @@ coarse = S
         assert_eq!(SHIPPED[0].0, DEFAULT);
         assert_eq!(keymap.job(Key::A), Some(Job::Verb(Verb::Move)));
         assert_eq!(keymap.job(Key::S), Some(Job::Step(Step::Coarse)));
-        assert_eq!(keymap.job(Key::R), None, "MUSICAL left the language");
+        assert_eq!(
+            keymap.job(Key::R),
+            Some(Job::Action(Action::Menu)),
+            "MUSICAL left the language, and MENU took its key"
+        );
         assert_eq!(keymap.job(Key::E), Some(Job::Verb(Verb::Value)));
         assert_eq!(keymap.job(Key::W), Some(Job::Verb(Verb::Duplicate)));
         assert_eq!(keymap.job(Key::X), Some(Job::Verb(Verb::Extent)));

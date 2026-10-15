@@ -278,6 +278,39 @@ mod tests {
         assert_eq!(std::fs::read(&study).unwrap(), mangled);
     }
 
+    /// MENU on R (2026-10-14) reaches an unedited copy from before it; an edited one keeps its
+    /// text, and reads with MENU unbound.
+    #[test]
+    fn menu_reaches_an_unedited_copy_and_an_edited_one_keeps_its_keys() {
+        use mxm_keys::Action;
+        let folder = scratch("menu");
+        assert!(seed(&folder).is_empty());
+        let study = file(&folder, DEFAULT);
+        let record = file(&folder.join(SHIPPED_RECORDS), DEFAULT);
+        let before = SHIPPED[0].1.replace(
+            "menu = R
+",
+            "",
+        );
+        assert_ne!(
+            before, SHIPPED[0].1,
+            "the premise: the shipped keymap binds MENU"
+        );
+
+        std::fs::write(&study, &before).unwrap();
+        std::fs::write(&record, &before).unwrap();
+        assert!(seed(&folder).is_empty());
+        let keymap = read(&folder, DEFAULT).unwrap();
+        assert_eq!(keymap.job(Key::R), Some(Job::Action(Action::Menu)));
+
+        let edited = before.replace("one-arrow = no", "one-arrow = yes");
+        std::fs::write(&study, &edited).unwrap();
+        assert!(seed(&folder).is_empty());
+        assert_eq!(std::fs::read_to_string(&study).unwrap(), edited);
+        let keymap = read(&folder, DEFAULT).unwrap();
+        assert_eq!(keymap.keys(Job::Action(Action::Menu)).next(), None);
+    }
+
     #[test]
     fn a_keymap_no_longer_shipped_goes_unless_it_was_edited() {
         let folder = scratch("gone");

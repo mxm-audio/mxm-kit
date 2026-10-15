@@ -138,19 +138,27 @@ pub fn edit(
     (shown, edited)
 }
 
-/// A widget's right-click menu, which the menu key (Shift+F10) opens too, below it: for a
-/// widget the cursor is on, or where `keys` says when a view with a cursor of its own asks.
+/// A widget's right-click menu, which MENU opens too, below it: for a widget the cursor is on, or
+/// where `keys` says when a view with a cursor of its own asks.
+///
+/// A request lasts the pass it was made in and the next, since a host may read the keys before or
+/// after drawing; one no menu took by then is dropped, so a widget that draws a menu only later
+/// never opens one unasked.
 pub fn context_menu(response: &egui::Response, keys: Option<Rect>, add: impl FnOnce(&mut Ui)) {
     let ctx = &response.ctx;
     let id = response.id.with("menu from the keys");
     let node = response.id.accesskit_id();
+    let now = ctx.cumulative_pass_nr();
     let asked = ctx.data_mut(|data| {
         let key = Id::new(MENU_FOR);
-        let asked = data.get_temp::<NodeId>(key) == Some(node);
-        if asked {
-            data.remove::<NodeId>(key);
+        let Some((asked_for, pass)) = data.get_temp::<(NodeId, u64)>(key) else {
+            return false;
+        };
+        let current = pass + 1 >= now;
+        if !current || asked_for == node {
+            data.remove::<(NodeId, u64)>(key);
         }
-        asked
+        current && asked_for == node
     });
     let anchor = keys.or(asked.then_some(response.rect));
     if anchor.is_some() {
@@ -360,14 +368,23 @@ impl<K: Copy + Eq + Hash> State<K> {
         self.ctx.as_ref().and_then(menu)
     }
 
-    /// The menu key: the right-click menu of the widget the cursor is on, in a region.
+    /// Whether a menu is open with something in it the keys can walk: one asked for is drawn and
+    /// its items seen, which takes a frame or two after the ask. A host holds the keys typed after
+    /// MENU until it is (newDAWn's `DawApp::keys`), so they act in the menu, as typed slowly.
+    pub fn menu_ready(&self) -> bool {
+        let Some(ctx) = &self.ctx else {
+            return false;
+        };
+        menu(ctx).is_some_and(|rect| !Self::widgets(ctx, Region::Menu(rect)).is_empty())
+    }
+
+    /// MENU: the right-click menu of the widget the cursor is on, in a region.
     pub fn open_menu(&mut self, view: K, region: Region) {
         let Some(ctx) = self.ctx.clone() else {
             return;
         };
         if let Some(widget) = self.cursor(&ctx, view, region) {
-            ctx.data_mut(|data| data.insert_temp(Id::new(MENU_FOR), widget.id));
-            ctx.request_repaint();
+            ask_menu(&ctx, widget.id);
         }
     }
 
@@ -413,6 +430,12 @@ impl<K: Copy + Eq + Hash> State<K> {
         let ctx = &ctx;
         if !matches!(region, Region::Menu(_)) {
             self.menu = None;
+        }
+        // MENU in an open menu closes it, as BACK does, whatever it holds: even one with nothing
+        // the cursor can stand on.
+        if let (Region::Menu(_), Output::Action(KeyAction::Menu)) = (region, output) {
+            egui::Popup::close_all(ctx);
+            return true;
         }
         let Some(cursor) = self.cursor(ctx, view, region) else {
             return false;
@@ -465,6 +488,9 @@ impl<K: Copy + Eq + Hash> State<K> {
                     }
                 }
             }
+            // MENU (the owner, 2026-10-14): the menu of the widget the cursor is on. (In an open
+            // menu it closed it, above.)
+            Output::Action(KeyAction::Menu) => ask_menu(ctx, cursor.id),
             Output::Finish => edit_event(ctx, cursor.id, EditEvent::Keep),
             Output::Cancel => edit_event(ctx, cursor.id, EditEvent::Cancel),
             _ => return false,
@@ -514,6 +540,13 @@ impl<K: Copy + Eq + Hash> State<K> {
             }
         };
     }
+}
+
+/// Asks for the menu of the widget `target`, for [`context_menu`] to open in this pass or the next.
+fn ask_menu(ctx: &Context, target: NodeId) {
+    let pass = ctx.cumulative_pass_nr();
+    ctx.data_mut(|data| data.insert_temp(Id::new(MENU_FOR), (target, pass)));
+    ctx.request_repaint();
 }
 
 fn edit_event(ctx: &Context, target: NodeId, event: EditEvent) {
@@ -606,5 +639,82 @@ mod tests {
         assert_eq!(next(2, Direction::Right), None);
         assert_eq!(next(0, Direction::Down), Some(4));
         assert_eq!(next(3, Direction::Up), Some(2));
+    }
+
+    /// A request for a menu lasts its pass and the next. A widget that had none then, and draws
+    /// one later, opens nothing; one drawn while the request is current opens.
+    #[test]
+    fn a_menu_asked_for_opens_only_while_the_request_is_current() {
+        use std::cell::Cell;
+        use std::rc::Rc;
+        let draws_menu = Rc::new(Cell::new(false));
+        let ask_now = Rc::new(Cell::new(true));
+        let opened = Rc::new(Cell::new(false));
+        let (menu, ask, open) = (draws_menu.clone(), ask_now.clone(), opened.clone());
+        let mut harness = egui_kittest::Harness::builder()
+            .with_size(egui::vec2(200.0, 120.0))
+            .build_ui(move |ui| {
+                let button = ui.button("Kick");
+                if ask.replace(false) {
+                    ask_menu(ui.ctx(), button.id.accesskit_id());
+                }
+                if menu.get() {
+                    context_menu(&button, None, |ui| {
+                        ui.label("Rename");
+                    });
+                }
+                open.set(egui::Popup::is_any_open(ui.ctx()));
+            });
+        // Asked, but nothing draws a menu for a few passes: the request goes.
+        harness.run_steps(3);
+        draws_menu.set(true);
+        harness.run_steps(2);
+        assert!(!opened.get(), "a stale request opened a menu");
+
+        // Asked while the widget draws one: it opens.
+        ask_now.set(true);
+        harness.run_steps(2);
+        assert!(opened.get());
+    }
+
+    /// MENU closes an open menu even when nothing in it can be chosen, as BACK does.
+    #[test]
+    fn menu_closes_an_open_menu_with_nothing_to_choose() {
+        use std::cell::{Cell, RefCell};
+        use std::rc::Rc;
+        let state = Rc::new(RefCell::new(State::<u8>::default()));
+        let (open_it, press, opened) = (
+            Rc::new(Cell::new(true)),
+            Rc::new(Cell::new(false)),
+            Rc::new(Cell::new(false)),
+        );
+        let (state_, open_, press_, opened_) = (
+            state.clone(),
+            open_it.clone(),
+            press.clone(),
+            opened.clone(),
+        );
+        let mut harness = egui_kittest::Harness::builder()
+            .with_size(egui::vec2(200.0, 120.0))
+            .build_ui(move |ui| {
+                let mut state = state_.borrow_mut();
+                state.begin(ui.ctx());
+                if press_.replace(false)
+                    && let Some(rect) = state.menu()
+                {
+                    assert!(state.key(0, Region::Menu(rect), Output::Action(KeyAction::Menu)));
+                }
+                let button = ui.button("Kick");
+                let keys = open_.replace(false).then_some(button.rect);
+                context_menu(&button, keys, |ui| {
+                    ui.add_enabled(false, egui::Button::new("Paste here"));
+                });
+                opened_.set(egui::Popup::is_any_open(ui.ctx()));
+            });
+        harness.run_steps(2);
+        assert!(opened.get(), "the premise: the menu is open");
+        press.set(true);
+        harness.run_steps(2);
+        assert!(!opened.get(), "MENU closed it");
     }
 }

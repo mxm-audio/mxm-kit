@@ -288,6 +288,21 @@ fn the_next_command_finishes_and_goes_on() {
     );
 }
 
+/// MENU is an action like OPEN: it keeps an armed gesture, then opens.
+#[test]
+fn menu_keeps_an_armed_move_then_opens() {
+    let mut board = Board::keymap("menu = M\n");
+    board.tap(&[Key::W, Key::Right, Key::M]);
+    assert_eq!(
+        board.take(),
+        [
+            step(Move, Fine, Right),
+            Output::Finish,
+            Output::Action(Action::Menu)
+        ]
+    );
+}
+
 #[test]
 fn an_action_finishes_the_gesture_then_does_its_job() {
     let mut board = Board::new();

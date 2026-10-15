@@ -907,6 +907,7 @@ size (newDAWn's owner, 2026-10-09: "sdf value left right should change in musica
 | BACK (`Escape`) | Cancel the edit back to where it began, a mouse drag included, or close transient UI |
 | DELETE | Return the selected parameter to its default |
 | OPEN (`Enter`) | Choose the segmented cell the cursor is on, or begin value entry; while a verb is armed, keep the edit and open nothing, as in newDAWn |
+| MENU (`R`) | Open the right-click menu of what the cursor is on, drawn with `reach::context_menu`; pressed again, close it (newDAWn's owner, 2026-10-14). No editor control has one yet, so an editor's F1 sheet leaves MENU out until one does |
 | `Home` / `End` | Minimum / maximum where safe |
 | `Ctrl/Cmd+Z` | Undo |
 | `Ctrl/Cmd+Shift+Z` | Redo |

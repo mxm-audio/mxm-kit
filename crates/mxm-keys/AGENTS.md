@@ -55,8 +55,11 @@ every MXM editor share is `mxm_ui::keymaps`'.
   `study.keymap`, from newDAWn's key study of 2026-10-06 (its `docs/key-study.md`): 26 known
   songs made again as an experienced user would, every learnable layout priced for finger travel
   and comfortable chords, held and tapped. Verbs on the top row, step sizes on the home row,
-  actions on the bottom; OUT on Tab until a host reads Caps Lock, the study's pick, as a key. A
-  change to it changes the study's record first.
+  actions on the bottom; OUT on Tab until a host reads Caps Lock, the study's pick, as a key; MENU,
+  the right-click menu of what the cursor is on, on R (newDAWn's owner, 2026-10-14). A change to it
+  changes the study's record first.
+- **A keymap without a line for a job reads, the job unbound** (`a_keymap_without_menu_reads_with_menu_unbound`),
+  so a user's copy written before a job joined keeps its keys.
 - **On a value a step key is VALUE at its size** (newDAWn's owner, 2026-10-09): the host says so
   before each key (`Engine::set_on_value`), from where its cursor is once the key before is applied,
   and the step key arms VALUE as a verb's key does, held or tapped; ← → are the value's too, for
