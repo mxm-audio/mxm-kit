@@ -9,7 +9,8 @@ the collection's conventions, so the conventions exist once. Made by
 the archive's `plans/plan-mxm-fft.md` (step X0) on the owner's ruling (2026-10-12:
 *"make a shared fft crate. Havine 3 or for implementations is non DRY"*), against five in-house
 radix-2 copies. **An FFT written anywhere else in the collection is a defect**: the remaining
-copies move here one consumer at a time, `mxm-fx-eq-n`'s analyser the first
+copies move here one consumer at a time: `mxm-fx-eq-n`'s analyser the first, room-ir's with the
+architecture audit's O6 (2026-10-15)
 ([NOTES.md § The crate rules in full](../../NOTES.md#the-crate-rules-in-full)).
 
 # Ownership

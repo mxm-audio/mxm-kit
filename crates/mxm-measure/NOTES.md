@@ -120,12 +120,12 @@ the crate that owns its local composition.
 | Energy gain in a band (output energy over input energy, in dB) | 1 | `mxm-mono-pr1-dsp/examples/pro_one_measure.rs` |
 | Time until the last sample above an audibility floor | 1 | `mxm-mono-01/plugins/mxm-mono-01/host-tests/tests/behaviour.rs` |
 | Time until 100 ms windows fall 60 dB below the loudest (the shimmer audit calls it `rt60`; it is not a decay slope) | 1 | `mxm-shimmer/examples/shimmer_preset_audit.rs` |
-| T20/T30/EDT from a backward-integrated energy decay | 2 implementations that cannot take this crate — `mxm-classic-verb-fit/src/decay.rs` ships in a plugin, `mxm-room-ir/src/analysis.rs` is zero-dependency — plus `mxm-listening/src/parts/note.rs` and three test-side integrals | not here; the architecture audit's O6 |
+| T20/T30/EDT from a backward-integrated energy decay | 2 implementations that cannot take this crate — `mxm-classic-verb-fit/src/decay.rs` ships in a plugin, and room-ir takes its reading (`decay_times`) since the architecture audit's O6 — plus `mxm-listening/src/parts/note.rs` and three test-side integrals | not here: `mxm-classic-verb-fit`'s `decay_times` |
 | Residual level in a fixed late window | 1 | `mxm-shimmer-dsp/src/reverb.rs` |
 | Ratio between two separated RMS windows | 1 | `mxm-bucket-delay-dsp/examples/feedback_spike.rs` |
 | Time until the DSP parks (an activity property, not an acoustic one) | 1 | `mxm-shimmer-dsp/src/lib.rs` |
 | Samples above a fraction of the peak in a window (a density proxy) | 2, with different windows | `mxm-shimmer-dsp/src/reverb.rs`, `mxm-shimmer/examples/shimmer_preset_audit.rs` |
-| Echo density (Abel–Huang) | 2 variants, neither able to take this crate | `mxm-classic-verb-fit/src/density.rs` (rectangular, mean removed — measured choice), `mxm-room-ir/src/analysis.rs` (Hann); O6 |
+| Echo density (Abel–Huang) | 2 variants, neither able to take this crate | `mxm-classic-verb-fit/src/density.rs` (rectangular, mean removed — measured choice), `mxm-room-ir/src/analysis.rs` (Hann), which O6 left room-ir's |
 | Stereo width as a dB ratio | 2 — the second arrived with the listener | `mxm-shimmer/examples/shimmer_preset_audit.rs`, `mxm-listening/src/parts/effect.rs` (which may take this crate); a candidate |
 | Render digest | 1 for host tests, in `mxm_player_harness::host_test::digest`; each instrument's own unit tests keep a copy of the same FNV-1a, because they cannot reach the harness | not a ruler: a bit-exact fingerprint, not a measurement of sound |
 | Preset descriptor vectors and their distance law | 2, with **different members and different laws** | `mxm-shimmer`, `mxm-bucket-delay` |
