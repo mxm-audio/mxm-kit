@@ -77,11 +77,17 @@ impl<P: Panel> NiceEguiApp for EditorApp<P> {
         Ok(())
     }
 
-    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut Frame) {
+    fn ui(&mut self, ui: &mut egui::Ui, frame: &mut Frame) {
         let Some(host) = self.host.clone() else {
             return;
         };
         self.panel.ui(ui, &host);
+        // VIEW past the editor's edge: the keys go back to the host's window, the one this window
+        // is transient for or embedded in (newDAWn's `plans/plan-keyboard-reach.md`, S11). Where
+        // the system refuses, they stay here, which is all a failure could mean.
+        if mxm_ui::navigation::take_leave(ui.ctx()) {
+            let _ = frame.baseview_window().focus_owner();
+        }
     }
 
     fn editor_closed(&mut self) {

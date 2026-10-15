@@ -898,7 +898,7 @@ size (newDAWn's owner, 2026-10-09: "sdf value left right should change in musica
 | Key | Behavior |
 |---|---|
 | arrows | Move the cursor to the next parameter that way inside the card (← → along its row, stopping at either end), and onto each cell of a segmented control |
-| VIEW + arrows (Shift + arrows) | Move the cursor from card to card; ↑ from the top cards to the bars above them (the view bar, then the app bar) and back, never out of the window, which is the window manager's |
+| VIEW + arrows (Shift + arrows) | Move the cursor from card to card; ↑ from the top cards to the bars above them (the view bar, then the app bar) and back; past the edge, where there is nowhere to go, the keys go back to the host's window, where the view that had them has them again (2026-10-15) |
 | FINE (or VALUE) + ↑ ↓ | Adjust the selected parameter — **fine**: 1 % of its travel, or a semitone |
 | COARSE + ↑ ↓ | Adjust the selected parameter — **coarse**: 10 %, or an octave |
 | MICRO + ↑ ↓ | Adjust the selected parameter — **finer**: 0.1 %, or a cent |

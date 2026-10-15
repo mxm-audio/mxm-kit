@@ -157,6 +157,23 @@ fn current_id() -> Id {
 fn last_id() -> Id {
     registry_id().with("last")
 }
+fn leave_id() -> Id {
+    registry_id().with("leave")
+}
+
+/// VIEW past the editor's edge asks for the keys to go back to the host's window (newDAWn's
+/// `plans/plan-keyboard-reach.md`, S11): whether it asked, since the last call. The language only
+/// asks, knowing no windows; the window's owner takes the request and hands the keys over, each
+/// frame (`mxm-editor`, through baseview's `WindowContext::focus_owner`).
+pub fn take_leave(ctx: &egui::Context) -> bool {
+    ctx.data_mut(|data| data.remove_temp::<bool>(leave_id()))
+        .unwrap_or(false)
+}
+
+fn ask_leave(ctx: &egui::Context) {
+    ctx.data_mut(|data| data.insert_temp(leave_id(), true));
+}
+
 fn card_id() -> Id {
     registry_id().with("card")
 }
@@ -1890,7 +1907,8 @@ mod tests {
     }
 
     /// **The keyboard language**: VIEW + ↑ leaves the cards for the bar
-    /// above them, where OPEN presses the widget the cursor is on, and VIEW + ↓ comes back.
+    /// above them, where OPEN presses the widget the cursor is on, and VIEW + ↓ comes back. Past
+    /// the edge, where VIEW has nowhere to go, it asks for the host's window (S11), and only there.
     #[test]
     fn under_the_language_view_reaches_the_bar_where_open_presses() {
         let ctx = egui::Context::default();
@@ -1952,6 +1970,23 @@ mod tests {
             .collect();
         frame(&mut state, view_down, &mut pressed);
         assert_eq!(state.bar(), None, "VIEW + down is the cards again");
+        assert!(
+            !take_leave(&ctx),
+            "between the cards and the bar, the keys stay"
+        );
+
+        let view = |arrow| -> Vec<_> { tap(key_of(VIEW)).into_iter().chain(tap(arrow)).collect() };
+        frame(&mut state, view(Key::ArrowRight), &mut pressed);
+        assert!(
+            take_leave(&ctx),
+            "VIEW + right from the only card asks for the host's window"
+        );
+        assert!(!take_leave(&ctx), "once");
+        frame(&mut state, view(Key::ArrowUp), &mut pressed);
+        assert!(!take_leave(&ctx), "up to the bar stays");
+        frame(&mut state, view(Key::ArrowUp), &mut pressed);
+        assert!(take_leave(&ctx), "up past the top bar asks too");
+        assert_eq!(state.bar(), Some(0), "the cursor waits where it was");
     }
 
     /// **OPEN while a verb is armed ends its gesture, keeping it, and opens nothing**, as in

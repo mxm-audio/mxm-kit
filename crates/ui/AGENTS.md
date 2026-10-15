@@ -135,7 +135,8 @@ Does **not** own labels, parameter bindings, or data. Plugins and the player sup
   opens one unasked.
 - **The cursor reads the keyboard language** (`navigation/language.rs`, design system §11; piloted on
   mxm-mono-08, rolled out 2026-10-08): arrows parameter to parameter, VIEW + arrows card to card
-  and up to the bars, a step key (or VALUE) + arrows the value (fine, COARSE coarse, MICRO the finer
+  and up to the bars, and past the edge out of the window (`take_leave`: the language only asks,
+  `mxm-editor` hands the keys to the host's window; 2026-10-15), a step key (or VALUE) + arrows the value (fine, COARSE coarse, MICRO the finer
   layer; ↑ ↓ by it, ← → to the next line of it, `Press::snap`), one gesture OUT keeps and BACK
   cancels, DELETE the default (2026-10-09). The keys go to the engine one at a time, the engine told
   before each whether the cursor is on a value (`Spot::value`, `reach::State::on_value_in`), so

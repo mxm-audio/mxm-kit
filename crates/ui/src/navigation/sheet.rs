@@ -109,7 +109,8 @@ pub(crate) fn sheet(keymap: &Keymap, surface: bool) -> Sheet {
                 ),
                 (
                     format!("{} ← ↑ ↓ →", key(Job::View)),
-                    "the next card that way; up from the top ones, the bars above, and back",
+                    "the next card that way; up from the top ones, the bars above, and back; \
+                     past the edge, back to the host's window",
                 ),
                 (
                     key(Job::Action(Action::Open)),
@@ -141,6 +142,14 @@ pub(crate) fn sheet(keymap: &Keymap, surface: bool) -> Sheet {
         ),
         ("This sheet", vec![("F1".into(), "show or hide it")]),
     ];
+    // On Wayland the compositor decides focus, so VIEW out only asks (newDAWn's keyboard-reach
+    // plan, S11): its own keys are the sure way between windows, as between any two programs.
+    if cfg!(target_os = "linux") && std::env::var_os("WAYLAND_DISPLAY").is_some() {
+        sections[0].1.push((
+            "Wayland".into(),
+            "the compositor's own keys move between windows; VIEW out of the window only asks",
+        ));
+    }
     if surface {
         let add = key(Job::Action(Action::Add));
         sections.insert(

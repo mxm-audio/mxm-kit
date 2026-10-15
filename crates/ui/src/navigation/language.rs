@@ -7,9 +7,10 @@
 //! - The arrows go to the next parameter that way inside the card (← → along its row), stopping
 //!   on each cell of a segmented control. VIEW + arrows (and `Shift` + arrows in the default
 //!   keymap) go card to card (the owner, 2026-10-09: "Shift + arrows goes to the next card");
-//!   ↑ from the top cards goes to the bars above them (the view bar, then the app bar) and back,
-//!   never out of the window: an editor is its own window, and moving between windows is the
-//!   window manager's.
+//!   ↑ from the top cards goes to the bars above them (the view bar, then the app bar) and back.
+//!   Past the edge, where VIEW has nowhere to go, the keys go back to the host's window, where
+//!   the view that had them has them again (newDAWn's `plans/plan-keyboard-reach.md`, S11):
+//!   the language asks ([`super::take_leave`]), the editor's window answers.
 //! - On a parameter, COARSE, FINE or MICRO with the arrows change it, VALUE implied (2026-10-09):
 //!   ↑ ↓ by the coarse step, the fine one or the finer layer, ← → to the next round value of it.
 //!   VALUE + arrows do the same with the fine step. The change is one gesture, ended by OUT, by
@@ -361,16 +362,20 @@ fn handle(
             continue;
         }
         // VIEW + arrows: card to card (the owner, 2026-10-09: "Shift + arrows goes to the next
-        // card"); up from the top cards to the bars above them, and through the bars and back.
+        // card"); up from the top cards to the bars above them, and through the bars and back;
+        // past the edge, out of the window (S11). Not while a card asked for is on its way.
         if let Output::View { direction } = output {
-            if state.bar.is_some() {
-                view(ctx, state, direction);
+            let moved = if state.bar.is_some() {
+                view(ctx, state, direction)
             } else {
                 let card = state.cursor.card;
                 apply(state, Step::Card(dir(direction)));
-                if direction == Direction::Up && state.cursor.card == card {
-                    view(ctx, state, direction);
-                }
+                state.cursor.card != card
+                    || state.awaiting.is_some()
+                    || (direction == Direction::Up && view(ctx, state, direction))
+            };
+            if !moved {
+                super::ask_leave(ctx);
             }
             continue;
         }
@@ -410,8 +415,9 @@ fn handle(
 }
 
 /// VIEW + ↑ from the cards goes to the lowest bar above them, and on up; ↓ comes back down, and
-/// from the lowest bar to the cards. Sideways, and past the top, there is nowhere to go.
-fn view(ctx: &Context, state: &mut State, direction: Direction) {
+/// from the lowest bar to the cards. Sideways, and past the top, there is nowhere to go in the
+/// window. Whether the cursor moved.
+fn view(ctx: &Context, state: &mut State, direction: Direction) -> bool {
     let count = bars(ctx).len();
     let before = state.bar;
     state.bar = match (direction, state.bar) {
@@ -435,4 +441,5 @@ fn view(ctx: &Context, state: &mut State, direction: Direction) {
         }
         _ => {}
     }
+    before != state.bar
 }

@@ -23,6 +23,12 @@ assets, an editor-open flag), each given the host's context.
   as a pane); anything here that does not need nice-plug belongs in `mxm-ui` instead.
 - `install` runs before `opened`; `closed` runs once a window has opened, with the context it opened
   with; nothing is drawn while no window is open.
+- **VIEW past the editor's edge gives the keys back to the host's window** (newDAWn's keyboard-reach
+  plan, S11, 2026-10-15): each frame, after the panel, `EditorApp::ui` takes
+  `mxm_ui::navigation::take_leave` and asks baseview's `WindowContext::focus_owner` (the baseview
+  fork's patch: the owner of an embedded editor's window, or the window a floating one is transient
+  for, nice-plug's `set_transient`). It is a request baseview carries out after the frame; calling
+  the system inside it re-entered egui-baseview and aborted the host.
 - Every plugin's window is resizable down to its minimum, the cards reflowing; scaling is the app
   bar's zoom. A plugin that needs another policy is a new decision here, not a local override.
 - MSRV is the GUI floor (1.95). The kit patches `egui-baseview` to the fork every plugin repository
