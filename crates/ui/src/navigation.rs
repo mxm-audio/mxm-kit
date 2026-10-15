@@ -102,8 +102,10 @@ pub struct State {
     bar_cards: Vec<u64>,
     /// VIEW + down just brought the cursor back from the bars to the cards.
     home: bool,
-    /// The cursor among a bar's widgets.
+    /// The cursor among a bar's widgets, and an open right-click menu's ([`MENU_VIEW`]).
     reach: crate::reach::State<usize>,
+    /// A right-click menu is open, there: the keys walk it this frame.
+    menu: Option<Rect>,
     /// F1's sheet of the keys is open (`sheet`).
     sheet: bool,
     /// What a move after a value edit left for the next frame ([`language::read`]).
@@ -157,6 +159,46 @@ fn current_id() -> Id {
 fn last_id() -> Id {
     registry_id().with("last")
 }
+/// The cursor's place in an open right-click menu, among `reach`'s views (the bars count from 0).
+pub(super) const MENU_VIEW: usize = usize::MAX;
+
+fn type_id() -> Id {
+    registry_id().with("type")
+}
+
+/// OPEN on the parameter the cursor is on asks to type its value (design system §7.1's direct
+/// entry; newDAWn's keyboard-reach plan, S12): whether it asked for `key`, the parameter being
+/// drawn in this card, this frame. Its control's text entry opens, which the binding owns. The
+/// request lasts the frame it was made in.
+pub fn take_type(ui: &Ui, key: &str) -> bool {
+    let card = ui.ctx().data(|d| d.get_temp::<u64>(card_id()));
+    ui.ctx().data_mut(|d| {
+        let asked = d
+            .get_temp::<(u64, String)>(type_id())
+            .is_some_and(|(at, asked)| Some(at) == card && asked == key);
+        if asked {
+            d.remove::<(u64, String)>(type_id());
+        }
+        asked
+    })
+}
+
+/// MENU on a parameter: its control's right-click menu, as in newDAWn (a knob's or slider's *Type a
+/// value*; design system §7.1).
+fn open_menu(ctx: &egui::Context, state: &State) {
+    let spots = spots(ctx);
+    if let Some(spot) = current_spot(state, &spots) {
+        let id = spot.focus_ids.get(state.cell).copied().unwrap_or(spot.id);
+        crate::reach::ask_menu_for(ctx, id);
+    }
+}
+
+fn ask_type(ctx: &egui::Context, state: &State) {
+    if let (Some(card), Some(key)) = (state.cursor.card, state.cursor.key.clone()) {
+        ctx.data_mut(|d| d.insert_temp(type_id(), (card, key)));
+    }
+}
+
 fn leave_id() -> Id {
     registry_id().with("leave")
 }
@@ -527,7 +569,9 @@ pub fn run(
     cards: &[(u64, Rect)],
     inert: bool,
 ) -> Option<u64> {
-    // Roll the registry: what the last frame drew becomes what this frame navigates.
+    // Roll the registry: what the last frame drew becomes what this frame navigates. An OPEN no
+    // parameter took last frame is over.
+    ctx.data_mut(|d| d.remove::<(u64, String)>(type_id()));
     ctx.data_mut(|d| {
         let current = d.get_temp::<Vec<Spot>>(current_id()).unwrap_or_default();
         if !current.is_empty() {
@@ -586,7 +630,22 @@ pub fn run(
     // `Popup::is_any_open` and not `Context::any_popup_open`: this runs before anything is drawn,
     // and the context's answer is built from the popups drawn so far in this pass — none yet.
     // egui's memory keeps a menu's open state from frame to frame.
-    let inert = inert || ctx.text_edit_focused() || egui::Popup::is_any_open(ctx);
+    //
+    // **But a right-click menu is walked with the keys**, as newDAWn's are (its keyboard-reach
+    // plan, S12): the arrows go item to item and OPEN presses one, `reach` walking it as it walks
+    // the bars. A control's menu has *Type a value*, which MENU reaches so. Other popups, a
+    // selector's list among them, keep their own keys.
+    state.menu = (!inert && !ctx.text_edit_focused() && crate::reach::context_menu_open(ctx))
+        .then(|| state.reach.menu())
+        .flatten();
+    // Before the keys: an item OPEN pressed last frame has had its click, and its menu closes now
+    // (`reach::State::show`), unless the item opened another.
+    if state.menu.is_some() {
+        state.reach.show(MENU_VIEW, None);
+        state.menu = state.menu.filter(|_| egui::Popup::is_any_open(ctx));
+    }
+    let inert =
+        inert || ctx.text_edit_focused() || (egui::Popup::is_any_open(ctx) && state.menu.is_none());
 
     // **BACK during a mouse drag cancels it, before the inert return** (`crate::drag`): egui has
     // already ended a drag on `Escape` this frame, and a surface holding the keyboard — a focused
@@ -765,6 +824,24 @@ pub fn run(
         state.bar.is_none() && current_spot(state, &spots).is_some_and(|spot| spot.surface)
     };
     language::read(ctx, state, back_spent, &on_value, &on_surface, &mut apply);
+
+    // In an open menu, the cursor is outlined on its item, and the cards keep their place.
+    if state.menu.is_some() {
+        clear_target(ctx);
+        if let Some((widget, true)) = &state.reach.now {
+            ctx.layer_painter(egui::LayerId::new(
+                egui::Order::Tooltip,
+                registry_id().with("menu cursor"),
+            ))
+            .rect_stroke(
+                widget.rect.expand(2.0),
+                RADIUS,
+                Stroke::new(2.0, ctx.global_style().visuals.selection.stroke.color),
+                StrokeKind::Outside,
+            );
+        }
+        return None;
+    }
 
     // In a bar, the cards keep their place but give up the keyboard, and the bar's own cursor is
     // outlined over it while the keyboard is in use.
@@ -1906,6 +1983,71 @@ mod tests {
         assert!(!opened.get(), "MENU closed it");
     }
 
+    /// **MENU on a card's control opens its right-click menu**, as in newDAWn, and the keys walk
+    /// it: a knob's *Type a value* is reached from the keys.
+    #[test]
+    fn menu_opens_the_menu_of_the_control_the_cursor_is_on() {
+        const MENU: mxm_keys::Job = mxm_keys::Job::Action(mxm_keys::Action::Menu);
+        let ctx = egui::Context::default();
+        let mut state = State::default();
+        let opened = std::cell::Cell::new(false);
+        let typed = std::cell::Cell::new(false);
+        let frame = |state: &mut State, events: Vec<egui::Event>| {
+            let input = egui::RawInput {
+                screen_rect: Some(Rect::from_min_size(Pos2::ZERO, egui::vec2(400.0, 300.0))),
+                events,
+                ..Default::default()
+            };
+            let mut output = ctx.run_ui(input, |ui| {
+                let cards = [(
+                    0,
+                    Rect::from_min_size(Pos2::new(0.0, 0.0), egui::vec2(400.0, 300.0)),
+                )];
+                let _ = run(ui.ctx(), state, &[0], &cards, false);
+                egui::CentralPanel::default().show(ui, |ui| {
+                    card(ui, 0, |ui| {
+                        at(ui, "a", |ui| {
+                            let response = ui.button("Cutoff");
+                            mark(ui, &response, response.rect);
+                            crate::reach::context_menu(&response, None, |ui| {
+                                if ui.button("Type a value").clicked() {
+                                    typed.set(true);
+                                }
+                            });
+                        });
+                    });
+                });
+                opened.set(egui::Popup::is_any_open(ui.ctx()));
+            });
+            output.textures_delta.clear();
+        };
+        for _ in 0..3 {
+            frame(&mut state, Vec::new());
+        }
+        assert!(!opened.get(), "the premise: no menu");
+        let menu = |pressed| egui::Event::Key {
+            key: key_of(MENU),
+            physical_key: None,
+            pressed,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        };
+        frame(&mut state, vec![menu(true), menu(false)]);
+        frame(&mut state, Vec::new());
+        assert!(opened.get(), "MENU opened the control's menu");
+        // OPEN presses the item the menu's cursor is on, its only one.
+        let open = |pressed| egui::Event::Key {
+            key: key_of(OPEN),
+            physical_key: None,
+            pressed,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        };
+        frame(&mut state, vec![open(true), open(false)]);
+        frame(&mut state, Vec::new());
+        assert!(typed.get(), "OPEN pressed Type a value");
+    }
+
     /// **The keyboard language**: VIEW + ↑ leaves the cards for the bar
     /// above them, where OPEN presses the widget the cursor is on, and VIEW + ↓ comes back. Past
     /// the edge, where VIEW has nowhere to go, it asks for the host's window (S11), and only there.
@@ -2358,6 +2500,37 @@ mod tests {
         };
         assert_eq!(keys.presses, [coarse(false), coarse(true)]);
         assert!(keys.keep);
+    }
+
+    /// **OPEN on a parameter asks to type its value** (newDAWn's keyboard-reach plan, S12): for the
+    /// cursor's parameter only, taken once as it draws, and over at the next frame if nothing took
+    /// it.
+    #[test]
+    fn under_the_language_open_on_a_parameter_asks_to_type_it() {
+        let ctx = egui::Context::default();
+        let mut state = State::default();
+        let spots = vec![spot(1, "a", 0.0, 0.0), spot(1, "b", 50.0, 0.0)];
+        frame(&ctx, &mut state, &spots, egui::RawInput::default());
+        assert_eq!(state.parameter(), Some("a"));
+        let took = |key: &'static str| {
+            let mut took = false;
+            let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
+                card(ui, 1, |ui| took = take_type(ui, key));
+            });
+            output.textures_delta.clear();
+            took
+        };
+        let open = || press(key_of(OPEN), egui::Modifiers::NONE);
+        frame(&ctx, &mut state, &spots, open());
+        assert!(!took("b"), "only the cursor's parameter");
+        assert!(took("a"), "OPEN asks to type it");
+        assert!(!took("a"), "once");
+        frame(&ctx, &mut state, &spots, open());
+        frame(&ctx, &mut state, &spots, egui::RawInput::default());
+        assert!(
+            !took("a"),
+            "a request nothing took is over at the next frame"
+        );
     }
 
     /// A value edit and a move after it, in one frame, edit the parameter the edit was typed on:

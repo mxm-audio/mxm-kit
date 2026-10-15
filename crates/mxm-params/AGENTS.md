@@ -43,7 +43,8 @@ depends on `mxm-tempo` ([NOTES.md § The binding](NOTES.md#the-binding-its-histo
   instantaneous write, and `set_together` several parameters as one.
 - **`Bound::panel` is the painted label** (§7.1); the parameter's own name stays the accessible and
   tooltip name (`labelled`, `unlabelled`, `painted`, and a stepped control's `_named` form).
-- **`Escape` cancels an open text entry** in every drawer. **`Bound::stepped` outranks the keyboard
+- **`Escape` cancels an open text entry** in every drawer, and **OPEN on the parameter opens it**
+  with the plugin's text (`mxm_ui::navigation::take_type`, taken in `entry`; 2026-10-15). **`Bound::stepped` outranks the keyboard
   law**, and the finer layer (MICRO) does not go under it. Its tests hold all four.
 
 **`StepLaw` and `step_from` are the musical laws.** `step_from(normalised, press, law)` answers where

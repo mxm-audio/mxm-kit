@@ -575,6 +575,7 @@ pub fn knob(
         } else {
             response
         };
+        type_menu(&response, param, text_entry);
         tooltip(response, param);
 
         if size.value_always_visible() {
@@ -662,6 +663,7 @@ pub fn slider_vertical(
             } else {
                 response
             };
+            type_menu(&response, param, text_entry);
             tooltip(response, param);
             value_label(ui, tokens, param, width);
         },
@@ -752,6 +754,7 @@ pub fn slider_inline(
             } else {
                 response
             };
+            type_menu(&response, param, text_entry);
             tooltip(response, param);
 
             value_text(ui, tokens, param);
@@ -915,6 +918,7 @@ fn slider_impl(
         } else {
             response
         };
+        type_menu(&response, param, text_entry);
         tooltip(response, param);
     });
 
@@ -3594,12 +3598,39 @@ fn tooltip(response: Response, param: &ParamView<'_>) -> Response {
     ))
 }
 
-/// Direct text entry. §7.1 requires it on every continuous control.
+/// A continuous control's right-click menu, which MENU opens too: *Type a value* opens its direct
+/// entry with the value as the plugin writes it, as OPEN does from the keys (newDAWn's
+/// keyboard-reach plan, S12).
+fn type_menu(response: &Response, param: &ParamView<'_>, text_entry: &mut Option<String>) {
+    if param.read_only {
+        return;
+    }
+    crate::reach::context_menu(response, None, |ui| {
+        if ui.button("Type a value").clicked() {
+            *text_entry = Some(param.text.to_owned());
+            ui.close();
+        }
+    });
+}
+
+/// Direct text entry. §7.1 requires it on every continuous control. It takes the keyboard as it
+/// opens, from OPEN or a right-click, so typing starts at once.
 fn text_entry_field(ui: &mut Ui, buffer: &mut String, width: f32) -> ControlOutcome {
-    let response = ui.add_sized(
-        Vec2::new(width, MIN_TARGET),
-        egui::TextEdit::singleline(buffer),
-    );
+    let id = ui.id().with("text entry");
+    let output = egui::TextEdit::singleline(buffer)
+        .id(id)
+        .desired_width(width)
+        .min_size(Vec2::new(width, MIN_TARGET))
+        .show(ui);
+    // Drawn last frame too, or just opened.
+    let frame = ui.ctx().cumulative_frame_nr();
+    let shown = ui.data(|d| d.get_temp::<u64>(id.with("drawn")));
+    let response = if shown.is_none_or(|drawn| drawn + 1 < frame) {
+        crate::reach::take_keyboard(ui.ctx(), output)
+    } else {
+        output.response.response
+    };
+    ui.data_mut(|d| d.insert_temp(id.with("drawn"), frame));
     if response.lost_focus() && ui.input(|i| i.key_pressed(Key::Enter)) {
         return ControlOutcome::instant();
     }
@@ -4569,6 +4600,45 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// **A knob's right-click menu types a value** (newDAWn's keyboard-reach plan, S12): *Type a
+    /// value* opens its direct entry holding the value as the plugin writes it, and the entry has
+    /// the keyboard, so typing starts at once.
+    #[test]
+    fn a_knobs_right_click_menu_opens_its_text_entry_with_the_keyboard() {
+        use egui_kittest::kittest::Queryable as _;
+        let mut harness = egui_kittest::Harness::new_ui_state(
+            |ui, entry: &mut Option<String>| {
+                let view = ParamView::new("Cutoff", "1.2 kHz", "A parameter.");
+                let mut normalised = 0.5;
+                let _ = knob(
+                    ui,
+                    &crate::LIGHT,
+                    &view,
+                    &mut normalised,
+                    Size::Primary,
+                    Size::Primary.diameter(),
+                    entry,
+                    Wheel::Off,
+                );
+            },
+            None,
+        );
+        harness.run();
+        harness
+            .get_by_role_and_label(egui::accesskit::Role::Slider, "Cutoff")
+            .click_secondary();
+        harness.run();
+        harness.get_by_label("Type a value").click();
+        harness.run();
+        assert_eq!(harness.state().as_deref(), Some("1.2 kHz"));
+        assert!(
+            harness
+                .get_by_role(egui::accesskit::Role::TextInput)
+                .is_focused(),
+            "the entry has the keyboard"
+        );
     }
 
     /// Where an app-bar inline slider's name and track begin, drawn in a right-to-left group as the

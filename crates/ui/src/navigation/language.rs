@@ -15,8 +15,9 @@
 //!   ↑ ↓ by the coarse step, the fine one or the finer layer, ← → to the next round value of it.
 //!   VALUE + arrows do the same with the fine step. The change is one gesture, ended by OUT, by
 //!   letting go of a held key, by the step key again or by the next command, and BACK cancels it.
-//! - DELETE (and RIPPLE) put the parameter back to its default. OPEN (Enter) and BACK (Escape)
-//!   stay in egui's queue too, for typing a value and closing what is open; Home and End and every
+//! - DELETE (and RIPPLE) put the parameter back to its default. OPEN types its value, in the
+//!   control's text entry (`take_type`; 2026-10-15). OPEN (Enter) and BACK (Escape) stay in egui's
+//!   queue too, for pressing a cell and closing what is open; Home and End and every
 //!   chord with `Command` or `Alt` are left for the controls and the host. OPEN while a verb is
 //!   armed ends its gesture, keeping it, and opens nothing, as in newDAWn (the owner, 2026-10-08:
 //!   "if enter is not the end of the selection, what is?"): its Enter stays out of egui's queue.
@@ -361,6 +362,14 @@ fn handle(
         {
             continue;
         }
+        // An open right-click menu is walked with the keys (`reach`): the arrows item to item,
+        // OPEN presses one, MENU closes it.
+        if let Some(rect) = state.menu {
+            state
+                .reach
+                .key(super::MENU_VIEW, reach::Region::Menu(rect), output);
+            continue;
+        }
         // VIEW + arrows: card to card (the owner, 2026-10-09: "Shift + arrows goes to the next
         // card"); up from the top cards to the bars above them, and through the bars and back;
         // past the edge, out of the window (S11). Not while a card asked for is on its way.
@@ -405,6 +414,10 @@ fn handle(
                 finer: step == Size::Micro,
                 snap: matches!(direction, Direction::Left | Direction::Right),
             }),
+            // OPEN on a parameter: type its value (S12); its control's entry opens as it draws.
+            Output::Action(Action::Open) => super::ask_type(ctx, state),
+            // MENU: its control's right-click menu.
+            Output::Action(Action::Menu) => super::open_menu(ctx, state),
             Output::Finish => keys.keep = true,
             Output::Cancel => keys.cancel = true,
             Output::Action(Action::Delete | Action::Ripple) => keys.reset = true,

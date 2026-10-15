@@ -574,7 +574,10 @@ All continuous controls MUST support:
 - Click/touch and drag with a consistent collection-wide direction.
 - Fine adjustment with `Shift`.
 - Reset to default with double-click.
-- Direct text entry from a documented gesture or context action.
+- Direct text entry from a documented gesture or context action: OPEN on the control from the
+  keys, and its right-click menu's *Type a value*, which MENU opens too (2026-10-15). The entry
+  opens holding the value as the plugin writes it, all selected, with the keyboard; Enter keeps
+  what the plugin reads of it, Escape cancels, and what it can't read changes nothing.
 - A visible hover, active, automated, and keyboard-focus state.
 - Correct host automation begin/change/end gestures.
 - A tooltip containing the full name, exact value, and a one-sentence description.
@@ -906,8 +909,8 @@ size (newDAWn's owner, 2026-10-09: "sdf value left right should change in musica
 | OUT | Keep the edit, as one host gesture, and stay on the parameter |
 | BACK (`Escape`) | Cancel the edit back to where it began, a mouse drag included, or close transient UI |
 | DELETE | Return the selected parameter to its default |
-| OPEN (`Enter`) | Choose the segmented cell the cursor is on, or begin value entry; while a verb is armed, keep the edit and open nothing, as in newDAWn |
-| MENU (`R`) | Open the right-click menu of what the cursor is on, drawn with `reach::context_menu`; pressed again, close it (newDAWn's owner, 2026-10-14). No editor control has one yet, so an editor's F1 sheet leaves MENU out until one does |
+| OPEN (`Enter`) | Choose the segmented cell the cursor is on, or type the value of the parameter it is on (§7.1's direct entry); while a verb is armed, keep the edit and open nothing, as in newDAWn |
+| MENU (`R`) | Open the right-click menu of what the cursor is on, drawn with `reach::context_menu`, which the arrows and OPEN then walk; pressed again, close it (newDAWn's owner, 2026-10-14). An editor's continuous control has one, *Type a value* (2026-10-15) |
 | `Home` / `End` | Minimum / maximum where safe |
 | `Ctrl/Cmd+Z` | Undo |
 | `Ctrl/Cmd+Shift+Z` | Redo |

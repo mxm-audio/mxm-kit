@@ -128,6 +128,10 @@ pub(crate) fn sheet(keymap: &Keymap, surface: bool) -> Sheet {
                 ),
                 (format!("{value} ↑ ↓, ← →"), "the same, a fine step"),
                 (key(Job::Action(Action::Delete)), "back to its default"),
+                (
+                    key(Job::Action(Action::Menu)),
+                    "its menu: type a value; the arrows and OPEN in it",
+                ),
                 ("Home / End".into(), "its lowest, its highest"),
             ],
         ),

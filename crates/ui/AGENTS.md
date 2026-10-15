@@ -125,18 +125,26 @@ Does **not** own labels, parameter bindings, or data. Plugins and the player sup
 - **`reach` walks every widget egui describes to screen readers** (the owner, 2026-10-07; the editors
   convert to it, keys first in newDAWn and the collection): nothing registers; a painted control
   names itself or stays out; a value in its own units reads `reach::edit`, DELETE putting one with a
-  default back to it; a step key alone is VALUE on every value, a `DragValue` too
+  default back to it, and **is typed** with `reach::typed` (newDAWn's keyboard-reach plan, S12):
+  OPEN, or its menu's `reach::type_item`, opens a field over it, its text all selected; Enter hands
+  the text to the widget to read, Escape cancels; a step key alone is VALUE on every value, a `DragValue` too
   (`reach::State::on_value_in`); **a tip is the keys' too** (`reach::Tip`, newDAWn's owner,
   2026-10-15): it shows beside the cursor (`State::tip`, `tip_at`), and a label or a disabled
   widget with one is a stop, `Kind::Info`, that OPEN leaves alone; menus `reach::context_menu`,
   which MENU opens (`State::key`) and, pressed again, closes; in an editor, where the cursor is inert
-  while a popup is open, `navigation::run` closes it on MENU unless a text field has the keyboard. A
+  while another popup is open, a right-click menu is walked as newDAWn's are (`State::menu`,
+  `reach::context_menu_open`: the arrows, OPEN presses, the menu shown before the keys so a pressed
+  item has its click before its menu closes), and `navigation::run` closes it on MENU unless a
+  text field has the keyboard. A menu counts as open once egui has shown it, not in the pass that
+  sizes it, unseen and over what it was opened from. A
   request lasts the pass it was made in and the next, so a widget that draws a menu only later never
   opens one unasked.
 - **The cursor reads the keyboard language** (`navigation/language.rs`, design system §11; piloted on
   mxm-mono-08, rolled out 2026-10-08): arrows parameter to parameter, VIEW + arrows card to card
   and up to the bars, and past the edge out of the window (`take_leave`: the language only asks,
-  `mxm-editor` hands the keys to the host's window; 2026-10-15), a step key (or VALUE) + arrows the value (fine, COARSE coarse, MICRO the finer
+  `mxm-editor` hands the keys to the host's window; 2026-10-15), OPEN the parameter's text entry
+  (`take_type`, which the binding takes as it draws; a control's right-click *Type a value* too),
+  a step key (or VALUE) + arrows the value (fine, COARSE coarse, MICRO the finer
   layer; ↑ ↓ by it, ← → to the next line of it, `Press::snap`), one gesture OUT keeps and BACK
   cancels, DELETE the default (2026-10-09). The keys go to the engine one at a time, the engine told
   before each whether the cursor is on a value (`Spot::value`, `reach::State::on_value_in`), so

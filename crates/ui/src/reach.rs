@@ -7,8 +7,10 @@
 //! arrows change a value. A widget is in reach as soon as it is drawn, with nothing to register. A
 //! widget drawn by hand says what it is with `Response::widget_info`, or it is left out, as a
 //! canvas with a cursor of its own is; one that changes a value in units of its own reads the keys
-//! with [`edit`], and DELETE puts one with a default back to it. The keys come from `mxm-keys`; the
-//! views are the host's, named by any key `K`.
+//! with [`edit`], and DELETE puts one with a default back to it. **A value is typed too**
+//! ([`typed`]): OPEN on one, or its right-click menu's *Type a value* ([`type_item`]), opens a text
+//! field over it in its own units, Enter keeps it and Escape cancels (newDAWn's keyboard-reach
+//! plan, S12). The keys come from `mxm-keys`; the views are the host's, named by any key `K`.
 //!
 //! **What the pointer sees, the keys see** ([`Tip`]): a widget's tooltip shows beside it while the
 //! keyboard's cursor rests there too ([`State::tip`], [`tip_at`]), and a label or a disabled widget
@@ -56,10 +58,18 @@ pub enum Region {
     Menu(Rect),
 }
 
-/// The menu or list open on top, if one is: a combo box's, a menu's, a right-click menu.
+/// The menu or list open on top, if one is: a combo box's, a menu's, a right-click menu. Once
+/// egui has shown it: in the pass that sizes it, it's drawn unseen where it doesn't stay, over what
+/// it was opened from.
 fn menu(ctx: &Context) -> Option<Rect> {
     let layer = menu_layer(ctx)?;
-    ctx.memory(|memory| memory.area_rect(layer.id))
+    ctx.memory(|memory| {
+        memory
+            .areas()
+            .is_visible(&layer)
+            .then(|| memory.area_rect(layer.id))
+            .flatten()
+    })
 }
 
 fn menu_layer(ctx: &Context) -> Option<egui::LayerId> {
@@ -145,6 +155,8 @@ pub fn edit(
                     edited = Some(Edited::Done(default));
                 }
             }
+            // [`typed`]'s.
+            EditEvent::Type => {}
         }
     }
     ctx.data_mut(|data| {
@@ -188,6 +200,7 @@ pub fn context_menu(response: &egui::Response, keys: Option<Rect>, add: impl FnO
         egui::Popup::open_id(ctx, id);
     }
     if egui::Popup::is_id_open(ctx, id) {
+        ctx.data_mut(|data| data.insert_temp(Id::new(CONTEXT_MENU), id));
         let rect = anchor
             .or_else(|| ctx.data(|data| data.get_temp::<Rect>(id)))
             .unwrap_or(response.rect);
@@ -206,6 +219,15 @@ const TAKES: &str = "newdawn reach: widgets that take edits";
 const PENDING: &str = "newdawn reach: this frame's edits";
 const EDITING: &str = "newdawn reach: the value being edited";
 const TIP: &str = "newdawn reach: the tip where the keyboard's cursor is";
+const TYPING: &str = "newdawn reach: the value being typed";
+const CONTEXT_MENU: &str = "newdawn reach: the right-click menu open";
+
+/// Whether a [`context_menu`] is open: the editors walk it with the keys (`navigation`), as
+/// newDAWn walks every menu.
+pub(crate) fn context_menu_open(ctx: &Context) -> bool {
+    ctx.data(|data| data.get_temp::<Id>(Id::new(CONTEXT_MENU)))
+        .is_some_and(|id| egui::Popup::is_id_open(ctx, id))
+}
 
 /// The hand-drawn value widgets that read their edits, as drawn on a frame, and those of them
 /// that have a default.
@@ -213,6 +235,8 @@ const TIP: &str = "newdawn reach: the tip where the keyboard's cursor is";
 struct Takes {
     values: Vec<NodeId>,
     defaults: Vec<NodeId>,
+    /// Those that can be typed ([`typed`]): OPEN opens their field rather than clicking them.
+    typed: Vec<NodeId>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -221,6 +245,106 @@ enum EditEvent {
     Keep,
     Cancel,
     Reset,
+    /// OPEN on a value that can be typed.
+    Type,
+}
+
+/// A value's text field while it's open: what's typed (the value as it was, until the field has
+/// drawn once) and whether it still has to take the keyboard.
+#[derive(Clone, Debug, Default)]
+struct Typing {
+    text: Option<String>,
+    focus: bool,
+}
+
+/// Typing a value (newDAWn's keyboard-reach plan, S12): OPEN on a value widget the cursor is on,
+/// or its right-click menu's *Type a value* ([`type_item`]), opens a text field over it, holding
+/// the value as `text` writes it in the widget's units. Enter returns what was typed, for the
+/// widget to read and keep as one undo step; Escape, or a click elsewhere, closes it with nothing.
+/// What the widget can't read changes nothing, as in the editors. Call it every frame after the
+/// widget is drawn, with its response.
+pub fn typed(ui: &Ui, response: &egui::Response, text: impl FnOnce() -> String) -> Option<String> {
+    let ctx = ui.ctx();
+    let node = response.id.accesskit_id();
+    ctx.data_mut(|data| {
+        data.get_temp_mut_or_default::<Takes>(Id::new(TAKES))
+            .typed
+            .push(node);
+    });
+    let key = Id::new(TYPING).with(response.id);
+    let asked = ctx
+        .data(|data| data.get_temp::<Pending>(Id::new(PENDING)))
+        .filter(|pending| pending.target == Some(node))
+        .is_some_and(|pending| pending.events.contains(&EditEvent::Type));
+    let mut typing = if asked {
+        Typing {
+            text: None,
+            focus: true,
+        }
+    } else {
+        ctx.data(|data| data.get_temp::<Typing>(key))?
+    };
+    let shown = typing.text.get_or_insert_with(text);
+    let output = egui::Area::new(key.with("field"))
+        .order(Order::Foreground)
+        .fixed_pos(response.rect.left_top())
+        .show(ctx, |ui| {
+            egui::TextEdit::singleline(shown)
+                .id(key.with("text"))
+                .desired_width(response.rect.width().max(64.0))
+                .show(ui)
+        })
+        .inner;
+    let field = if std::mem::take(&mut typing.focus) {
+        take_keyboard(ctx, output)
+    } else {
+        output.response.response
+    };
+    if field.lost_focus() {
+        ctx.data_mut(|data| data.remove::<Typing>(key));
+        return ui
+            .input(|input| input.key_pressed(egui::Key::Enter))
+            .then(|| typing.text.unwrap_or_default());
+    }
+    ctx.data_mut(|data| data.insert_temp(key, typing));
+    None
+}
+
+/// A text field just opened over a value takes the keyboard, its text all selected, so what's
+/// typed replaces the value. The editors' direct entry does the same.
+pub(crate) fn take_keyboard(
+    ctx: &Context,
+    mut output: egui::text_edit::TextEditOutput,
+) -> egui::Response {
+    let chars = output.galley.text().chars().count();
+    output
+        .state
+        .cursor
+        .set_char_range(Some(egui::text::CCursorRange::two(
+            egui::text::CCursor::new(0),
+            egui::text::CCursor::new(chars),
+        )));
+    let response = output.response.response;
+    output.state.store(ctx, response.id);
+    response.request_focus();
+    response
+}
+
+/// *Type a value*, for a value's right-click menu ([`context_menu`]): opens [`typed`]'s field over
+/// the widget `id`, as OPEN does from the keys.
+pub fn type_item(ui: &mut Ui, id: Id) {
+    if ui.button("Type a value").clicked() {
+        ui.ctx().data_mut(|data| {
+            data.insert_temp(
+                Id::new(TYPING).with(id),
+                Typing {
+                    text: None,
+                    focus: true,
+                },
+            );
+        });
+        ui.close();
+    }
 }
 
 /// A widget's tooltip, which the keyboard's cursor shows too.
@@ -545,6 +669,10 @@ impl<K: Copy + Eq + Hash> State<K> {
                 }
             }
             Output::Action(KeyAction::Open) => match cursor.kind {
+                // A value that can be typed opens its field (S12).
+                Kind::Value if self.takes.typed.contains(&cursor.id) => {
+                    edit_event(ctx, cursor.id, EditEvent::Type);
+                }
                 Kind::Text => {
                     ctx.plugin::<Seen>().lock().focus = Some(cursor.id);
                     ctx.request_repaint();
@@ -656,6 +784,12 @@ impl<K: Copy + Eq + Hash> State<K> {
             }
         };
     }
+}
+
+/// Asks for the menu of the widget with the egui id `id`: an editor's MENU on the control its
+/// cursor is on (`navigation`).
+pub(crate) fn ask_menu_for(ctx: &Context, id: Id) {
+    ask_menu(ctx, id.accesskit_id());
 }
 
 /// Asks for the menu of the widget `target`, for [`context_menu`] to open in this pass or the next.

@@ -235,13 +235,18 @@ impl<'a> Bound<'a> {
     }
 
     /// This control's text-entry buffer, **closed by `Escape`** before the control draws — the
-    /// cancel §7.1's direct entry needs, and mxm-mono-08's rule, every editor's since 2026-09-24.
+    /// cancel §7.1's direct entry needs, and mxm-mono-08's rule, every editor's since 2026-09-24 —
+    /// and **opened by OPEN** on it, with the value as the plugin writes it (newDAWn's
+    /// keyboard-reach plan, S12; its right-click menu opens it too, in the control).
     fn entry<'e>(
         &self,
         ui: &Ui,
         text_entry: &'e mut HashMap<&'static str, Option<String>>,
     ) -> &'e mut Option<String> {
         let entry = text_entry.entry(self.id).or_default();
+        if entry.is_none() && mxm_ui::navigation::take_type(ui, self.id) {
+            *entry = Some(self.param.text());
+        }
         if entry.is_some()
             && ui.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Escape))
         {
