@@ -7,13 +7,20 @@
 //! arrows change a value. A widget is in reach as soon as it is drawn, with nothing to register. A
 //! widget drawn by hand says what it is with `Response::widget_info`, or it is left out, as a
 //! canvas with a cursor of its own is; one that changes a value in units of its own reads the keys
-//! with [`edit`]. The keys come from `mxm-keys`; the views are the host's, named by any key `K`.
+//! with [`edit`], and DELETE puts one with a default back to it. The keys come from `mxm-keys`; the
+//! views are the host's, named by any key `K`.
+//!
+//! **What the pointer sees, the keys see** ([`Tip`]): a widget's tooltip shows beside it while the
+//! keyboard's cursor rests there too ([`State::tip`], [`tip_at`]), and a label or a disabled widget
+//! with one is a stop for the cursor, [`Kind::Info`], so a warning's list or why a button is off is
+//! read without a mouse (newDAWn's owner, 2026-10-15: "everything in newDAWn must be navigatable
+//! and editable with the keyboard").
 
 use std::collections::HashMap;
 use std::hash::Hash;
 
 use egui::accesskit::{self, ActionRequest, NodeId, Role, TreeId};
-use egui::{Context, Event, FullOutput, Id, Order, Pos2, Rect, Ui};
+use egui::{Context, Event, FullOutput, Id, Order, Pos2, Rect, Ui, WidgetText};
 use mxm_keys::{Action as KeyAction, Direction, Output, Step, Verb};
 
 /// What a widget does with the keys.
@@ -25,6 +32,9 @@ pub enum Kind {
     Value,
     /// OPEN types in it, until Escape or Enter.
     Text,
+    /// A label or a disabled widget with a tip: the cursor stops there to show it, and OPEN does
+    /// nothing.
+    Info,
 }
 
 /// A widget on screen, as egui described it on the last frame.
@@ -82,20 +92,25 @@ pub struct Change {
 }
 
 /// A hand-drawn value widget's keyboard edits, in its own units. Call it every frame with the
-/// widget's id and its value: `step` takes a value and a [`Change`], and gives the next value.
-/// Returns the value to show, the edit's while one is going on, and what changed now.
+/// widget's id, its value and its default, if it has one: `step` takes a value and a [`Change`],
+/// and gives the next value. DELETE (or RIPPLE) puts it back to its default, one undo step, as in
+/// the editors (design system §11). Returns the value to show, the edit's while one is going on,
+/// and what changed now.
 pub fn edit(
     ui: &Ui,
     id: Id,
     current: f64,
+    default: Option<f64>,
     step: impl Fn(f64, Change) -> f64,
 ) -> (f64, Option<Edited>) {
     let ctx = ui.ctx();
     let node = id.accesskit_id();
     ctx.data_mut(|data| {
-        data.get_temp_mut_or_default::<Takes>(Id::new(TAKES))
-            .0
-            .push(node)
+        let takes = data.get_temp_mut_or_default::<Takes>(Id::new(TAKES));
+        takes.values.push(node);
+        if default.is_some() {
+            takes.defaults.push(node);
+        }
     });
     let events = ctx
         .data(|data| data.get_temp::<Pending>(Id::new(PENDING)))
@@ -120,6 +135,14 @@ pub fn edit(
             EditEvent::Cancel => {
                 if value.take().is_some() {
                     edited = Some(Edited::Cancelled(current));
+                }
+            }
+            // The default, kept at once; nothing when it's there already and no edit is going on.
+            EditEvent::Reset => {
+                if let Some(default) = default
+                    && (value.take().is_some() || current != default)
+                {
+                    edited = Some(Edited::Done(default));
                 }
             }
         }
@@ -182,16 +205,77 @@ const MENU_FOR: &str = "newdawn reach: the widget whose menu the keys asked for"
 const TAKES: &str = "newdawn reach: widgets that take edits";
 const PENDING: &str = "newdawn reach: this frame's edits";
 const EDITING: &str = "newdawn reach: the value being edited";
+const TIP: &str = "newdawn reach: the tip where the keyboard's cursor is";
 
-/// The hand-drawn value widgets that read their edits, as drawn on a frame.
-#[derive(Clone, Default)]
-struct Takes(Vec<NodeId>);
+/// The hand-drawn value widgets that read their edits, as drawn on a frame, and those of them
+/// that have a default.
+#[derive(Clone, Debug, Default)]
+struct Takes {
+    values: Vec<NodeId>,
+    defaults: Vec<NodeId>,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum EditEvent {
     Change(Change),
     Keep,
     Cancel,
+    Reset,
+}
+
+/// A widget's tooltip, which the keyboard's cursor shows too.
+pub trait Tip {
+    /// `on_hover_text`, or `on_disabled_hover_text` on a disabled widget, and the same text beside
+    /// the widget while the keyboard's cursor is on it. A label or a disabled widget with one is a
+    /// stop for the cursor ([`Kind::Info`]).
+    fn tip(self, text: impl Into<WidgetText>) -> Self;
+}
+
+impl Tip for egui::Response {
+    fn tip(self, text: impl Into<WidgetText>) -> Self {
+        let text = text.into();
+        // Only where a cursor walks: elsewhere nothing would ever clear them.
+        if let Some(seen) = self.ctx.plugin_opt::<Seen>() {
+            seen.lock()
+                .drawing
+                .insert(self.id.accesskit_id(), text.text().to_owned());
+        }
+        if self.enabled() {
+            self.on_hover_text(text)
+        } else {
+            self.on_disabled_hover_text(text)
+        }
+    }
+}
+
+/// Shows a tip beside `rect`, as a tooltip shows beside the pointer: for a view with a cursor of
+/// its own, where its cursor is, and for [`State::tip`]. Below, or above when `rect` is in the
+/// lower half of the screen; never taking the pointer.
+pub fn tip_at(ctx: &Context, rect: Rect, text: &str) {
+    let lower = rect.center().y > ctx.content_rect().center().y;
+    let (pivot, at) = if lower {
+        (
+            egui::Align2::LEFT_BOTTOM,
+            rect.left_top() - egui::vec2(0.0, 4.0),
+        )
+    } else {
+        (
+            egui::Align2::LEFT_TOP,
+            rect.left_bottom() + egui::vec2(0.0, 4.0),
+        )
+    };
+    egui::Area::new(Id::new(TIP))
+        .order(Order::Tooltip)
+        .pivot(pivot)
+        .fixed_pos(at)
+        .interactable(false)
+        .constrain(true)
+        .show(ctx, |ui| {
+            egui::Frame::popup(ui.style()).show(ui, |ui| {
+                ui.set_max_width(ui.spacing().tooltip_width);
+                ui.label(text);
+            });
+        });
 }
 
 /// This frame's edits, for the widget the cursor is on.
@@ -210,6 +294,10 @@ struct Seen {
     parents: HashMap<NodeId, NodeId>,
     /// A text field to type in, from the next frame.
     focus: Option<NodeId>,
+    /// The widgets' tips, as described on the last frame.
+    tips: HashMap<NodeId, String>,
+    /// The tips given this frame, so far.
+    drawing: HashMap<NodeId, String>,
 }
 
 impl egui::Plugin for Seen {
@@ -229,20 +317,26 @@ impl egui::Plugin for Seen {
         };
         self.widgets.clear();
         self.parents.clear();
+        let before = std::mem::replace(&mut self.tips, std::mem::take(&mut self.drawing));
         for (id, node) in &update.nodes {
             for child in node.children() {
                 self.parents.insert(*child, *id);
             }
-            if let Some(widget) = widget(*id, node) {
+            // Tipped this frame and the one before: a popup's first frame is a sizing pass, drawn
+            // invisible, where every widget is disabled, and a menu's tipped items are no stops
+            // then (`keys_typed_with_menu_in_one_frame_act_in_the_menu`, newDAWn).
+            let tipped = self.tips.contains_key(id) && before.contains_key(id);
+            if let Some(widget) = widget(*id, node, tipped) {
                 self.widgets.push(widget);
             }
         }
     }
 }
 
-/// A node the keyboard can use, or None: a label, a container, a canvas.
-fn widget(id: NodeId, node: &accesskit::Node) -> Option<Widget> {
-    if node.is_disabled() {
+/// A node the keyboard can use, or None: a label, a container, a canvas. A label or a disabled
+/// widget is one only with a tip to show (`tipped`).
+fn widget(id: NodeId, node: &accesskit::Node, tipped: bool) -> Option<Widget> {
+    if node.is_disabled() && !tipped {
         return None;
     }
     let bounds = node.bounds()?;
@@ -254,6 +348,8 @@ fn widget(id: NodeId, node: &accesskit::Node) -> Option<Widget> {
         return None;
     }
     let kind = match node.role() {
+        _ if node.is_disabled() => Kind::Info,
+        Role::Label if tipped => Kind::Info,
         Role::TextInput | Role::MultilineTextInput | Role::SearchInput => Kind::Text,
         Role::SpinButton | Role::Slider => Kind::Value,
         // Labels sense clicks to select their text; the rest are frames, scroll bars, canvases.
@@ -312,7 +408,7 @@ pub struct State<K> {
     at: HashMap<K, NodeId>,
     menu: Option<NodeId>,
     /// The hand-drawn widgets that read their edits, from the last frame.
-    takes: Vec<NodeId>,
+    takes: Takes,
     /// The widget the cursor is on now, and whether it's in a menu: for the outline and the help.
     pub now: Option<(Widget, bool)>,
     /// A menu an item was just pressed in. egui closes a menu only on a click of the mouse, so
@@ -326,7 +422,7 @@ impl<K> Default for State<K> {
             ctx: None,
             at: HashMap::new(),
             menu: None,
-            takes: Vec::new(),
+            takes: Takes::default(),
             now: None,
             pressed_in: None,
         }
@@ -344,8 +440,7 @@ impl<K: Copy + Eq + Hash> State<K> {
         ctx.enable_accesskit();
         self.takes = ctx
             .data_mut(|data| data.remove_temp::<Takes>(Id::new(TAKES)))
-            .unwrap_or_default()
-            .0;
+            .unwrap_or_default();
         ctx.data_mut(|data| data.remove::<Pending>(Id::new(PENDING)));
     }
 
@@ -460,6 +555,7 @@ impl<K: Copy + Eq + Hash> State<K> {
                         self.pressed_in = menu_layer(ctx);
                     }
                 }
+                Kind::Info => {}
             },
             Output::Step {
                 verb: Verb::Value,
@@ -470,7 +566,7 @@ impl<K: Copy + Eq + Hash> State<K> {
                     Direction::Up | Direction::Right => 1.0,
                     Direction::Down | Direction::Left => -1.0,
                 };
-                if self.takes.contains(&cursor.id) {
+                if self.takes.values.contains(&cursor.id) {
                     let change = Change {
                         size,
                         sign,
@@ -491,6 +587,12 @@ impl<K: Copy + Eq + Hash> State<K> {
             // MENU (the owner, 2026-10-14): the menu of the widget the cursor is on. (In an open
             // menu it closed it, above.)
             Output::Action(KeyAction::Menu) => ask_menu(ctx, cursor.id),
+            // DELETE (and RIPPLE) put a value back to its default (design system §11).
+            Output::Action(KeyAction::Delete | KeyAction::Ripple)
+                if self.takes.defaults.contains(&cursor.id) =>
+            {
+                edit_event(ctx, cursor.id, EditEvent::Reset);
+            }
             Output::Finish => edit_event(ctx, cursor.id, EditEvent::Keep),
             Output::Cancel => edit_event(ctx, cursor.id, EditEvent::Cancel),
             _ => return false,
@@ -498,11 +600,11 @@ impl<K: Copy + Eq + Hash> State<K> {
         true
     }
 
-    /// Whether the cursor in `region` is on a value that reads its own edits ([`edit`]), with no
-    /// menu open: one that can snap, so there a step key is VALUE at its size (the host says so
-    /// to the engine, `mxm_keys::Engine::set_on_value`, before each key). Where the cursor is now,
-    /// after this frame's keys before it moved it, so keys read together do what they'd do typed
-    /// slowly. A widget that only takes AccessKit's steps can't snap, and VALUE still edits it.
+    /// Whether the cursor in `region` is on a value, with no menu open: there a step key alone is
+    /// VALUE at its size (the host says so to the engine, `mxm_keys::Engine::set_on_value`, before
+    /// each key; newDAWn's owner, 2026-10-09: on every value). Where the cursor is now, after this
+    /// frame's keys before it moved it, so keys read together do what they'd do typed slowly. A
+    /// widget that only takes AccessKit's steps can't snap, so there ← → step as ↑ ↓ do.
     pub fn on_value_in(&self, view: K, region: Region) -> bool {
         let Some(ctx) = &self.ctx else {
             return false;
@@ -511,7 +613,21 @@ impl<K: Copy + Eq + Hash> State<K> {
             return false;
         }
         self.cursor(ctx, view, region)
-            .is_some_and(|widget| widget.kind == Kind::Value && self.takes.contains(&widget.id))
+            .is_some_and(|widget| widget.kind == Kind::Value)
+    }
+
+    /// The tip of the widget the cursor is on, if it has one, and where that widget is: for the
+    /// host to show with [`tip_at`] while the keyboard is in use.
+    pub fn tip(&self) -> Option<(Rect, String)> {
+        let ctx = self.ctx.as_ref()?;
+        let (widget, _) = self.now.as_ref()?;
+        let text = ctx
+            .plugin_opt::<Seen>()?
+            .lock()
+            .tips
+            .get(&widget.id)
+            .cloned()?;
+        Some((widget.rect, text))
     }
 
     /// Where the cursor is now, for the outline and the help: in the menu if one is open, or
@@ -675,6 +791,152 @@ mod tests {
         ask_now.set(true);
         harness.run_steps(2);
         assert!(opened.get());
+    }
+
+    /// The value [`value_board`] draws, and the keys queued for it.
+    type Board = (
+        egui_kittest::Harness<'static>,
+        std::rc::Rc<std::cell::Cell<f64>>,
+        std::rc::Rc<std::cell::RefCell<Vec<Output>>>,
+    );
+
+    /// A hand-drawn value with a default, read with [`edit`], and the keys pressed on it: each
+    /// frame takes the presses queued for it, and keeps what the edit kept.
+    fn value_board(default: Option<f64>) -> Board {
+        use std::cell::{Cell, RefCell};
+        use std::rc::Rc;
+        let state = Rc::new(RefCell::new(State::<u8>::default()));
+        let value = Rc::new(Cell::new(5.0));
+        let presses: Rc<RefCell<Vec<Output>>> = Rc::default();
+        let (value_, presses_) = (value.clone(), presses.clone());
+        let harness = egui_kittest::Harness::builder()
+            .with_size(egui::vec2(200.0, 120.0))
+            .build_ui(move |ui| {
+                let mut state = state.borrow_mut();
+                state.begin(ui.ctx());
+                let region = Region::Inside(ui.unique_id());
+                for output in presses_.borrow_mut().drain(..) {
+                    state.key(0, region, output);
+                }
+                let (_, response) =
+                    ui.allocate_exact_size(egui::vec2(60.0, 20.0), egui::Sense::click_and_drag());
+                response.widget_info(|| egui::WidgetInfo::slider(true, value_.get(), "Level"));
+                let (_, edited) = edit(ui, response.id, value_.get(), default, |at, change| {
+                    at + change.sign
+                });
+                if let Some(Edited::Done(kept)) = edited {
+                    value_.set(kept);
+                }
+            });
+        (harness, value, presses)
+    }
+
+    /// DELETE, and RIPPLE, put a value with a default back to it at once; one without keeps its
+    /// value (design system §11).
+    #[test]
+    fn delete_puts_a_value_back_to_its_default() {
+        let (mut harness, value, presses) = value_board(Some(0.0));
+        harness.run_steps(2);
+        presses.borrow_mut().push(Output::Action(KeyAction::Delete));
+        harness.run_steps(2);
+        assert_eq!(value.get(), 0.0);
+        value.set(3.0);
+        harness.run_steps(1);
+        presses.borrow_mut().push(Output::Action(KeyAction::Ripple));
+        harness.run_steps(2);
+        assert_eq!(value.get(), 0.0);
+
+        let (mut harness, value, presses) = value_board(None);
+        harness.run_steps(2);
+        presses.borrow_mut().push(Output::Action(KeyAction::Delete));
+        harness.run_steps(2);
+        assert_eq!(value.get(), 5.0, "no default, nothing to go back to");
+    }
+
+    /// Every value is one for the step keys, a `DragValue` too, though it takes only AccessKit's
+    /// steps (newDAWn's owner, 2026-10-09: a step key alone on every value).
+    #[test]
+    fn a_drag_value_is_a_value() {
+        use std::cell::{Cell, RefCell};
+        use std::rc::Rc;
+        let state = Rc::new(RefCell::new(State::<u8>::default()));
+        let on_value = Rc::new(Cell::new(false));
+        let (state_, on_value_) = (state.clone(), on_value.clone());
+        let mut harness = egui_kittest::Harness::builder()
+            .with_size(egui::vec2(200.0, 120.0))
+            .build_ui(move |ui| {
+                let mut state = state_.borrow_mut();
+                state.begin(ui.ctx());
+                on_value_.set(state.on_value_in(0, Region::Inside(ui.unique_id())));
+                let mut step = 4;
+                ui.add(egui::DragValue::new(&mut step));
+            });
+        harness.run_steps(3);
+        assert!(on_value.get());
+    }
+
+    /// A label or a disabled widget with a tip is a stop for the cursor, which shows the tip; one
+    /// without stays out, and a widget without a tip shows none.
+    #[test]
+    fn the_cursor_stops_on_what_has_a_tip_and_shows_it_there_only() {
+        use std::cell::RefCell;
+        use std::rc::Rc;
+        let state = Rc::new(RefCell::new(State::<u8>::default()));
+        let region: Rc<RefCell<Option<Region>>> = Rc::default();
+        let (state_, region_) = (state.clone(), region.clone());
+        let mut harness = egui_kittest::Harness::builder()
+            .with_size(egui::vec2(300.0, 160.0))
+            .build_ui(move |ui| {
+                let mut state = state_.borrow_mut();
+                state.begin(ui.ctx());
+                *region_.borrow_mut() = Some(Region::Inside(ui.unique_id()));
+                ui.label("⚠ 2 plugins left out").tip(
+                    "Kick: no audio out
+Hat: crashed",
+                );
+                ui.label("Just words");
+                ui.add_enabled(false, egui::Button::new("Loop"))
+                    .tip("Set a loop first");
+                let _ = ui.button("Play");
+                state.show(0, *region_.borrow());
+            });
+        harness.run_steps(3);
+        let region = region.borrow().unwrap();
+        let ctx = harness.ctx.clone();
+        let widgets = State::<u8>::widgets(&ctx, region);
+        let kinds: Vec<(&str, Kind)> = widgets
+            .iter()
+            .map(|widget| (widget.label.as_str(), widget.kind))
+            .collect();
+        assert!(
+            kinds.contains(&("⚠ 2 plugins left out", Kind::Info)),
+            "{kinds:?}"
+        );
+        assert!(kinds.contains(&("Loop", Kind::Info)), "{kinds:?}");
+        assert!(kinds.contains(&("Play", Kind::Press)), "{kinds:?}");
+        assert!(
+            !kinds.iter().any(|(label, _)| *label == "Just words"),
+            "{kinds:?}"
+        );
+
+        // The cursor starts top left, on the warning: its tip is shown.
+        let tip = state.borrow().tip().map(|(_, text)| text);
+        assert_eq!(
+            tip.as_deref(),
+            Some(
+                "Kick: no audio out
+Hat: crashed"
+            )
+        );
+        // Down to the button without one: none.
+        let play = widgets
+            .iter()
+            .find(|widget| widget.label == "Play")
+            .unwrap()
+            .id;
+        state.borrow_mut().put(0, region, play);
+        harness.run_steps(1);
+        assert_eq!(state.borrow().tip(), None);
     }
 
     /// MENU closes an open menu even when nothing in it can be chosen, as BACK does.

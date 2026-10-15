@@ -10,6 +10,10 @@
 //!
 //! - Arrows on their own only move the focus. COARSE with them goes one level up, and VIEW to the
 //!   neighbouring view. Tapped, either lasts for one arrow.
+//! - VIEW and MICRO together give the arrows to the edge of the view, [`Output::ViewEdge`]: held
+//!   or tapped, in either order, VIEW on its key or its modifier. On a value, where MICRO alone
+//!   arms VALUE, VIEW after it, before a step, takes MICRO for the edge (newDAWn's owner,
+//!   2026-10-15: the size of a view).
 //! - The verb comes first. With no step size it steps FINE, and a step size stays until another
 //!   one is pressed. A step key held when the verb is pressed counts, so a chord can be pressed in
 //!   any order.
@@ -46,6 +50,9 @@ pub enum Output {
     Within { direction: Direction },
     /// Move the focus to the neighbouring view.
     View { direction: Direction },
+    /// VIEW and MICRO with an arrow: the edge of the view that way, the border it shares with the
+    /// views beside it, which MOVE or EXTENT then moves.
+    ViewEdge { direction: Direction },
     /// A verb was armed: a gesture begins. It comes after the end of the gesture it ends.
     Begin { verb: Verb },
     /// One arrow press of a gesture.
@@ -113,6 +120,8 @@ pub enum Arrows {
     /// One level down, within the focused item.
     Micro,
     View,
+    /// VIEW and MICRO: the view's edge that way.
+    ViewEdge,
     /// A gesture's verb and step, *MOVE · COARSE*.
     Edit {
         verb: Verb,
@@ -138,6 +147,7 @@ enum Layer {
     Coarse,
     Micro,
     View,
+    ViewEdge,
 }
 
 /// COARSE, MICRO or VIEW without a verb, on a key: held for its arrows, or tapped for the next
@@ -213,6 +223,7 @@ impl Engine {
             Some(Layer::Coarse) => Arrows::Coarse,
             Some(Layer::Micro) => Arrows::Micro,
             Some(Layer::View) => Arrows::View,
+            Some(Layer::ViewEdge) => Arrows::ViewEdge,
             None => Arrows::Navigate,
         }
     }
@@ -268,9 +279,15 @@ impl Engine {
                 }
             }
             Some(Job::View) => {
-                self.end(true, &mut out);
+                // After MICRO, VIEW makes it the edge's: the VALUE MICRO armed on a value, with no
+                // step yet, goes without a word.
+                let edge = self.micro_layer_or_value();
+                if !edge {
+                    self.end(true, &mut out);
+                }
+                self.gesture = None;
                 self.navigation = Some(Navigation {
-                    layer: Layer::View,
+                    layer: if edge { Layer::ViewEdge } else { Layer::View },
                     key,
                     held: true,
                     used_while_held: false,
@@ -352,6 +369,16 @@ impl Engine {
             None => false,
         };
         if view_held && !mods.command {
+            // With MICRO, VIEW's modifier gives the view's edge, for as long as MICRO is held.
+            if self.micro_layer_or_value() {
+                self.gesture = None;
+                match &mut self.navigation {
+                    Some(navigation) if navigation.held => navigation.used_while_held = true,
+                    _ => self.navigation = None,
+                }
+                out.push(Output::ViewEdge { direction });
+                return;
+            }
             self.end(true, out);
             self.navigation = None;
             out.push(Output::View { direction });
@@ -382,6 +409,7 @@ impl Engine {
                 },
                 Layer::Micro => Output::Within { direction },
                 Layer::View => Output::View { direction },
+                Layer::ViewEdge => Output::ViewEdge { direction },
             });
             if navigation.held {
                 navigation.used_while_held = true;
@@ -434,11 +462,14 @@ impl Engine {
             gesture.step = step;
             return;
         }
-        if self
-            .navigation
-            .is_some_and(|navigation| navigation.layer == Layer::View)
-        {
-            return;
+        // With VIEW, MICRO makes it the edge's; the other step sizes do nothing there.
+        if let Some(navigation) = &mut self.navigation {
+            if navigation.layer == Layer::View && step == Step::Micro {
+                navigation.layer = Layer::ViewEdge;
+            }
+            if matches!(navigation.layer, Layer::View | Layer::ViewEdge) {
+                return;
+            }
         }
         // On a value, the step key is VALUE at its size.
         if self.on_value {
@@ -467,6 +498,29 @@ impl Engine {
             held: true,
             used_while_held: false,
         });
+    }
+
+    /// MICRO is waiting for an arrow: as a layer, or on a value as the VALUE it armed and that has
+    /// taken no step. VIEW then makes it the edge's, and a VALUE becomes the layer, MICRO's key
+    /// still holding it.
+    fn micro_layer_or_value(&mut self) -> bool {
+        let armed_by_micro = self.gesture.filter(|gesture| {
+            gesture.verb == Verb::Value
+                && !gesture.stepped
+                && self.keymap.job(gesture.key) == Some(Job::Step(Step::Micro))
+        });
+        if let Some(gesture) = armed_by_micro {
+            self.gesture = None;
+            self.navigation = Some(Navigation {
+                layer: Layer::Micro,
+                key: gesture.key,
+                held: gesture.held,
+                used_while_held: false,
+            });
+            return true;
+        }
+        self.navigation
+            .is_some_and(|navigation| navigation.layer == Layer::Micro)
     }
 
     /// A key the language doesn't use: the next command, so anything armed finishes first.

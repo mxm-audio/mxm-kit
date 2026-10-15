@@ -842,3 +842,82 @@ fn off_a_value_the_step_keys_move_as_before() {
         ]
     );
 }
+
+#[test]
+fn view_and_micro_together_give_the_views_edge_held_or_tapped_in_either_order() {
+    let edge = |direction| Output::ViewEdge { direction };
+    let keyed =
+        || Board::with(Keymap::parse(&KEYS.replace("view = F, Shift", "view = F")).unwrap());
+    // Held, VIEW first and MICRO first; the edge lasts while VIEW is held.
+    let mut board = keyed();
+    board
+        .press(Key::F)
+        .press(Key::V)
+        .tap(&[Key::Right, Key::Left]);
+    board.release(Key::V).release(Key::F);
+    board
+        .press(Key::V)
+        .press(Key::F)
+        .tap(&[Key::Up])
+        .release(Key::F)
+        .release(Key::V);
+    assert_eq!(board.take(), [edge(Right), edge(Left), edge(Up)]);
+    // Tapped in either order: for one arrow.
+    board.tap(&[Key::F, Key::V, Key::Down, Key::Down]);
+    board.tap(&[Key::V, Key::F, Key::Left]);
+    assert_eq!(board.take(), [edge(Down), nav(Down), edge(Left)]);
+    // VIEW on Shift: Shift + MICRO + an arrow, for as long as MICRO is held.
+    let mut board = Board::new();
+    board.press(Key::V);
+    board
+        .press_with(Key::Right, Mods::SHIFT)
+        .release(Key::Right);
+    board
+        .press_with(Key::Right, Mods::SHIFT)
+        .release(Key::Right);
+    board.release(Key::V);
+    board
+        .press_with(Key::Right, Mods::SHIFT)
+        .release(Key::Right);
+    assert_eq!(
+        board.take(),
+        [edge(Right), edge(Right), Output::View { direction: Right }]
+    );
+    // The other step sizes with VIEW do nothing more than VIEW.
+    let mut board = keyed();
+    board.tap(&[Key::F, Key::X, Key::Right]);
+    assert_eq!(board.take(), [Output::View { direction: Right }]);
+}
+
+#[test]
+fn on_a_value_view_after_micro_takes_it_for_the_edge_without_a_step() {
+    let edge = |direction| Output::ViewEdge { direction };
+    let mut board = Board::new();
+    board.engine.set_on_value(true);
+    // MICRO arms VALUE; VIEW after it, before a step, takes MICRO for the edge, and the VALUE ends
+    // without a word.
+    board.tap(&[Key::V, Key::F, Key::Right]);
+    assert_eq!(
+        board.take_all(),
+        [Output::Begin { verb: Value }, edge(Right)]
+    );
+    // VIEW first, then MICRO.
+    board.tap(&[Key::F, Key::V, Key::Left]);
+    assert_eq!(board.take_all(), [edge(Left)]);
+    // Held MICRO with Shift: the edge as long as MICRO is held.
+    board.press(Key::V);
+    board.press_with(Key::Up, Mods::SHIFT).release(Key::Up);
+    board.press_with(Key::Up, Mods::SHIFT).release(Key::Up);
+    board.release(Key::V);
+    assert_eq!(board.take(), [edge(Up), edge(Up)]);
+    // A VALUE that has stepped is VALUE's still: VIEW ends it, kept, and goes to the view.
+    board.tap(&[Key::V, Key::Up, Key::F, Key::Right]);
+    assert_eq!(
+        board.take(),
+        [
+            step(Value, Micro, Up),
+            Output::Finish,
+            Output::View { direction: Right }
+        ]
+    );
+}

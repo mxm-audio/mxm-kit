@@ -831,7 +831,17 @@ reads its own steps with `reach::edit`. A host names its views with any key and 
 `Ui::unique_id` its widgets are drawn in; an open popup takes the keys first. egui closes a popup only
 on a pointer click, so a press in a menu closes it unless another menu opened on top. Labels,
 containers, scroll bars and unlabelled painted areas (canvases with cursors of their own) are left
-out.
+out, but for a label or a disabled widget with a tip.
+
+**Tips** (newDAWn's owner, 2026-10-15, from a survey of its interface): egui shows a tooltip only
+under the pointer, and of newDAWn's 62 some held what nothing else on screen said: MIDI's ports
+and failures, the lists behind a warning, why Loop is off. `reach::Tip` gives the tooltip and keeps
+its text in the plugin, which takes each frame's at `output_hook`, beside the tree it describes, so
+the cursor stops on a label or a disabled widget that has one (`Kind::Info`) and the host shows it
+beside the cursor with `tip_at`. A context with no cursor keeps none, so nothing gathers there.
+**DELETE** puts a value read with `edit` back to the default it gives, as in the editors, and a
+step key alone is VALUE on every value (`on_value_in`), a `DragValue` too, which can't snap, so ←
+→ step it as ↑ ↓ do.
 
 ## The keyboard language
 

@@ -124,7 +124,11 @@ Does **not** own labels, parameter bindings, or data. Plugins and the player sup
 
 - **`reach` walks every widget egui describes to screen readers** (the owner, 2026-10-07; the editors
   convert to it, keys first in newDAWn and the collection): nothing registers; a painted control
-  names itself or stays out; a value in its own units reads `reach::edit`; menus `reach::context_menu`,
+  names itself or stays out; a value in its own units reads `reach::edit`, DELETE putting one with a
+  default back to it; a step key alone is VALUE on every value, a `DragValue` too
+  (`reach::State::on_value_in`); **a tip is the keys' too** (`reach::Tip`, newDAWn's owner,
+  2026-10-15): it shows beside the cursor (`State::tip`, `tip_at`), and a label or a disabled
+  widget with one is a stop, `Kind::Info`, that OPEN leaves alone; menus `reach::context_menu`,
   which MENU opens (`State::key`) and, pressed again, closes; in an editor, where the cursor is inert
   while a popup is open, `navigation::run` closes it on MENU unless a text field has the keyboard. A
   request lasts the pass it was made in and the next, so a widget that draws a menu only later never

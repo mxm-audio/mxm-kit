@@ -915,7 +915,11 @@ size (newDAWn's owner, 2026-10-09: "sdf value left right should change in musica
 
 The edit is **one gesture**, however many presses it takes, and each press starts where the one
 before it landed. BACK alone never reveals the cursor: a panel must not light up because somebody
-dismissed a menu. Chords with `Command` or `Alt` are left to the controls and the host.
+dismissed a menu. Chords with `Command` or `Alt` are left to the controls and the host. Where the
+cursor walks widgets (`reach`, newDAWn's so far), what the pointer sees the keys see: a tooltip
+shows beside the cursor too, and a label or a disabled widget with one is a stop (`reach::Tip`,
+newDAWn's owner, 2026-10-15). VIEW and MICRO together pick the edge of a host's view to size it;
+an editor has no views to size and ignores them.
 
 How far one press moves is a share of the control's **travel** — 10 %, 1 % and 0.1 % — snapped
 onto the parameter's own grid, so a skewed range keeps its skew: a press near 20 Hz moves a few

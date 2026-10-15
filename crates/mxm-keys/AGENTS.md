@@ -66,6 +66,12 @@ every MXM editor share is `mxm_ui::keymaps`'.
   the host to snap. An older keymap's `musical =` line reads and binds nothing.
   `on_a_value_a_step_key_is_value_at_its_size` and
   `a_keymap_written_with_musical_still_reads_and_its_key_is_free` hold it.
+- **VIEW and MICRO together pick the view's edge** (newDAWn's owner, 2026-10-15: a view's size by
+  the keys): `Output::ViewEdge`, held or tapped in either order, VIEW on its key or its modifier,
+  on a value too, where VIEW after MICRO takes the VALUE it armed, before a step, for the edge. No
+  new job, so no keymap changes; an editor has no views to size and drops it (`mxm_ui::navigation`).
+  `view_and_micro_together_give_the_views_edge_held_or_tapped_in_either_order` and
+  `on_a_value_view_after_micro_takes_it_for_the_edge_without_a_step` hold it.
 - **The host's keys are not jobs** (newDAWn's owner, 2026-10-08): `panel.<name>` (the names are
   the host's) and note entry's `note.keys`, `note.octave-down`, `note.octave-up` sit in the same
   file, so one file binds every key. A panel key is no job's and no other panel's, so the engine

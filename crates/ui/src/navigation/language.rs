@@ -345,6 +345,10 @@ fn handle(
     }
     let mut outputs = outputs.into_iter();
     while let Some(output) = outputs.next() {
+        // An editor has no views to size: the edge VIEW and MICRO pick is the host's.
+        if matches!(output, Output::ViewEdge { .. }) {
+            continue;
+        }
         if matches!(output, Output::View { .. } | Output::Navigate { .. })
             && *keys != ValueKeys::default()
         {

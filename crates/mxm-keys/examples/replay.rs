@@ -66,6 +66,7 @@ fn describe(output: Output) -> String {
         }
         Output::Within { direction } => format!("within {}", direction_name(direction)),
         Output::View { direction } => format!("view {}", direction_name(direction)),
+        Output::ViewEdge { direction } => format!("view edge {}", direction_name(direction)),
         Output::Begin { verb } => format!("begin {}", verb_name(verb)),
         Output::Step {
             verb,
