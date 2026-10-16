@@ -224,6 +224,17 @@ implementations is non DRY"*. It owns the conventions: an unnormalised forward, 
 planning ahead, execution with caller scratch that allocates nothing, and a scoped hardware flush of
 subnormals.
 
+**`crates/mxm-stretch`** is an owner-approved exception to evidence-first extraction (2026-10-16).
+newDAWn needed its recordings to follow the song's tempo, its pitch kept, and the owner chose the
+collection's WSOLA, the creative sampler's Stretch, then asked "Should it not be a shared crate?".
+The sampler's reader couldn't serve as it was: it reads one sample at a time inside its voice,
+rounds even its clean setting to 16 bits, ramps every note in and goes no faster than twice. So
+its splice search, period track, onset detector and sinc read moved here and the reader around
+them was made offline; the owner, the sampler's only author, relicensed them MIT ("Relicense into
+kit"). What a whole buffer allows is the crate's own: no head reads past the next onset before its
+place, so an attack is read once, from its first frame. A release build stretched a stereo
+drum loop of 10 s at 44.1 kHz in 31 to 42 ms (2026-10-16).
+
 **`crates/mxm-vst3-host`** is an owner-approved exception to evidence-first extraction
 (2026-10-09: "We need VST3 support ourselves in the player and daw"): a `.vst3` module offered as
 an in-process CLAP plugin entry, so MXM Player and newDAWn host VST3 through the CLAP code they

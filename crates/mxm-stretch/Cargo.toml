@@ -1,0 +1,18 @@
+[package]
+name = "mxm-stretch"
+description = "A recording stretched to an exact length, its pitch kept: the MXM collection's WSOLA, made a whole-buffer stretch"
+version.workspace = true
+edition.workspace = true
+# Zero dependencies, so a DSP crate or a host takes it without the GUI floor.
+# Verified with `cargo +1.87.0 test -p mxm-stretch`.
+rust-version = "1.87"
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+
+[dev-dependencies]
+# The `listen` example alone: it reads a recording and writes what the stretch makes of it.
+mxm-audio-file.workspace = true
+mxm-audio-file-decode.workspace = true

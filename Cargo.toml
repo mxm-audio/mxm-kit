@@ -22,6 +22,7 @@ members = [
     "crates/mxm-xtask",
     "crates/mxm-vst3-host",
     "crates/mxm-fft",
+    "crates/mxm-stretch",
 ]
 
 [workspace.package]
@@ -62,6 +63,7 @@ mxm-plugin-test = { path = "crates/mxm-plugin-test" }
 mxm-xtask = { path = "crates/mxm-xtask" }
 mxm-vst3-host = { path = "crates/mxm-vst3-host" }
 mxm-fft = { path = "crates/mxm-fft" }
+mxm-stretch = { path = "crates/mxm-stretch" }
 
 [profile.release]
 lto = "thin"

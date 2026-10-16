@@ -1808,6 +1808,14 @@ name = "mxm-rng"
 version = "0.4.1"
 
 [[package]]
+name = "mxm-stretch"
+version = "0.4.1"
+dependencies = [
+ "mxm-audio-file",
+ "mxm-audio-file-decode",
+]
+
+[[package]]
 name = "mxm-telemetry"
 version = "0.4.1"
 

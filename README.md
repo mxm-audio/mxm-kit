@@ -20,6 +20,7 @@ resizable, one design system — and that work fully in newDAWn.
 | [`mxm-dsp`](crates/mxm-dsp) | Shared DSP primitives: the guards, saturators, PolyBLEP, the ADSR and the line read by age |
 | [`mxm-rng`](crates/mxm-rng) | The pseudo-random generators, each bit-exact to the copies it replaced |
 | [`mxm-fft`](crates/mxm-fft) | The collection's one FFT |
+| [`mxm-stretch`](crates/mxm-stretch) | A recording stretched to an exact length, its pitch kept |
 | [`mxm-control-map`](crates/mxm-control-map) | The controller-map standard and its schema |
 | [`mxm-audio-file`](crates/mxm-audio-file) | WAV, AIFF and FLAC writing |
 | [`mxm-audio-file-decode`](crates/mxm-audio-file-decode) | Audio reading through symphonia (MPL-2.0) |

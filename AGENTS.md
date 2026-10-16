@@ -35,7 +35,7 @@ fixes in its `PATCHES.md` — which every repository that builds a plugin patche
 ## The crates
 
 The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.md#the-crate-rules-in-full).
-**Nineteen crate rules, deliberately different** — count the bullets before editing this number:
+**Twenty crate rules, deliberately different** — count the bullets before editing this number:
 
 - `crates/ui` is **shared from day one**: design system §13 exempts the shell, theme tokens,
   typography and basic parameter controls; anything *beyond* them waits for two instruments.
@@ -97,6 +97,10 @@ The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.
   and O2; its AGENTS lists them). An item moves here when its copies are
   byte-identical, or on the owner's ruling for one that differs; a copy that differs stays with its
   instrument. Zero dependencies, MSRV 1.87.
+- `crates/mxm-stretch` is **a recording stretched to an exact length, its pitch kept**, an
+  owner-approved exception to evidence-first extraction (2026-10-16): the creative sampler's WSOLA
+  made a whole-buffer stretch for newDAWn, its search, period track, onsets and sinc read
+  relicensed MIT by their author. Zero dependencies, MSRV 1.87.
 
 # Local Contracts
 
@@ -157,6 +161,7 @@ cargo +1.87.0 build -p <crate>          # and `test`, which is the harder floor
 | `crates/mxm-vst3-host` | **1.95** | Inherited, not lowered: its two consumers, MXM Player and newDAWn, are at the GUI floor |
 | `crates/mxm-rng` | **1.87** | Zero dependencies, so every DSP crate takes it without the GUI floor. **Verified on 1.87**, library and tests |
 | `crates/mxm-dsp` | **1.87** | Zero dependencies, so every DSP crate takes it without the GUI floor. **Verified on 1.87**, library and tests |
+| `crates/mxm-stretch` | **1.87** | Zero dependencies, so a DSP crate or a host takes it without the GUI floor. **Verified on 1.87**, library and tests |
 | `crates/mxm-fft` | **1.87** | `rustfft` 6.4.1 (MSRV 1.61) and `realfft` 3.5.0, pinned, so a DSP crate can take it. **Verified on 1.87**, library and tests |
 
 ## Licensing
@@ -227,6 +232,7 @@ their own shipped packages.
 | [`crates/mxm-audio-file/AGENTS.md`](crates/mxm-audio-file/AGENTS.md) | Writing WAV, AIFF and FLAC through established encoders: the formats and their limits, no MPL code, quantisation as a published definition equal to `mxm-measure`'s at 16 bits, refusal of non-finite samples, reported clipping, atomic writes, the 32-bit WAV size bound, the `acid` exception, and the flacenc STREAMINFO correction |
 | [`crates/mxm-audio-file-decode/AGENTS.md`](crates/mxm-audio-file-decode/AGENTS.md) | Reading audio through symphonia (MPL-2.0): the formats it reads, a second crate rather than a feature, the compiled-in notice, Great-or-Excellent components only, what is bounded and what is not, what is refused and how skipped audio is found, per-file gapless reporting, and fixtures that are our own work |
 | [`crates/ui/AGENTS.md`](crates/ui/AGENTS.md) | The shared interface foundation and its design-system contract |
+| [`crates/mxm-stretch/AGENTS.md`](crates/mxm-stretch/AGENTS.md) | A recording stretched to an exact length, its pitch kept: the sampler's WSOLA offline, its cases in order, attacks read once, no ramps, every input-sized buffer fallible, and what was relicensed from the sampler |
 | [`crates/mxm-editor/AGENTS.md`](crates/mxm-editor/AGENTS.md) | The plugin editor's window: create, the app and its lifecycle, the `Panel` each plugin implements |
 | [`crates/mxm-preset/AGENTS.md`](crates/mxm-preset/AGENTS.md) | Shared preset format, library, browser, identity, authored-model Init and durable-content transaction |
 | [`crates/mxm-params/AGENTS.md`](crates/mxm-params/AGENTS.md) | `ErasedParam` and the step laws, the collection's one parameter binding, and the shared value text |
