@@ -182,7 +182,8 @@ relicensing everything.
 
 - Borrowing from a GPL project (VCV Rack is GPL-3.0) forces that plugin to GPL. Decide before
   copying, not after.
-- Adding a VST3 export pulls in GPL bindings. CLAP-only avoids this entirely.
+- A VST3 export adds no licence terms: nice-plug's bindings are the `vst3` crate, MIT OR
+  Apache-2.0, generated from Steinberg's VST 3 SDK 3.8.0, which is MIT.
 - Check the licence before porting any algorithm, and record source and licence in a comment at the
   top of the file. Cite techniques (TPT/ZDF, PolyBLEP) even when the implementation is original.
 - MIT licensing of our code resolves nothing about trademarks, trade dress, fonts or artwork.

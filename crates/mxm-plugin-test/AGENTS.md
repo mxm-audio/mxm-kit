@@ -12,7 +12,10 @@ host's round trip, in every plugin, and the census a text refactor is diffed wit
 trip), `bundle` (the plugin's display name in the nearest `bundler.toml`, found by walking up
 from its manifest so the check holds at any depth) and `hover_text` (the words a player reads on
 hover and in a host's plugin browser speak about the sound, never the machine or the code — design
-system §7.6). What each check proves and does not prove is in its module's docs. Beside them,
+system §7.6), and `formats` (the VST3 identity held to the CLAP one: the class ID the CLAP id's
+FNV-1a hash, the subcategories the CLAP features' by one table; `docs/plugin-conventions.md`
+*Every plugin is a CLAP and a VST3*). What each check proves and does not prove is in its module's
+docs. Beside them,
 `NoHost`: the GUI context a headless editor test hands its `ParamSetter` when no edit it makes
 matters, once rather than in each plugin's test module (eighteen identical copies until
 `plans/plan-architecture-audit.md` B2). A test that asserts on edits takes `keyboard_checks::Recorder`
@@ -68,6 +71,7 @@ only.
 
 ```bash
 cargo clippy -p mxm-plugin-test --all-targets -- -D warnings
+cargo test -p mxm-plugin-test --lib         # the formats table and hash; the other checks are tested by their consumers
 cargo check --tests -p <each plugin>        # in each plugin's repository: every consumer still compiles against it
 ```
 

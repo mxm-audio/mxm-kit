@@ -34,8 +34,9 @@ repository = "https://github.com/mxm-audio/mxm-kit"
 
 [workspace.dependencies]
 # Pinned exactly, as in every MXM repository; Cargo.lock is committed.
-# default-features = false drops `vst3` (GPL bindings) and `tracing-subscriber`
-# (a plugin must not install a global subscriber into its host).
+# default-features = false drops `vst3` (a plugin turns it on to export a VST3, and the checks
+# in `mxm-plugin-test` to read one) and `tracing-subscriber` (a plugin must not install a global
+# subscriber into its host).
 nice-plug = { version = "=0.4.2", default-features = false, features = ["editor", "assert_process_allocs"] }
 egui = "=0.36.1"
 nice-plug-egui = { version = "=0.5.1", default-features = false, features = ["opengl"] }

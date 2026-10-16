@@ -1,7 +1,7 @@
 # mxm-kit
 
 The libraries every [MXM](https://mxm.dk) instrument and effect is built on, published under the
-MIT licence so anyone can build CLAP instruments that look, feel and work the same — keyboard-first,
+MIT licence so anyone can build instruments (CLAP and VST3) that look, feel and work the same — keyboard-first,
 resizable, one design system — and that work fully in newDAWn.
 
 | Crate | What it is |
@@ -26,7 +26,7 @@ resizable, one design system — and that work fully in newDAWn.
 | [`mxm-measure`](crates/mxm-measure) | The measurement rulers every DSP test uses |
 | [`mxm-plugin-test`](crates/mxm-plugin-test) | The headless checks every plugin's tests share |
 | [`mxm-vst3-host`](crates/mxm-vst3-host) | VST3 hosting for the CLAP hosts |
-| [`mxm-xtask`](crates/mxm-xtask) | Bundling and control-map staging for a repository's `cargo xtask` |
+| [`mxm-xtask`](crates/mxm-xtask) | Bundling, control-map staging and installing, CLAP and VST3, for a repository's `cargo xtask` |
 
 `docs/` holds the normative [design system](docs/MXM_DESIGN_SYSTEM.md) and
 [control map](docs/MXM_CONTROL_MAP.md), and the filter, oscillator and modulation theory behind the

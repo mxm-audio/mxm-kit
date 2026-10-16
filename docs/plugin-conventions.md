@@ -15,7 +15,7 @@ plugin's own repository (`https://github.com/mxm-audio/<plugin>`), `apps/mxm-pla
 `plans/…` and `scripts/…` are in the private archive.
 
 # The plugins
-The CLAP plugins the collection ships. Each is a thin nice-plug shell over a framework-free DSP
+The plugins the collection ships, each a CLAP and a VST3. Each is a thin nice-plug shell over a framework-free DSP
 crate: parameter definitions, host contract, event handling, and an editor.
 
 Twenty-two plugins — eleven instruments and eleven effects:
@@ -384,8 +384,9 @@ the argument and the open gap.
 |---|---|---|
 | `CLAP_ID` | Reverse-DNS, permanent. Changing it breaks every saved project using the plugin. The project owns `mxm.dk`, so the form is `dk.mxm.<plugin>` | `dk.mxm.mxm-mono-01` — assembled from `plugin_name!` in `src/lib.rs`, **not** from `CARGO_PKG_NAME`, so renaming the directory cannot move it |
 | Parameter `#[id = "…"]` | Permanent, never reused. Renaming the *field* is fine; renaming the id is not | see `src/params.rs` |
+| `VST3_CLASS_ID` | Permanent, as the CLAP id is: a VST3 host keys every saved project on it. Sixteen bytes written out, the CLAP id's hash (`mxm_plugin_test::formats::vst3_class_id`), held by the plugin's `the_vst3_class_id_is_the_clap_ids_hash`, so a rename that moves `CLAP_ID` fails it | `VST3_CLASS_ID` in `src/lib.rs` |
 
-Treat both as public interface.
+Treat all three as public interface.
 
 **A `CLAP_ID` cannot collide, and an earlier version of this rule said otherwise** (the owner's
 ruling, 2026-09-05). It asked a new plugin to confirm its name was not taken on the CLAP plugin
@@ -417,8 +418,10 @@ bite anyone coding from nih-plug memory:
 | `nih_export_clap!` | `nice_export_clap!` |
 | `fn initialize(...)` | **`fn activate(...)`** with `ActivateContext` |
 | `editor() -> Option<Box<dyn Editor>>` | **`type Editor` associated type**, `-> Option<Self::Editor>` |
+| `nih_export_vst3!` | `nice_export_vst3!` |
 
-Every plugin implements `Plugin` + `ClapPlugin` and ends with `nice_export_clap!(MyPlugin);`.
+Every plugin implements `Plugin`, `ClapPlugin` and `Vst3Plugin` and ends with `nice_export_clap!(MyPlugin);` and
+`nice_export_vst3!(MyPlugin);` (*Every plugin is a CLAP and a VST3*, below).
 
 - `CLAP_FEATURES` drives host categorisation. For instruments: `Instrument`, `Synthesizer`, plus
   channel counts.
@@ -426,6 +429,36 @@ Every plugin implements `Plugin` + `ClapPlugin` and ends with `nice_export_clap!
   effect has exactly one, and nice-plug cannot declare a stereo-in, mono-out main pair — a mono
   host takes the mono-in layout. A main pair of two different shapes is not an in-place pair
   (vendored fix 5).
+
+## Every plugin is a CLAP and a VST3
+
+**The formats are CLAP and VST3, and no Linux-only format (LV2 and the like) and no AAX is made**
+(the owner, 2026-10-16: "If anybody wants the linux specific ones they can make it themselves").
+CLAP reaches Bitwig, REAPER, FL Studio, Studio One and newDAWn; VST3 adds Ableton Live, Cubase and
+nearly every other host, on all three systems.
+
+The VST3 is nice-plug's own wrapper, so it is four things in each plugin, and no tooling:
+
+- `nice-plug = { workspace = true, features = ["vst3"] }` in the plugin's `Cargo.toml`. The bundler
+  then makes `<name>.vst3` beside `<name>.clap`, because the library exports `GetPluginFactory`.
+- `impl Vst3Plugin` with `VST3_CLASS_ID`, written out (*Permanent identifiers*), and
+  `VST3_SUBCATEGORIES` from `CLAP_FEATURES` by one table (`mxm_plugin_test::formats::vst3_subcategory`),
+  in their order and without duplicates, with `Mono` or `Stereo` only when every
+  `AUDIO_IO_LAYOUTS` entry is that shape: VST3 reads either as "only this". A plugin that plays
+  mono and stereo names neither.
+- `nice_export_vst3!` beside `nice_export_clap!`.
+- Two tests in its `identity` module, one line each:
+  `mxm_plugin_test::formats::the_vst3_class_id_is_the_clap_ids_hash::<P>()` and
+  `the_vst3_categories_follow_the_clap_features::<P>()`.
+
+**The two formats share every line past the wrapper.** In newDAWn, mxm-mono-00 rendered four notes
+bit-identically through both, and its state saved and loaded back unchanged (2026-10-16). What VST3
+lacks: plugin-owned (floating) editor windows, so the VST3 editor is always embedded; CLAP's
+polyphonic modulation; and MIDI CC events, which nice-plug maps to 2080 hidden read-only parameters
+(130 a channel, sixteen channels) a host reaches through `IMidiMapping`, so an instrument's VST3 has
+those besides its own. **The control map is the CLAP's alone**: MXM Player finds a map beside the
+bundle it loaded and keys it by the CLAP id, so a host that wants MXM's roles loads the CLAP.
+Bitwig never lists a plugin's VST3 while it knows its CLAP.
 
 ## Parameters
 
@@ -1182,7 +1215,8 @@ contracts stay here. The short form:
 2. Create `plugins/<plugin>/` with a `Cargo.toml` joining the workspace, plus its own `LICENSE`
    (*since the split*, none: the plugin is a repository of its own, under its root `LICENSE`).
 3. Pick a permanent `CLAP_ID` (`dk.mxm.<plugin>`). It cannot collide — the namespace is a domain the
-   project owns — so the only thing to get right is that it is **permanent**.
+   project owns — so the only thing to get right is that it is **permanent**. Its VST3 class ID
+   follows from it (*Every plugin is a CLAP and a VST3*).
 4. DSP first, in `crates/<plugin>-dsp`, with unit tests — silence in gives silence out, no NaN/inf
    under extreme params, filters bounded under a stated numeric limit.
 5. Params, then MIDI, then presets — `impl mxm_preset::Instrument` and a factory set, nothing
@@ -1208,7 +1242,7 @@ them as policy.
 cargo test -p mxm-mono-01
 cargo clippy -p mxm-mono-01 --all-targets
 
-cargo xtask bundle mxm-mono-01 --release          # -> target/bundled/mxm-mono-01.clap, installed
+cargo xtask bundle mxm-mono-01 --release          # -> target/bundled/mxm-mono-01.clap and .vst3, installed
 clap-validator validate "target/bundled/mxm-mono-01.clap"
 ```
 
@@ -1267,12 +1301,12 @@ read a line of code.
 **Building the crate does not build the bundle, and nothing says so.** `cargo build -p mxm-mono-01`,
 `cargo test`, `cargo clippy` and `apps/mxm-mono-01-standalone` all compile the library and all show the
 change immediately. `target/bundled/mxm-mono-01.clap` is a **separate artifact**, and a host loads that
-one, from the user's CLAP folder `bundle` installs it in. Change the editor, run the standalone, see
+one, from the plugin folder `bundle` installs it in. Change the editor, run the standalone, see
 the change, screenshot it — and the plugin a person actually opens is still the previous build.
 
-**Every bundle installs itself** in this user's CLAP folder, where newDAWn, Bitwig and the other
-hosts look (`%LOCALAPPDATA%\Programs\Common\CLAP`, `~/Library/Audio/Plug-Ins/CLAP`, `~/.clap`; the
-owner, 2026-10-13: "So the latest ones are always in the daw and bitwig"). That includes a test's
+**Every bundle installs itself**, the CLAP and the VST3, where newDAWn, Bitwig and the other hosts
+look (the owner, 2026-10-13: "So the latest ones are always in the daw and bitwig"): the standard
+plugin folders, or those `MXM_CLAP_DIR` and `MXM_VST3_DIR` name (*Installing a bundle in a DAW*). That includes a test's
 bundle and any work in progress: `MXM_INSTALL_CLAP=0` turns it off, and under CI it is off unless
 set to `1`. A host holding the installed plugin doesn't stop it: the held copy is set aside and the
 new one goes in, which the host runs once it loads the plugin again. An install that fails says why
@@ -1310,47 +1344,35 @@ recorded diagnosis cannot silently go stale.
 
 ## Installing a bundle in a DAW
 
-Install locations for manual DAW testing:
+`cargo xtask bundle` installs what it made (above), and `python ws.py install` in the workspace does
+the same for every plugin; there is no copy to make by hand. The folders are the ones every
+installer uses and every host reads unconfigured (the owner, 2026-10-16: "Lets keep it as standard
+as possible"), unless `MXM_CLAP_DIR` or `MXM_VST3_DIR` names another:
 
-- Windows: `%COMMONPROGRAMFILES%\CLAP` or `%LOCALAPPDATA%\Programs\Common\CLAP`
-- macOS: `~/Library/Audio/Plug-Ins/CLAP` · Linux: `~/.clap`
+- Windows: `%COMMONPROGRAMFILES%\CLAP` and `%COMMONPROGRAMFILES%\VST3`, the system's
+- macOS: `~/Library/Audio/Plug-Ins/CLAP` and `…/VST3` · Linux: `~/.clap` and `~/.vst3`
 
-Symlink rather than copy where you can, so a rebundle needs no second step. **On the Windows
-development machine you cannot.** A symlink needs an elevated session or Developer Mode, and this
-box has neither — `HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock\`
-`AllowDevelopmentWithoutDevLicense` is `0`. `New-Item -ItemType SymbolicLink` fails with
-*"Administrator privilege required for this operation"* **even for a link inside `%TEMP%`**, so the
-refusal is about the privilege and not the destination. Do not go hunting for a writable directory
-that makes it work.
-
-**A hard link is not the workaround.** `New-Item -ItemType HardLink` does succeed unelevated on the
-same volume, but `nice_plug_xtask` *removes and recreates* the `.clap` on every bundle — the same
-delete that yields `Access is denied (os error 5)` when a player still holds it. The link then
-keeps pointing at the old content and nothing says so, which is the "it didn't stick" trap above
-made permanent.
-
-**A per-user path is only an install location once the host has been told about it.**
-`%LOCALAPPDATA%\Programs\Common\CLAP` is the standard unelevated CLAP directory, but a host scans
-the locations it is *configured* with, not the ones the specification lists. Bitwig 6.0 here ships
-exactly one CLAP entry — `C:\Program Files\Common Files\CLAP` — and the per-user path appears
-nowhere in `%LOCALAPPDATA%\Bitwig Studio\prefs\*.prefs`. Read the host's own location list before
-believing an install landed somewhere it will be found: a plugin copied into an unscanned directory
-is indistinguishable from a plugin that never built.
-
-So the working Windows procedure is an elevated copy into the system directory — one UAC click:
+**On Windows the developer's account is given write access to the two folders once**, as JUCE
+developers do for its copy-after-build, which defaults to them too. Until then an install says it
+can't write there, and the bundle still succeeds:
 
 ```powershell
-# The source must be ABSOLUTE: the elevated shell does not inherit this working directory.
-$src = "$PWD\target\bundled\mxm-shimmer.clap"
-Start-Process powershell -Verb RunAs -Wait -ArgumentList "-NoProfile","-Command",
-  "Copy-Item '$src' 'C:\Program Files\Common Files\CLAP\' -Force"
+$user = "$env:USERDOMAIN\$env:USERNAME"
+$folders = "C:\Program Files\Common Files\CLAP", "C:\Program Files\Common Files\VST3"
+$grant = ($folders | ForEach-Object { "icacls '$_' /grant '${user}:(OI)(CI)M'" }) -join "; "
+Start-Process powershell -Verb RunAs -Wait -ArgumentList "-NoProfile","-Command",$grant
 ```
 
-**Because that is a copy, the stale-bundle trap is back and avoiding it is now manual: re-run the
-copy after every `cargo xtask bundle`.** Rebundling without re-copying leaves the DAW loading the
-previous plugin while every local check — standalone, tests, validator — honestly reports the new
-one. If the UAC prompt is the part that grates, add `%LOCALAPPDATA%\Programs\Common\CLAP` to the
-host's plugin locations once and install there unelevated from then on.
+**Not the per-user folders on Windows.** The formats define them too, but hosts barely read them:
+Bitwig 6 and Ableton Live 11 here read neither unless told (their own location lists, 2026-10-16),
+and a plugin copied into an unscanned folder is indistinguishable from one that never built. The
+first install of a plugin into the system folder takes its copy out of
+`%LOCALAPPDATA%\Programs\Common\CLAP`, where installs went before, or hosts reading both list it
+twice (`crates/mxm-xtask`).
+
+**Nothing to link.** A symlink needs an elevated session or Developer Mode on Windows, and a hard
+link goes stale: `nice_plug_xtask` removes and recreates the bundle on every build, so the link keeps
+the old content and nothing says so.
 
 Installing is not the Bitwig gate. It only puts the artifact where the host can find it; the
 per-plugin DAW checks recorded in each child doc still have to be run and reported.

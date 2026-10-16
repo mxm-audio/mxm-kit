@@ -1,8 +1,8 @@
 //! The build tooling every MXM repository's `cargo xtask` shares: a thin wrapper over
 //! `nice_plug_xtask`, which produces the loadable `.clap`, followed by staging each plugin's control
 //! map beside its bundle — an instrument owns its mapping, so the two must ship together. See
-//! [`control_maps`]. Then each plugin bundled is installed in the user's CLAP folder, so the hosts
-//! there load the last one built. See [`install`].
+//! [`control_maps`]. Then each plugin bundled is installed, CLAP and VST3, in the standard plugin
+//! folders, so the hosts load the last one built. See [`install`].
 //!
 //! `cargo xtask fetch` builds the plugins of other MXM repositories that this repository's tests
 //! load, at the tags `test-bundles.txt` pins. See [`fetch`].
@@ -32,10 +32,17 @@ pub fn main(workspace_root: &Path) -> nice_plug_xtask::Result<()> {
         return Ok(());
     }
     let bundling = install::bundled_packages(&args);
-    if bundling.is_some() {
+    if let Some(packages) = &bundling {
         // Fatal, and before the build: a map every host would refuse is a broken product, as a
         // failing test is. (A missing map is not; see below.)
         control_maps::check(workspace_root)?;
+        // Fatal too: an earlier VST3 left in `target/bundled` would be installed as this build's.
+        if let (Ok(bundled), Ok(bundles)) = (
+            bundled_folder(workspace_root),
+            control_maps::bundles(workspace_root),
+        ) {
+            install::clear_stale_vst3s(&bundles, packages, &bundled)?;
+        }
     }
     nice_plug_xtask::main()?;
 
@@ -65,17 +72,15 @@ pub fn main(workspace_root: &Path) -> nice_plug_xtask::Result<()> {
 /// Installs what the bundle made, saying what went in and what didn't. Never fatal: a bundle a test
 /// made still succeeds when a host holds the installed copy.
 fn install_bundles(workspace_root: &Path, packages: &[String], staged: &[std::path::PathBuf]) {
-    let Some(folder) = install::user_folder() else {
-        eprintln!("Not installed: this user's CLAP folder isn't known (no LOCALAPPDATA or HOME)");
-        return;
+    let folders = match install::Folders::chosen() {
+        Ok(folders) => folders,
+        Err(error) => {
+            eprintln!("Not installed: {error:#}");
+            return;
+        }
     };
-    // The target folder as nice-plug's bundler finds it, so `CARGO_TARGET_DIR` moves both.
-    let metadata = cargo_metadata::MetadataCommand::new()
-        .manifest_path(workspace_root.join("Cargo.toml"))
-        .no_deps()
-        .exec();
-    let bundled = match metadata {
-        Ok(metadata) => metadata.target_directory.as_std_path().join("bundled"),
+    let bundled = match bundled_folder(workspace_root) {
+        Ok(bundled) => bundled,
         Err(error) => {
             eprintln!("Not installed: the target folder isn't known: {error}");
             return;
@@ -83,9 +88,18 @@ fn install_bundles(workspace_root: &Path, packages: &[String], staged: &[std::pa
     };
     match control_maps::bundles(workspace_root) {
         Ok(bundles) => {
-            let outcomes = install::install(&bundles, packages, &bundled, staged, &folder);
-            install::report(&outcomes, &folder);
+            let outcomes = install::install(&bundles, packages, &bundled, staged, &folders);
+            install::report(&outcomes, &folders);
         }
         Err(error) => eprintln!("Not installed: {error:#}"),
     }
+}
+
+/// `target/bundled` as nice-plug's bundler finds it, so `CARGO_TARGET_DIR` moves both.
+fn bundled_folder(workspace_root: &Path) -> Result<std::path::PathBuf, cargo_metadata::Error> {
+    let metadata = cargo_metadata::MetadataCommand::new()
+        .manifest_path(workspace_root.join("Cargo.toml"))
+        .no_deps()
+        .exec()?;
+    Ok(metadata.target_directory.as_std_path().join("bundled"))
 }

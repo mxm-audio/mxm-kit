@@ -3,8 +3,9 @@
 # Purpose
 
 The build tooling every MXM repository's `cargo xtask` shares: `main` runs `nice_plug_xtask`, which
-produces the loadable `.clap`, and after a `bundle` stages each plugin's control map beside its
-bundle (`control_maps`) and installs both in the user's CLAP folder (`install`). `cargo xtask
+produces the loadable `.clap` (and the `.vst3` of a plugin that exports one), and after a `bundle`
+stages each plugin's control map beside its bundle (`control_maps`) and installs the CLAP, its map
+and the VST3 in the standard plugin folders (`install`). `cargo xtask
 fetch` builds the plugins of *other* MXM repositories that this repository's tests load, at the tags
 its `test-bundles.txt` pins (`fetch`). A repository's own `xtask` passes its workspace root and adds
 only the commands that repository alone needs.
@@ -29,25 +30,46 @@ and `test-bundles.txt` for the plugins to fetch; all three belong to the reposit
   `target/bundled/<Bundle Name>.control-map.json`, which is where MXM Player looks for it. A plugin
   without one is not an error — it simply has no roles filled. Staging never fails the bundle: an
   unmapped plugin still works.
-- **Every bundle installs itself** in this user's CLAP folder (`install::user_folder`), where
-  newDAWn, Bitwig and the other hosts look, so a host always loads the last build (newDAWn's owner,
-  2026-10-13, choosing every build over every commit: "So the latest ones are always in the daw and
-  bitwig"). Here because nice-plug's bundler writes to `target/bundled` alone. `bundle` and
+- **Every bundle installs itself**, the CLAP with its map and, when the bundle made one, the VST3,
+  where newDAWn, Bitwig and the other hosts look, so a host always loads the last build (newDAWn's
+  owner, 2026-10-13, choosing every build over every commit: "So the latest ones are always in the
+  daw and bitwig"). Here because nice-plug's bundler writes to `target/bundled` alone. `bundle` and
   `bundle-universal` alike, only the packages the command line bundled that `bundler.toml` names,
   each with the map staged in the same run, or none: the installed map is set aside before the
-  plugin goes in, so an older map never stays beside a newer plugin.
-  - **On by default** (`install::wanted`): set, `MXM_INSTALL_CLAP` decides, `1` installing and any
-    other value (`0`) not; unset, a bundle installs unless `CI` is set, so CI runners don't.
+  plugin goes in, so an older map never stays beside a newer plugin. The map goes beside the
+  `.clap` only: MXM Player keys a map by the CLAP id.
+  - **The folders are the standard ones, and the user's to change** (the owner, 2026-10-16: "Lets
+    keep it as standard as possible", "It should also be user changable"): `install::folder` is
+    what `MXM_CLAP_DIR` or `MXM_VST3_DIR` names, else `install::standard_folder`, on Windows the
+    system's (`%COMMONPROGRAMFILES%\CLAP`, `…\VST3`), which every host reads unconfigured and the
+    developer's account is given write access to once, and on macOS and Linux this user's.
+    `python ws.py install` in the workspace keeps the same rules (`plugin_folder`).
+  - **The older per-user CLAP goes only once the new one is in** (`install::retire`): on Windows,
+    after a plugin's install into another folder succeeds, its own files in
+    `%LOCALAPPDATA%\Programs\Common\CLAP` (the `.clap`, its map, their leftovers, by exact name) are
+    removed under that folder's lock, or hosts reading both list it twice. A failed install
+    removes nothing.
+  - **A VST3 is installed only when this build made it**: `install::clear_stale_vst3s` takes each
+    bundled package's `.vst3` out of `target/bundled` before the build, because nice-plug's bundler
+    leaves an older one where it is when the library no longer exports one. One it can't remove
+    fails the bundle, as one nice-plug can't replace does. The VST3 folder is needed only then.
+  - **A destination that is where the bundle is made or its map staged is refused**, touching
+    nothing (`MXM_CLAP_DIR` naming a `target/bundled`, however spelled): installing there would set
+    aside the map it copies from.
+  - **On by default** (`install::wanted`): set, `MXM_INSTALL_CLAP` decides for every format, `1`
+    installing and any other value (`0`) not; unset, a bundle installs unless `CI` is set.
   - **Never fatal**: a failed install says why and the bundle succeeds, so a host holding the
-    installed plugin never fails a test's bundle.
+    installed plugin, or a folder not yet writable, never fails a test's bundle.
   - **A plugin a host holds is replaced all the same.** Windows won't overwrite or delete a loaded
-    library but renames it (tried 2026-10-13 on a loaded `mxm-mono-01.clap`), so the held copy goes
-    aside as `<name>.clap.<stamp>.old` and the new one is renamed in; a `.old` goes at a later
+    library but renames it (tried 2026-10-13 on a loaded `mxm-mono-01.clap`), and renames a `.vst3`
+    bundle folder with its module loaded (tried 2026-10-16), so the held copy goes aside as
+    `<name>.<extension>.<stamp>.old` and the new one is renamed in; a `.old` goes at a later
     install, once nothing holds it, as does a `.tmp` or `.new` an install cut off left. Installs
-    take turns on `.mxm-install.lock` in the folder. Hosts list only `*.clap`.
-  - A bundle of the same name in a folder newDAWn scans first (`CLAP_PATH`, the system CLAP folder)
-    is warned about: newDAWn would load that one.
-  - The tests install into a temporary folder, never the real one; the held case loads a copy of
+    take turns on `.mxm-install.lock` in each folder. Hosts list only `*.clap` and `*.vst3`.
+  - A bundle of the same name in a folder newDAWn scans before the one installed into
+    (`install::scan_order`: `CLAP_PATH` or `VST3_PATH` first) is warned about, as is a folder
+    newDAWn doesn't scan at all.
+  - The tests install into temporary folders, never the real ones; the held cases load a copy of
     a system library with `LoadLibraryW`, as a host loads a plugin.
 - **A map that does not hold to the standard fails the bundle**, before anything is built
   (`control_maps::check`, the check a host makes on loading it). That is what keeps a broken map from
@@ -82,15 +104,15 @@ name; no change here is required for it, and its `control-map.json` is picked up
 # Verification
 
 ```bash
-cargo xtask bundle mxm-mono-01 --release    # -> target/bundled/mxm-mono-01.clap
-                                            #    + mxm-mono-01.control-map.json, both installed
+cargo xtask bundle mxm-mono-00 --release    # -> target/bundled/mxm-mono-00.clap, its
+                                            #    control map and .vst3, all installed
 cargo xtask fetch                           # every line of test-bundles.txt, built and placed
 cargo test -p mxm-xtask                     # test-bundles.txt parsing, installing
 cargo clippy -p mxm-xtask --all-targets
 ```
 
-The check is that the artifacts appear at the paths above, `Installed <path>` is printed, and that
-`clap-validator validate "target/bundled/mxm-mono-01.clap"` can load the bundle.
+The check is that the artifacts appear at the paths above, `Installed <path>` is printed for each
+format, and that `clap-validator validate "target/bundled/mxm-mono-00.clap"` can load the bundle.
 
 # Child DOX Index
 

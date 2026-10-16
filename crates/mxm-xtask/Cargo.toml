@@ -1,6 +1,6 @@
 [package]
 name = "mxm-xtask"
-description = "The build tooling every MXM repository's xtask shares: nice-plug's bundler, then each plugin's control map staged beside its bundle and both installed in the user's CLAP folder."
+description = "The build tooling every MXM repository's xtask shares: nice-plug's bundler, then each plugin's control map staged beside its bundle, and the CLAP, its map and the VST3 installed in the standard plugin folders."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

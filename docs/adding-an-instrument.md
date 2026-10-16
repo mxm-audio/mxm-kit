@@ -182,9 +182,13 @@ on a linker error. Root `AGENTS.md` *Naming* has the rule (since the split,
 - `impl Plugin` with `AUDIO_IO_LAYOUTS` declaring **no main input** for an instrument
 - `MIDI_INPUT: MidiConfig::MidiCCs` (see [gotcha 6](#6-declare-midi-input-or-the-players-panic-does-nothing))
 - `type Editor` as an **associated type**, and `fn activate` — this is nice-plug, not nih-plug
-- `nice_export_clap!(YourPlugin);` at the end
-- `crate-type = ["cdylib", "lib"]` in `Cargo.toml`, and **do not** enable nice-plug's `standalone`
-  feature here
+- `impl Vst3Plugin` with `VST3_CLASS_ID` written out and `VST3_SUBCATEGORIES` from the CLAP
+  features, then `nice_export_clap!(YourPlugin);` and `nice_export_vst3!(YourPlugin);` at the end,
+  with the two `formats` checks in an `identity` test module
+  ([plugin conventions](plugin-conventions.md#every-plugin-is-a-clap-and-a-vst3); the class
+  ID check's message prints the bytes to write)
+- `crate-type = ["cdylib", "lib"]` and nice-plug's `vst3` feature in `Cargo.toml`, and **do not**
+  enable nice-plug's `standalone` feature here
 
 Parameters: one `#[derive(Params)]` struct behind an `Arc`. Smooth signals, not coefficients. The
 routes are `mxm-modulation-params` pairs beside it — `plugins/mxm-mono-pr1/src/routes.rs` in
@@ -377,7 +381,7 @@ the player looks. A plugin with no map is not an error — it simply has no role
 ### Phase 7 — bundle, validate, host
 
 ```bash
-cargo xtask bundle <plugin> --release       # -> target/bundled/<plugin>.clap + .control-map.json
+cargo xtask bundle <plugin> --release       # -> target/bundled/<plugin>.clap + .control-map.json + .vst3
 cargo xtask bundle <plugin>                 # debug too: assert_process_allocs only fires in debug
 clap-validator validate "target/bundled/<plugin>.clap"
 ```
