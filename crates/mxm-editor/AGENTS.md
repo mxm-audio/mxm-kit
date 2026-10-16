@@ -8,7 +8,7 @@ The plugin editor's window, the same for every MXM plugin (the architecture audi
 2026-10-14: *"make the mxm-editor"*): `create` (the title, the reference size at zoom 1, resizable down
 to a minimum), `EditorApp` (the egui app: `mxm_ui::shell::install` when the window opens, the host's
 context held while it is open and dropped when it closes) and `Panel`, the trait each plugin's editor
-implements.
+implements, which also hears the host's track (CLAP's track-info) through `track_info_changed`.
 
 # Ownership
 
@@ -23,6 +23,9 @@ assets, an editor-open flag), each given the host's context.
   as a pane); anything here that does not need nice-plug belongs in `mxm-ui` instead.
 - `install` runs before `opened`; `closed` runs once a window has opened, with the context it opened
   with; nothing is drawn while no window is open.
+- **The host's track reaches the panel whether or not a window is open** (`Panel::track_info_changed`,
+  a default that does nothing; mxm-fx-eq-n's plan §7.8, 2026-10-16): nice-plug hands it to the
+  editor object, which the wrapper makes with the plugin, at init and whenever the host changes it.
 - **VIEW past the editor's edge gives the keys back to the host's window** (newDAWn's keyboard-reach
   plan, S11, 2026-10-15): each frame, after the panel, `EditorApp::ui` takes
   `mxm_ui::navigation::take_leave` and asks baseview's `WindowContext::focus_owner` (the baseview

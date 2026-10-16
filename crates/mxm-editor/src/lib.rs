@@ -14,7 +14,7 @@
 use nice_plug::context::gui::GuiContext;
 use nice_plug::editor::SizeConstraints;
 use nice_plug::editor::dpi::LogicalSize;
-use nice_plug::prelude::ResizeHint;
+use nice_plug::prelude::{ResizeHint, TrackInfo};
 use nice_plug_egui::{
     EguiEditor, EguiEditorState, EguiNiceSettings, Frame, NiceEguiApp, RepaintNotifier,
     create_egui_editor,
@@ -35,6 +35,13 @@ pub trait Panel: Send + 'static {
     /// The window is closing; `host` is still the context it was opened with.
     fn closed(&mut self, host: &GuiContext) {
         let _ = host;
+    }
+
+    /// The host's track for this instance: its name and colour, from CLAP's `clap.track-info`,
+    /// when the plugin is made and whenever the host changes them, whether or not a window is
+    /// open (nice-plug hands it to the editor object, which lives as long as the plugin).
+    fn track_info_changed(&mut self, info: &TrackInfo) {
+        let _ = info;
     }
 }
 
@@ -95,6 +102,10 @@ impl<P: Panel> NiceEguiApp for EditorApp<P> {
             self.panel.closed(&host);
         }
     }
+
+    fn track_info_changed(&mut self, info: TrackInfo) {
+        self.panel.track_info_changed(&info);
+    }
 }
 
 /// A plugin's editor: the shared app around its panel.
@@ -133,17 +144,31 @@ mod tests {
 
     struct Counting {
         frames: usize,
+        track: Option<String>,
+    }
+
+    impl Counting {
+        fn new() -> Self {
+            Counting {
+                frames: 0,
+                track: None,
+            }
+        }
     }
 
     impl Panel for Counting {
         fn ui(&mut self, _ui: &mut egui::Ui, _host: &GuiContext) {
             self.frames += 1;
         }
+
+        fn track_info_changed(&mut self, info: &TrackInfo) {
+            self.track = Some(info.name().to_owned());
+        }
     }
 
     #[test]
     fn a_closed_window_draws_nothing_and_closing_it_twice_is_harmless() {
-        let mut app = EditorApp::new(Counting { frames: 0 });
+        let mut app = EditorApp::new(Counting::new());
         assert!(!app.is_open());
         app.editor_closed();
         assert!(!app.is_open());
@@ -152,7 +177,19 @@ mod tests {
 
     #[test]
     fn the_editor_is_built_with_the_plugins_title_and_sizes() {
-        let editor = create("mxm-test", (900, 600), (400, 300), Counting { frames: 0 });
+        let editor = create("mxm-test", (900, 600), (400, 300), Counting::new());
         assert!(editor.is_some());
+    }
+
+    /// The host's track reaches the panel with no window open, and again when it changes.
+    #[test]
+    fn the_hosts_track_reaches_the_panel_while_closed() {
+        let mut app = EditorApp::new(Counting::new());
+        app.track_info_changed(TrackInfo::new("Bass", None));
+        assert!(!app.is_open());
+        assert_eq!(app.panel().track.as_deref(), Some("Bass"));
+        app.track_info_changed(TrackInfo::new("Bass 2", None));
+        assert_eq!(app.panel().track.as_deref(), Some("Bass 2"));
+        assert_eq!(app.panel().frames, 0);
     }
 }
