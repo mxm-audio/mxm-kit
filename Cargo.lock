@@ -198,7 +198,7 @@ dependencies = [
 [[package]]
 name = "baseview"
 version = "0.3.6"
-source = "git+https://github.com/mxm-audio/baseview?branch=main#17aaca2f620ce3eb7899fa5545f304577b38a629"
+source = "git+https://github.com/mxm-audio/baseview?branch=main#c491a4bc0588cfe1a61f2bc8e7a7a32d5894a5b4"
 dependencies = [
  "block2 0.6.2",
  "bytemuck",
@@ -845,7 +845,7 @@ dependencies = [
 [[package]]
 name = "egui-baseview"
 version = "0.7.2"
-source = "git+https://github.com/mxm-audio/egui-baseview?branch=main#e31f1bb279b6aeed634775aa4f3c069d8f2ac9b3"
+source = "git+https://github.com/mxm-audio/egui-baseview?branch=main#44dc543328cbe34432d8a4e1cb543dc8c2cdf6cf"
 dependencies = [
  "baseview",
  "copypasta",
@@ -1956,7 +1956,7 @@ dependencies = [
 [[package]]
 name = "nice-plug"
 version = "0.4.2"
-source = "git+https://github.com/mxm-audio/nice-plug?branch=main#138f766b07cd7821f23e5dab939fae80ffca3889"
+source = "git+https://github.com/mxm-audio/nice-plug?branch=main#7d6a1571555f56a7084ba248f2aef6a150c78c33"
 dependencies = [
  "anyhow",
  "anymap3",
@@ -2020,12 +2020,12 @@ dependencies = [
 [[package]]
 name = "nice-plug-egui"
 version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3fcf7478a8ceedb1658e0de4f1548488807f177a962727c54753d78d649f9472"
+source = "git+https://github.com/mxm-audio/nice-plug-egui?branch=main#9f9118da5dbb6d50f0b25a2ef453cd291c83debf"
 dependencies = [
  "crossbeam",
  "egui",
  "egui-baseview",
+ "nice-plug",
  "nice-plug-core",
  "parking_lot",
  "raw-window-handle",

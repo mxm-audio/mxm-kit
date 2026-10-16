@@ -87,9 +87,10 @@ inherits = "release"
 debug = true
 strip = "none"
 
-# nice-plug and egui-baseview as published plus the patches in each fork's PATCHES.md, as every
-# repository that builds a plugin patches them: `mxm-editor` builds nice-plug-egui, so the kit tests
-# it on the window stack that ships.
+# nice-plug, nice-plug-egui and egui-baseview as published plus the patches in each fork's
+# PATCHES.md, as every repository that builds a plugin patches them: `mxm-editor` builds
+# nice-plug-egui, so the kit tests it on the window stack that ships.
 [patch.crates-io]
 nice-plug = { git = "https://github.com/mxm-audio/nice-plug", branch = "main" }
+nice-plug-egui = { git = "https://github.com/mxm-audio/nice-plug-egui", branch = "main" }
 egui-baseview = { git = "https://github.com/mxm-audio/egui-baseview", branch = "main" }

@@ -255,6 +255,45 @@ pub fn use_keymap_in(ctx: &egui::Context, folder: &std::path::Path) {
     ctx.data_mut(|data| data.insert_temp(keymap_id(), keymap));
 }
 
+/// The keys an editor reads itself, past the keymap: F1, the sheet of keys (`navigation/sheet.rs`);
+/// Home and End, a value's ends, and Command with Backspace, its default (`control.rs`). Matched as
+/// `consume_key` matches them.
+const OWN_KEYS: [(egui::Modifiers, egui::Key); 4] = [
+    (egui::Modifiers::NONE, egui::Key::F1),
+    (egui::Modifiers::NONE, egui::Key::Home),
+    (egui::Modifiers::NONE, egui::Key::End),
+    (egui::Modifiers::COMMAND, egui::Key::Backspace),
+];
+
+/// Whether the editor takes `key` in this window, by the rule its own reading of the keys keeps: an
+/// arrow, or a key the keymap in use gives a job, and no chord with Command or Alt; or one of the
+/// keys it reads itself ([`OWN_KEYS`]). What an editor answers a host that offers it a key rather
+/// than letting its window have it (Ableton Live 11.3.13 handed a VST3 editor its letters and Shift
+/// with the arrows that way), and which keys its window keeps when it has them (Live 11.3.25 hands
+/// it every key, and the rest go back: baseview's *Keys the editor ignores go to the host*). A key
+/// the editor doesn't use stays the host's: Live plays it, or starts its transport.
+pub fn takes_key(ctx: &egui::Context, key: egui::Key, modifiers: egui::Modifiers) -> bool {
+    if OWN_KEYS
+        .iter()
+        .any(|(pattern, own)| *own == key && modifiers.matches_logically(*pattern))
+    {
+        return true;
+    }
+    if modifiers.command || modifiers.alt {
+        return false;
+    }
+    let Some(key) = language::to_key(key) else {
+        return false;
+    };
+    if key.direction().is_some() {
+        return true;
+    }
+    match ctx.data(|data| data.get_temp::<std::sync::Arc<mxm_keys::Keymap>>(keymap_id())) {
+        Some(keymap) => keymap.job(key).is_some(),
+        None => mxm_keys::Keymap::default().job(key).is_some(),
+    }
+}
+
 fn value_keys_id() -> Id {
     registry_id().with("value keys")
 }
@@ -1187,6 +1226,67 @@ pub fn default_key(job: mxm_keys::Job) -> Option<egui::Key> {
 #[cfg(test)]
 pub(crate) fn key_of(job: mxm_keys::Job) -> egui::Key {
     default_key(job).unwrap_or_else(|| panic!("the default keymap binds {}", job.name()))
+}
+
+#[cfg(test)]
+mod host_key_tests {
+    use super::*;
+    use egui::{Key, Modifiers};
+
+    /// What a host is told: the keymap's keys and the arrows are the language's, a key it gives no
+    /// job and every Command or Alt chord the host's.
+    #[test]
+    fn the_language_takes_what_its_keymap_binds_and_nothing_else() {
+        let ctx = egui::Context::default();
+        let none = Modifiers::NONE;
+        let coarse = key_of(mxm_keys::Job::Step(mxm_keys::Step::Coarse));
+        assert!(takes_key(&ctx, coarse, none));
+        assert!(takes_key(&ctx, Key::ArrowUp, none));
+        assert!(takes_key(&ctx, Key::ArrowLeft, Modifiers::SHIFT));
+        assert!(!takes_key(&ctx, coarse, Modifiers::COMMAND));
+        assert!(!takes_key(&ctx, coarse, Modifiers::ALT));
+        let unbound = [
+            Key::B,
+            Key::G,
+            Key::H,
+            Key::I,
+            Key::J,
+            Key::K,
+            Key::T,
+            Key::Y,
+        ]
+        .into_iter()
+        .find(|key| {
+            language::to_key(*key).is_some_and(|key| mxm_keys::Keymap::default().job(key).is_none())
+        })
+        .expect("the default keymap leaves a letter alone");
+        assert!(!takes_key(&ctx, unbound, none));
+        // T is on note entry's piano, which is the DAW's, not a job: the host keeps it (the
+        // owner's test in Ableton Live, 2026-10-16).
+        assert!(!takes_key(&ctx, Key::T, none));
+        // Read past the keymap, so the host must not have them too (F1 switches Live's first track).
+        assert!(takes_key(&ctx, Key::F1, none));
+        assert!(takes_key(&ctx, Key::Home, none));
+        assert!(takes_key(&ctx, Key::End, none));
+        assert!(takes_key(&ctx, Key::Backspace, Modifiers::COMMAND));
+        assert!(!takes_key(&ctx, Key::F1, Modifiers::COMMAND));
+    }
+
+    /// The keymap in use, not the default, decides: the shared one read into the window.
+    #[test]
+    fn the_keymap_read_into_the_window_is_the_one_asked() {
+        let folder = std::env::temp_dir().join(format!("mxm-takes-key-{}", std::process::id()));
+        std::fs::create_dir_all(&folder).unwrap();
+        crate::keymaps::seed(&folder);
+        let ctx = egui::Context::default();
+        use_keymap_in(&ctx, &folder);
+        let in_use = crate::keymaps::in_use(&folder).keymap;
+        for key in [Key::S, Key::D, Key::F, Key::E, Key::T] {
+            let bound = language::to_key(key).is_some_and(|k| in_use.job(k).is_some());
+            assert_eq!(takes_key(&ctx, key, Modifiers::NONE), bound, "{key:?}");
+        }
+        let _ = std::fs::remove_dir_all(&folder);
+    }
 }
 
 #[cfg(test)]

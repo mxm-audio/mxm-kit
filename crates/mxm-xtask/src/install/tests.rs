@@ -684,9 +684,30 @@ mod held {
             names[2].starts_with("x.vst3.") && names[2].ends_with(".old"),
             "{names:?}"
         );
+        // A host looks for `.vst3` at any depth: the held module in the bundle set aside is
+        // renamed too, so the new bundle is the only plugin there.
+        assert_eq!(plugins_in(&vst3), [vst3.join("x.vst3")]);
 
         drop(host);
         assert!(installs(&bundled, &[], &folder)[1].result.is_ok());
         assert_eq!(names_in(&vst3), [LOCK, "x.vst3"]);
+    }
+
+    /// Every `.vst3` a host scanning `folder` at any depth would offer: a bundle folder, not
+    /// looked into, or a lone file.
+    fn plugins_in(folder: &Path) -> Vec<PathBuf> {
+        let mut found = Vec::new();
+        for entry in std::fs::read_dir(folder).unwrap().flatten() {
+            let path = entry.path();
+            if path
+                .extension()
+                .is_some_and(|extension| extension == "vst3")
+            {
+                found.push(path);
+            } else if path.is_dir() {
+                found.extend(plugins_in(&path));
+            }
+        }
+        found
     }
 }

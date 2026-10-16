@@ -604,10 +604,35 @@ fn swap_in(fresh: &Path, destination: &Path) -> Result<()> {
         return Err(error).with_context(|| format!("{} can't be put in", destination.display()));
     }
     if let Some(aside) = aside {
-        // Gone now unless a host holds it; then at a later install.
-        let _ = remove(&aside);
+        // Gone now unless a host holds it; then at a later install, and meanwhile nothing in it
+        // can pass for a plugin.
+        if remove(&aside).is_err() {
+            disarm(&aside);
+        }
     }
     Ok(())
+}
+
+/// Renames every `.vst3` or `.clap` inside a bundle set aside, at any depth, to `….old`: a host
+/// looks for plugins at any depth, and the module inside a `.vst3` bundle is itself named
+/// `<name>.vst3` (Ableton Live 11 loaded one from a set-aside bundle, 2026-10-16). A loaded module
+/// may be renamed, though not replaced or removed.
+fn disarm(folder: &Path) {
+    let Ok(entries) = std::fs::read_dir(folder) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            disarm(&path);
+        }
+        if path
+            .extension()
+            .is_some_and(|extension| extension == "vst3" || extension == "clap")
+        {
+            let _ = std::fs::rename(&path, with_suffix(&path, "old"));
+        }
+    }
 }
 
 /// Renames what is at `path`, if anything, to `<name>.<stamp>.old` beside it, which a host holding

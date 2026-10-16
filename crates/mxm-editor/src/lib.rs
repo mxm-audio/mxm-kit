@@ -132,6 +132,9 @@ pub fn create<P: Panel>(
                 )),
                 ..ResizeHint::RESIZABLE
             },
+            // The keys a host offers instead of letting the window have them (Ableton Live's
+            // letters and Shift with the arrows): those the keyboard language uses.
+            host_keys: Some(std::sync::Arc::new(mxm_ui::navigation::takes_key)),
             ..Default::default()
         },
         EditorApp::new(panel),

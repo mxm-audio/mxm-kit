@@ -1092,7 +1092,12 @@ keys are the keymap in use in the folder newDAWn and every MXM editor share** (`
 `mxm_ui::keymaps`; the owner, 2026-10-12): the editor's `build()` calls
 `mxm_ui::navigation::use_shared_keymap(ctx)` beside `theme::apply`, which reads the keymap chosen
 there once, as the window opens; a test that draws `panel` reads none and keeps the default
-keymap. A
+keymap. **An editor keeps only the keys it uses; the rest are the host's** (2026-10-16):
+`mxm-editor` hands nice-plug-egui `navigation::takes_key` (the arrows, the keymap's keys, and the
+keys an editor reads itself), so with an editor focused in Ableton Live or Bitwig, T plays a note and
+Space starts the transport while the language's keys stay; a text field keeps every key. A key an
+editor reads past the keymap (`consume_key` on F1, Home, End) goes in `takes_key`'s `OWN_KEYS`, or
+the host acts on it too. The forks' `PATCHES.md` have the mechanism (nice-plug-egui's *Host keys*). A
 plugin's own key tests press jobs, not keys: `keyboard_checks::key_of(VALUE)` (and `COARSE`,
 `MICRO`, `VIEW`, `OUT`) is the key the default keymap gives the job, so a remap of the default keymap
 changes no plugin's test (the owner, 2026-10-08). `mxm_ui::navigation::running` keeps a *surface* without a cursor — the developer
