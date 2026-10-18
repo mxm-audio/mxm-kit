@@ -16,3 +16,5 @@ anyhow = "=1.0.104"
 cargo_metadata = "=0.23.1"
 # The control-map standard, which a staged map is checked against (`control_maps`).
 mxm-control-map.workspace = true
+# A VST3's `moduleinfo.json`, from its factory as the SDK's own tool reads it (`module_info`).
+mxm-vst3-host.workspace = true

@@ -26,7 +26,12 @@ CLAP to VST3, is the table in `src/lib.rs`.
   the host application, messages, attribute lists, memory streams.
 - `gui.rs`: CLAP `gui` on `IPlugView`, embedded or floating; `window.rs` (+ `window_macos.rs`,
   `window_x11.rs`): a floating editor's window; `run_loop.rs`: Linux's `IRunLoop`.
-- `examples/vst3_probe.rs` and `examples/vst3_editor.rs`: checks against installed plugins.
+- `module_info.rs`: a bundle's `moduleinfo.json`, the factory's own answers in the keys and order
+  of the SDK's `moduleinfotool`, for mxm-xtask's bundle.
+- `examples/vst3_probe.rs` and `examples/vst3_editor.rs`: checks against installed plugins. The
+  probe lists the parameters a host shows and counts the hidden ones, asking them for no text:
+  nice-plug's VST3 gives none to its 2080 hidden MIDI parameters, and clack logs each refusal as an
+  error.
 
 # Local Contracts
 
@@ -35,6 +40,8 @@ CLAP to VST3, is the table in `src/lib.rs`.
   first thing in `main`; a program that does not (a test binary) is noticed by the missing header
   and loads the module in-process. Falcon, installed but not logged in, hung its load for 27 s to
   minutes behind a login window (2026-10-09): one such plugin must never stall a host's scan.
+- **`module_info` is for build tools, never a host**: it loads the module in the calling process,
+  which a host's scan never does. Its class IDs are `class_id_text`'s, the SDK's `UID::toString`.
 - **Why an entry failed is `load_error(bundle)`**, kept from the scan; clack's entry error carries
   no reason, and asking the module again would load it.
 - **A plugin id is `vst3:` and the class ID** as the SDK prints it, the same on every platform

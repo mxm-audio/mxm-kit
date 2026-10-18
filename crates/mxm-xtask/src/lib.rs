@@ -1,8 +1,9 @@
 //! The build tooling every MXM repository's `cargo xtask` shares: a thin wrapper over
 //! `nice_plug_xtask`, which produces the loadable `.clap`, followed by staging each plugin's control
 //! map beside its bundle — an instrument owns its mapping, so the two must ship together. See
-//! [`control_maps`]. Then each plugin bundled is installed, CLAP and VST3, in the standard plugin
-//! folders, so the hosts load the last one built. See [`install`].
+//! [`control_maps`]. Each VST3 gets its `moduleinfo.json` ([`module_info`]). Then each plugin
+//! bundled is installed, CLAP and VST3, in the standard plugin folders, so the hosts load the last
+//! one built. See [`install`].
 //!
 //! `cargo xtask fetch` builds the plugins of other MXM repositories that this repository's tests
 //! load, at the tags `test-bundles.txt` pins. See [`fetch`].
@@ -13,6 +14,7 @@
 pub mod control_maps;
 pub mod fetch;
 pub mod install;
+pub mod module_info;
 
 use std::path::Path;
 
@@ -47,6 +49,13 @@ pub fn main(workspace_root: &Path) -> nice_plug_xtask::Result<()> {
     nice_plug_xtask::main()?;
 
     if let Some(packages) = bundling {
+        // Before the install, which copies each bundle as it stands.
+        if let (Ok(bundled), Ok(bundles)) = (
+            bundled_folder(workspace_root),
+            control_maps::bundles(workspace_root),
+        ) {
+            module_info::write(&bundles, &packages, &bundled);
+        }
         let staged = match control_maps::stage(workspace_root) {
             Ok(staged) => {
                 for path in &staged {

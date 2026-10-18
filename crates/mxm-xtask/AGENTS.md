@@ -4,8 +4,9 @@
 
 The build tooling every MXM repository's `cargo xtask` shares: `main` runs `nice_plug_xtask`, which
 produces the loadable `.clap` (and the `.vst3` of a plugin that exports one), and after a `bundle`
-stages each plugin's control map beside its bundle (`control_maps`) and installs the CLAP, its map
-and the VST3 in the standard plugin folders (`install`). `cargo xtask
+writes each VST3's `moduleinfo.json` (`module_info`), stages each plugin's control map beside its
+bundle (`control_maps`) and installs the CLAP, its map and the VST3 in the standard plugin folders
+(`install`). `cargo xtask
 fetch` builds the plugins of *other* MXM repositories that this repository's tests load, at the tags
 its `test-bundles.txt` pins (`fetch`). A repository's own `xtask` passes its workspace root and adds
 only the commands that repository alone needs.
@@ -16,7 +17,8 @@ one copy of the tooling is what keeps them bundling the same way.
 
 # Ownership
 
-Owns `Cargo.toml` and `src/{lib.rs, control_maps.rs, fetch.rs, install.rs, install/tests.rs}`.
+Owns `Cargo.toml` and
+`src/{lib.rs, control_maps.rs, fetch.rs, install.rs, install/tests.rs, module_info.rs}`.
 Reads the caller's `bundler.toml` for display names, `plugins/<crate>/control-map.json` for the maps
 and `test-bundles.txt` for the plugins to fetch; all three belong to the repository being built.
 
@@ -71,6 +73,13 @@ and `test-bundles.txt` for the plugins to fetch; all three belong to the reposit
     newDAWn doesn't scan at all.
   - The tests install into temporary folders, never the real ones; the held cases load a copy of
     a system library with `LoadLibraryW`, as a host loads a plugin.
+- **Each VST3 carries its `moduleinfo.json`** (`Contents/Resources/`), which nice-plug's bundler
+  doesn't make: after the build, before the install copies the bundle, `module_info::write` loads
+  the module just built through `mxm_vst3_host::module_info` and writes what its factory says, as
+  the SDK's own build does with `moduleinfotool`. In CI and under `ws install` too, since it is part
+  of the bundle, not of installing. Never fatal: a VST3 without the file is listed by loading it,
+  and one that can't be made (a module built for another architecture) has any file there removed,
+  since a file that isn't this build's is worse than none.
 - **A map that does not hold to the standard fails the bundle**, before anything is built
   (`control_maps::check`, the check a host makes on loading it). That is what keeps a broken map from
   shipping now that no collection-wide test reads every product's map; it replaced MXM Player's
@@ -105,7 +114,8 @@ name; no change here is required for it, and its `control-map.json` is picked up
 
 ```bash
 cargo xtask bundle mxm-mono-00 --release    # -> target/bundled/mxm-mono-00.clap, its
-                                            #    control map and .vst3, all installed
+                                            #    control map and .vst3 (with its
+                                            #    moduleinfo.json), all installed
 cargo xtask fetch                           # every line of test-bundles.txt, built and placed
 cargo test -p mxm-xtask                     # test-bundles.txt parsing, installing
 cargo clippy -p mxm-xtask --all-targets

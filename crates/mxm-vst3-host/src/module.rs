@@ -47,9 +47,35 @@ impl ClassInfo {
     }
 }
 
+/// What a factory says about itself (`PFactoryInfo`).
+pub(crate) struct FactoryRecord {
+    pub vendor: String,
+    pub url: String,
+    pub email: String,
+    /// `PFactoryInfo::FactoryFlags`.
+    pub flags: i32,
+}
+
+/// Everything a factory says about one class, of any category: what `moduleinfo.json` records.
+pub(crate) struct ClassRecord {
+    pub cid: TUID,
+    pub category: String,
+    pub cardinality: i32,
+    pub name: String,
+    pub flags: u32,
+    /// `|`-separated, as [`ClassInfo::sub_categories`].
+    pub sub_categories: String,
+    pub vendor: String,
+    pub version: String,
+    pub sdk_version: String,
+}
+
 /// A loaded module. Shared by every entry and plugin that uses it; released with the last.
 pub(crate) struct Module {
-    pub vendor: String,
+    pub about: FactoryRecord,
+    /// Every class the factory lists, in its order.
+    pub records: Vec<ClassRecord>,
+    /// Its audio classes, the plugins it offers.
     pub classes: Vec<ClassInfo>,
     factory: Option<ComPtr<IPluginFactory>>,
     host_context_set: AtomicBool,
@@ -103,16 +129,38 @@ impl Module {
         // SAFETY: a zeroed `PFactoryInfo` is a valid out-parameter (plain arrays and an integer).
         let mut info: PFactoryInfo = unsafe { std::mem::zeroed() };
         // SAFETY: `factory` is a live factory and `info` a valid out-parameter.
-        let vendor = if unsafe { factory.getFactoryInfo(&mut info) } == kResultOk {
-            from_char8(&info.vendor)
+        let about = if unsafe { factory.getFactoryInfo(&mut info) } == kResultOk {
+            FactoryRecord {
+                vendor: from_char8(&info.vendor),
+                url: from_char8(&info.url),
+                email: from_char8(&info.email),
+                flags: info.flags,
+            }
         } else {
-            String::new()
+            FactoryRecord {
+                vendor: String::new(),
+                url: String::new(),
+                email: String::new(),
+                flags: 0,
+            }
         };
         // SAFETY: as above.
-        let classes = unsafe { read_classes(&factory) };
+        let records = unsafe { read_classes(&factory) };
+        let classes = records
+            .iter()
+            .filter(|record| record.category == AUDIO_MODULE_CLASS)
+            .map(|record| ClassInfo {
+                cid: record.cid,
+                name: record.name.clone(),
+                vendor: record.vendor.clone(),
+                version: record.version.clone(),
+                sub_categories: record.sub_categories.clone(),
+            })
+            .collect();
 
         Ok(Module {
-            vendor,
+            about,
+            records,
             classes,
             factory: Some(factory),
             host_context_set: AtomicBool::new(false),
@@ -167,12 +215,12 @@ impl Drop for Module {
     }
 }
 
-/// The module's audio classes, read through the newest factory interface it offers, so names come
-/// in Unicode where it can.
-unsafe fn read_classes(factory: &ComPtr<IPluginFactory>) -> Vec<ClassInfo> {
+/// Every class the factory lists, read through the newest factory interface it offers, so names
+/// come in Unicode where it can.
+unsafe fn read_classes(factory: &ComPtr<IPluginFactory>) -> Vec<ClassRecord> {
     let factory3 = factory.cast::<IPluginFactory3>();
     let factory2 = factory.cast::<IPluginFactory2>();
-    let mut classes = Vec::new();
+    let mut records = Vec::new();
     // SAFETY: `factory` is live.
     for index in 0..unsafe { factory.countClasses() } {
         // SAFETY (each read below): a zeroed info struct is a valid out-parameter, and `index` is
@@ -180,16 +228,17 @@ unsafe fn read_classes(factory: &ComPtr<IPluginFactory>) -> Vec<ClassInfo> {
         let read = if let Some(factory3) = &factory3 {
             let mut info: PClassInfoW = unsafe { std::mem::zeroed() };
             (unsafe { factory3.getClassInfoUnicode(index, &mut info) } == kResultOk).then(|| {
-                (
-                    from_char8(&info.category),
-                    ClassInfo {
-                        cid: info.cid,
-                        name: from_utf16(&info.name),
-                        vendor: from_utf16(&info.vendor),
-                        version: from_utf16(&info.version),
-                        sub_categories: from_char8(&info.subCategories),
-                    },
-                )
+                ClassRecord {
+                    cid: info.cid,
+                    category: from_char8(&info.category),
+                    cardinality: info.cardinality,
+                    name: from_utf16(&info.name),
+                    flags: info.classFlags,
+                    sub_categories: from_char8(&info.subCategories),
+                    vendor: from_utf16(&info.vendor),
+                    version: from_utf16(&info.version),
+                    sdk_version: from_utf16(&info.sdkVersion),
+                }
             })
         } else {
             None
@@ -198,40 +247,36 @@ unsafe fn read_classes(factory: &ComPtr<IPluginFactory>) -> Vec<ClassInfo> {
             let factory2 = factory2.as_ref()?;
             let mut info: PClassInfo2 = unsafe { std::mem::zeroed() };
             (unsafe { factory2.getClassInfo2(index, &mut info) } == kResultOk).then(|| {
-                (
-                    from_char8(&info.category),
-                    ClassInfo {
-                        cid: info.cid,
-                        name: from_char8(&info.name),
-                        vendor: from_char8(&info.vendor),
-                        version: from_char8(&info.version),
-                        sub_categories: from_char8(&info.subCategories),
-                    },
-                )
+                ClassRecord {
+                    cid: info.cid,
+                    category: from_char8(&info.category),
+                    cardinality: info.cardinality,
+                    name: from_char8(&info.name),
+                    flags: info.classFlags,
+                    sub_categories: from_char8(&info.subCategories),
+                    vendor: from_char8(&info.vendor),
+                    version: from_char8(&info.version),
+                    sdk_version: from_char8(&info.sdkVersion),
+                }
             })
         });
         let read = read.or_else(|| {
             let mut info: PClassInfo = unsafe { std::mem::zeroed() };
-            (unsafe { factory.getClassInfo(index, &mut info) } == kResultOk).then(|| {
-                (
-                    from_char8(&info.category),
-                    ClassInfo {
-                        cid: info.cid,
-                        name: from_char8(&info.name),
-                        vendor: String::new(),
-                        version: String::new(),
-                        sub_categories: String::new(),
-                    },
-                )
+            (unsafe { factory.getClassInfo(index, &mut info) } == kResultOk).then(|| ClassRecord {
+                cid: info.cid,
+                category: from_char8(&info.category),
+                cardinality: info.cardinality,
+                name: from_char8(&info.name),
+                flags: 0,
+                sub_categories: String::new(),
+                vendor: String::new(),
+                version: String::new(),
+                sdk_version: String::new(),
             })
         });
-        if let Some((category, class)) = read
-            && category == AUDIO_MODULE_CLASS
-        {
-            classes.push(class);
-        }
+        records.extend(read);
     }
-    classes
+    records
 }
 
 /// The library inside a bundle folder: `Contents/<architecture>/<bundle name>`, or failing that

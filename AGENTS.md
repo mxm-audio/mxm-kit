@@ -73,8 +73,8 @@ The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.
   `mxm-tools` — are **not shared DSP and not an exception**: no shipped DSP moves in and none
   appears in a shipped graph (`crates/mxm-measure/AGENTS.md`'s Verification); how the three split
   the job is in NOTES.
-- `crates/mxm-xtask` is **the build tooling every repository's `xtask` shares** — bundling,
-  control-map staging, installing each bundle, CLAP and VST3, in the standard plugin folders
+- `crates/mxm-xtask` is **the build tooling every repository's `xtask` shares** — bundling, each
+  VST3's `moduleinfo.json`, control-map staging, installing each bundle, CLAP and VST3, in the standard plugin folders
   (2026-10-13, 2026-10-16) and `fetch`;
   mxm-player's root `xtask` adds only `fixtures`.
 - `crates/mxm-plugin-test` is **the checks every plugin's tests share** — neither shared DSP nor
@@ -228,7 +228,7 @@ their own shipped packages.
 | [`crates/mxm-measure/AGENTS.md`](crates/mxm-measure/AGENTS.md) | The measurement rulers every test and harness shares: a named computation and never a verdict, the dev-dependency-only rule and its check, the result forms, the extraction gate (its **declined register** in that folder's `NOTES.md`), and the closed-form controls that keep a shared ruler honest |
 | [`crates/mxm-control-map/AGENTS.md`](crates/mxm-control-map/AGENTS.md) | The control-map standard (`control-map.json`) and its schema — layout, instrument maps, parsing, validation and the parameter id hash — read by MXM Player and the plugins' tests |
 | [`crates/mxm-plugin-test/AGENTS.md`](crates/mxm-plugin-test/AGENTS.md) | The checks every plugin's tests share — keyboard coverage, paging, the opening size, layout-tree cards, route parameters, time readings, the bundle's name in `bundler.toml`, the words a player reads (with their word lists) and the VST3 identity held to the CLAP one — one copy for all, dev-dependency only |
-| [`crates/mxm-xtask/AGENTS.md`](crates/mxm-xtask/AGENTS.md) | The build tooling every repository's `xtask` shares: bundling through `nice_plug_xtask`, control-map staging, installing every bundle, CLAP and VST3, in the standard plugin folders, and the outermost-workspace trap |
+| [`crates/mxm-xtask/AGENTS.md`](crates/mxm-xtask/AGENTS.md) | The build tooling every repository's `xtask` shares: bundling through `nice_plug_xtask`, each VST3's `moduleinfo.json`, control-map staging, installing every bundle, CLAP and VST3, in the standard plugin folders, and the outermost-workspace trap |
 | [`crates/mxm-audio-file/AGENTS.md`](crates/mxm-audio-file/AGENTS.md) | Writing WAV, AIFF and FLAC through established encoders: the formats and their limits, no MPL code, quantisation as a published definition equal to `mxm-measure`'s at 16 bits, refusal of non-finite samples, reported clipping, atomic writes, the 32-bit WAV size bound, the `acid` exception, and the flacenc STREAMINFO correction |
 | [`crates/mxm-audio-file-decode/AGENTS.md`](crates/mxm-audio-file-decode/AGENTS.md) | Reading audio through symphonia (MPL-2.0): the formats it reads, a second crate rather than a feature, the compiled-in notice, Great-or-Excellent components only, what is bounded and what is not, what is refused and how skipped audio is found, per-file gapless reporting, and fixtures that are our own work |
 | [`crates/ui/AGENTS.md`](crates/ui/AGENTS.md) | The shared interface foundation and its design-system contract |
@@ -240,5 +240,5 @@ their own shipped packages.
 | [`crates/mxm-fft/AGENTS.md`](crates/mxm-fft/AGENTS.md) | The one FFT: its conventions, planning ahead and allocation-free execution, the scoped hardware flush of subnormals, determinism, and the finding that planning cannot fail cleanly |
 | [`crates/mxm-rng/AGENTS.md`](crates/mxm-rng/AGENTS.md) | The five pseudo-random generators: bit-exact for ever, seeding and mappings left to the consumer, the zero-seed rule, the exact laws and the two kept inexact ones |
 | [`crates/mxm-dsp/AGENTS.md`](crates/mxm-dsp/AGENTS.md) | The shared DSP primitives: the byte-identical gate, bit-exact for ever, and which differing copies stay with their instruments |
-| [`crates/mxm-vst3-host/AGENTS.md`](crates/mxm-vst3-host/AGENTS.md) | VST3 plugins in a CLAP host: a module as an in-process CLAP entry, the CLAP-to-VST3 mapping, threads and the fixed-size block lists, embedded and floating editors, Linux's run loop, and the checks against installed plugins |
+| [`crates/mxm-vst3-host/AGENTS.md`](crates/mxm-vst3-host/AGENTS.md) | VST3 plugins in a CLAP host: a module as an in-process CLAP entry, the CLAP-to-VST3 mapping, threads and the fixed-size block lists, embedded and floating editors, Linux's run loop, a bundle's `moduleinfo.json`, and the checks against installed plugins |
 | [`docs/AGENTS.md`](docs/AGENTS.md) | The normative design system and control map, the plugin conventions, the measured `mxm-measure` page, and the filter, oscillator and modulation theory |

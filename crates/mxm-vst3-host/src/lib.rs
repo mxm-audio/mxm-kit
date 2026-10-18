@@ -46,6 +46,12 @@
 //! A module is loaded once per process however many entries and plugins use it, and released
 //! when the last goes. On Linux its library is never unmapped, as for every plugin library in
 //! the collection's hosts (`RTLD_NODELETE`).
+//!
+//! # A bundle's `moduleinfo.json`
+//!
+//! [`module_info`] writes what a module's factory says about itself as the SDK's `moduleinfotool`
+//! does, for a build to put in the bundle at [`MODULE_INFO_PATH`]. It loads the module in the
+//! calling process, so it is for build tools (mxm-xtask's bundle), never a host's scan.
 
 // The VST3 headers' enumerations are `int` on Windows and `unsigned int` elsewhere, so a cast that
 // is a no-op on one platform is needed on the other.
@@ -58,6 +64,7 @@ mod gui;
 mod handler;
 mod host_objects;
 mod module;
+mod module_info;
 mod params;
 mod plugin;
 #[cfg(target_os = "linux")]
@@ -67,6 +74,7 @@ mod strings;
 mod window;
 
 pub use entry::Vst3Entry;
+pub use module_info::{MODULE_INFO_PATH, module_info};
 pub use scan::{PROBE_ARG, PROBE_TIMEOUT, serve_probe};
 
 use std::path::{Path, PathBuf};

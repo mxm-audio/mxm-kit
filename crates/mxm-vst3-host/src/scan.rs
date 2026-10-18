@@ -48,7 +48,7 @@ pub fn serve_probe() {
     // SAFETY: this process exists to load the module.
     match unsafe { Module::load(Path::new(&bundle)) } {
         Ok(module) => {
-            println!("vendor\t{}", clean(&module.vendor));
+            println!("vendor\t{}", clean(&module.about.vendor));
             for class in &module.classes {
                 let cid: String = class
                     .cid

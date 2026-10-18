@@ -8,7 +8,7 @@
 
 use clack_extensions::audio_ports::{AudioPortInfoBuffer, PluginAudioPorts};
 use clack_extensions::latency::PluginLatency;
-use clack_extensions::params::{ParamInfoBuffer, PluginParams};
+use clack_extensions::params::{ParamInfoBuffer, ParamInfoFlags, PluginParams};
 use clack_extensions::state::PluginState;
 use clack_extensions::tail::PluginTail;
 use clack_host::events::Match;
@@ -125,32 +125,44 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let params: Option<PluginParams> = instance.plugin_shared_handle().get_extension();
-    let read_params = |instance: &mut PluginInstance<Probe>| -> Vec<(u32, String, f64, String)> {
-        let Some(params) = params else {
-            return Vec::new();
-        };
-        let mut handle = instance.plugin_handle();
-        let mut info_buffer = ParamInfoBuffer::new();
-        let mut text_buffer = [0u8; 256];
-        let mut found = Vec::new();
-        for index in 0..params.count(&mut handle) {
-            let Some(info) = params.get_info(&mut handle, index, &mut info_buffer) else {
-                continue;
+    // A hidden parameter is read for its value but never listed, nor asked for its text: hosts show
+    // none, nice-plug's VST3 gives none to its 2080 hidden MIDI parameters, and clack logs every
+    // refusal as an error.
+    let read_params =
+        |instance: &mut PluginInstance<Probe>| -> Vec<(u32, String, f64, Option<String>)> {
+            let Some(params) = params else {
+                return Vec::new();
             };
-            let (id, name) = (info.id, String::from_utf8_lossy(info.name).into_owned());
-            let value = params.get_value(&mut handle, id).unwrap_or(f64::NAN);
-            let text = params
-                .value_to_text(&mut handle, id, value, &mut text_buffer)
-                .map(|text| String::from_utf8_lossy(text).into_owned())
-                .unwrap_or_default();
-            found.push((id.get(), name, value, text));
-        }
-        found
-    };
+            let mut handle = instance.plugin_handle();
+            let mut info_buffer = ParamInfoBuffer::new();
+            let mut text_buffer = [0u8; 256];
+            let mut found = Vec::new();
+            for index in 0..params.count(&mut handle) {
+                let Some(info) = params.get_info(&mut handle, index, &mut info_buffer) else {
+                    continue;
+                };
+                let (id, name) = (info.id, String::from_utf8_lossy(info.name).into_owned());
+                let value = params.get_value(&mut handle, id).unwrap_or(f64::NAN);
+                let text = (!info.flags.contains(ParamInfoFlags::IS_HIDDEN)).then(|| {
+                    params
+                        .value_to_text(&mut handle, id, value, &mut text_buffer)
+                        .map(|text| String::from_utf8_lossy(text).into_owned())
+                        .unwrap_or_default()
+                });
+                found.push((id.get(), name, value, text));
+            }
+            found
+        };
     let before = read_params(&mut instance);
-    println!("{} parameters:", before.len());
+    let hidden = before.iter().filter(|param| param.3.is_none()).count();
+    println!(
+        "{} parameters, and {hidden} hidden ones not listed:",
+        before.len() - hidden
+    );
     for (id, name, value, text) in &before {
-        println!("  {id:>10}  {name:<28} {value:>10.4}  {text}");
+        if let Some(text) = text {
+            println!("  {id:>10}  {name:<28} {value:>10.4}  {text}");
+        }
     }
 
     if let Some(latency) = instance
@@ -298,7 +310,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .filter(|(a, b)| a.2 != b.2 && !(a.2.is_nan() && b.2.is_nan()))
             .count();
         println!(
-            "state: {} bytes; after saving and loading it, {changed} parameters differ from before the run",
+            "state: {} bytes; after saving and loading it, {changed} parameters, hidden ones included, differ from before the run",
             saved.len()
         );
     }

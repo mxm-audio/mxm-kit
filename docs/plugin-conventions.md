@@ -437,7 +437,10 @@ Every plugin implements `Plugin`, `ClapPlugin` and `Vst3Plugin` and ends with `n
 CLAP reaches Bitwig, REAPER, FL Studio, Studio One and newDAWn; VST3 adds Ableton Live, Cubase and
 nearly every other host, on all three systems.
 
-The VST3 is nice-plug's own wrapper, so it is four things in each plugin, and no tooling:
+The VST3 is nice-plug's own wrapper, so it is four things in each plugin, and one step of the
+bundle's: mxm-xtask writes each `.vst3`'s `moduleinfo.json`, which hosts since VST 3.7.5 read to
+list a plugin without loading it, from the module's factory as Steinberg's `moduleinfotool` does
+(2026-10-18). The four:
 
 - `nice-plug = { workspace = true, features = ["vst3"] }` in the plugin's `Cargo.toml`. The bundler
   then makes `<name>.vst3` beside `<name>.clap`, because the library exports `GetPluginFactory`.

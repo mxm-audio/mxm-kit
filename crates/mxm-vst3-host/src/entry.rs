@@ -39,7 +39,7 @@ pub(crate) fn read_classes(bundle: &Path) -> Result<(ModuleClasses, Option<Arc<M
             // SAFETY: loading a plugin is what the host asked for.
             let module = unsafe { Module::load(bundle) }?;
             let classes = ModuleClasses {
-                vendor: module.vendor.clone(),
+                vendor: module.about.vendor.clone(),
                 classes: module.classes.clone(),
             };
             Ok((classes, Some(module)))
