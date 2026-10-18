@@ -463,6 +463,21 @@ those besides its own. **The control map is the CLAP's alone**: MXM Player finds
 bundle it loaded and keys it by the CLAP id, so a host that wants MXM's roles loads the CLAP.
 Bitwig never lists a plugin's VST3 while it knows its CLAP.
 
+**"VST" is Steinberg's trademark, and a text that uses it keeps Steinberg's usage guidelines**
+(`VST3_Usage_Guidelines.pdf` in the SDK, for 3.8 and later; read 2026-10-18). Under the SDK's MIT
+licence no agreement or registration is needed. The text is done now; the logo comes with a
+release (the owner, 2026-10-18):
+- **The first "VST" in a document carries ®** (each product's README: "CLAP and VST®3"), and the
+  document says "VST is a registered trademark of Steinberg Media Technologies GmbH." (its
+  *Licence* section).
+- **`NOTICE.md` carries Steinberg's MIT notice** for the `vst3` crate's bindings, generated from
+  SDK 3.8.0 ("Copyright (c) 2025, Steinberg Media Technologies GmbH", with its permission text),
+  and the trademark line.
+- **Before a release**: the VST Compatible logo, unaltered from the SDK's `artwork/`, on every web
+  page that shows "VST" and in the documentation, and in the About box where there is room (the
+  trademark line where there isn't).
+- **Never**: "VST" in a product, company or logo name, a stylised "VST", or "VSTi".
+
 ## Parameters
 
 One `#[derive(Params)]` struct behind `Arc<…>`.

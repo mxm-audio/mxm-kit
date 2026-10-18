@@ -1,7 +1,7 @@
 # mxm-kit
 
 The libraries every [MXM](https://mxm.dk) instrument and effect is built on, published under the
-MIT licence so anyone can build instruments (CLAP and VST3) that look, feel and work the same — keyboard-first,
+MIT licence so anyone can build instruments (CLAP and VST®3) that look, feel and work the same — keyboard-first,
 resizable, one design system — and that work fully in newDAWn.
 
 | Crate | What it is |
@@ -64,7 +64,8 @@ cargo test --workspace
 
 MIT — see [`LICENSE`](LICENSE). `mxm-audio-file-decode` links symphonia (MPL-2.0, notice compiled
 in); `mxm-ui` embeds the Inter fonts (SIL Open Font License). The MXM name is not covered by the
-licence; the products' `TRADEMARKS.md` says how it may be used.
+licence; the products' `TRADEMARKS.md` says how it may be used. VST is a registered trademark of
+Steinberg Media Technologies GmbH.
 
 Contributions are welcome; see [`CONTRIBUTING.md`](CONTRIBUTING.md). How the repository is organised,
 and the rules each crate keeps, are in [`AGENTS.md`](AGENTS.md).
