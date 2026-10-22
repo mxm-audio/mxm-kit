@@ -136,7 +136,8 @@ Does **not** own labels, parameter bindings, or data. Plugins and the player sup
   walks with egui's focus (↑ ↓, Enter), a row taking it as the menu opens (a control's *Type a
   value*, the EQ's band menu), and `navigation::run` closes it on MENU unless a text field has
   the keyboard. A menu counts as open once egui has shown it, not in the pass that sizes it,
-  unseen and over what it was opened from. A
+  unseen and over what it was opened from; **its items are the widgets drawn in its layer**,
+  never those it lies over. A
   request lasts the pass it was made in and the next, so a widget that draws a menu only later never
   opens one unasked.
 - **The cursor reads the keyboard language** (`navigation/language.rs`, design system §11; piloted on

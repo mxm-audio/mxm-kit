@@ -828,7 +828,11 @@ actions it takes. The arrows go to the nearest widget that way (one overlapping 
 the way counts as in line, however wide), OPEN asks for `Click` (or `Focus`, from the next frame's
 input, for a text field), VALUE asks for `Increment`/`Decrement`, ten for COARSE, unless the widget
 reads its own steps with `reach::edit`. A host names its views with any key and gives each the
-`Ui::unique_id` its widgets are drawn in; an open popup takes the keys first. egui closes a popup only
+`Ui::unique_id` its widgets are drawn in; an open popup takes the keys first, **its items the
+widgets drawn in its layer** (an `Area`'s `Ui` has the layer's id), never those under it on
+screen: chosen by its rectangle, the rows newDAWn's tracks-list menu lay over were items too, and
+the first took OPEN in *Drum track*'s place (2026-10-22,
+`a_menus_items_are_its_own_never_the_rows_it_lies_over`). egui closes a popup only
 on a pointer click, so a press in a menu closes it unless another menu opened on top. Labels,
 containers, scroll bars and unlabelled painted areas (canvases with cursors of their own) are left
 out, but for a label or a disabled widget with a tip.

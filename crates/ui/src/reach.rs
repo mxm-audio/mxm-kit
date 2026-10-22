@@ -54,7 +54,8 @@ pub struct Widget {
 pub enum Region {
     /// The widgets drawn inside the `Ui` with this `Ui::unique_id`: a view, or a bar.
     Inside(Id),
-    /// The menu or list open on top, where it is on screen.
+    /// The menu or list open on top, where it is on screen. Its items are the widgets drawn in
+    /// it, never those it lies over.
     Menu(Rect),
 }
 
@@ -559,16 +560,22 @@ impl<K: Copy + Eq + Hash> State<K> {
         ctx.data_mut(|data| data.remove::<Pending>(Id::new(PENDING)));
     }
 
-    /// The widgets in a region, from the last frame.
+    /// The widgets in a region, from the last frame. A menu's are those drawn in its layer, whose
+    /// `Ui` has the layer's id: the rows it was opened over lie under it on screen, and were
+    /// pressed in its place (newDAWn's tracks list, 2026-10-22).
     fn widgets(ctx: &Context, region: Region) -> Vec<Widget> {
+        let ui = match region {
+            Region::Inside(ui) => ui,
+            Region::Menu(_) => match menu_layer(ctx) {
+                Some(layer) => layer.id,
+                None => return Vec::new(),
+            },
+        };
         let seen = ctx.plugin::<Seen>();
         let seen = seen.lock();
         seen.widgets
             .iter()
-            .filter(|widget| match region {
-                Region::Inside(ui) => inside(&seen.parents, widget.id, ui.accesskit_id()),
-                Region::Menu(rect) => rect.contains(widget.rect.center()),
-            })
+            .filter(|widget| inside(&seen.parents, widget.id, ui.accesskit_id()))
             .cloned()
             .collect()
     }
@@ -1062,6 +1069,85 @@ Hat: crashed"
         state.borrow_mut().put(0, region, play);
         harness.run_steps(1);
         assert_eq!(state.borrow().tip(), None);
+    }
+
+    /// A menu's items are the widgets drawn in it, never the rows it lies over: the cursor starts
+    /// on its first item, and OPEN presses that, not the row under it (newDAWn's tracks list,
+    /// 2026-10-22, where OPEN went to the row beneath the menu).
+    #[test]
+    fn a_menus_items_are_its_own_never_the_rows_it_lies_over() {
+        use std::cell::{Cell, RefCell};
+        use std::rc::Rc;
+        let state = Rc::new(RefCell::new(State::<u8>::default()));
+        let (open_it, press, chosen, rows) = (
+            Rc::new(Cell::new(true)),
+            Rc::new(Cell::new(false)),
+            Rc::new(RefCell::new(Vec::<&str>::new())),
+            Rc::new(RefCell::new(Vec::<Rect>::new())),
+        );
+        let (state_, open_, press_, chosen_, rows_) = (
+            state.clone(),
+            open_it.clone(),
+            press.clone(),
+            chosen.clone(),
+            rows.clone(),
+        );
+        let mut harness = egui_kittest::Harness::builder()
+            .with_size(egui::vec2(300.0, 200.0))
+            .build_ui(move |ui| {
+                let mut state = state_.borrow_mut();
+                state.begin(ui.ctx());
+                if press_.replace(false)
+                    && let Some(rect) = state.menu()
+                {
+                    assert!(state.key(0, Region::Menu(rect), Output::Action(KeyAction::Open)));
+                }
+                rows_.borrow_mut().clear();
+                let mut kick = None;
+                for name in ["Kick", "Snare", "Hat"] {
+                    let row = ui.add_sized([60.0, 20.0], egui::Button::new(name));
+                    if row.clicked() {
+                        chosen_.borrow_mut().push(name);
+                    }
+                    rows_.borrow_mut().push(row.rect);
+                    kick.get_or_insert(row);
+                }
+                let kick = kick.unwrap();
+                let keys = open_.replace(false).then_some(kick.rect);
+                context_menu(&kick, keys, |ui| {
+                    if ui.button("Drum track").clicked() {
+                        chosen_.borrow_mut().push("Drum track");
+                    }
+                    let _ = ui.button("Rename");
+                });
+                state.show(0, Some(Region::Inside(ui.unique_id())));
+            });
+        harness.run_steps(4);
+        let menu = state
+            .borrow()
+            .menu()
+            .expect("the premise: the menu is open");
+        assert!(
+            menu.contains(rows.borrow()[1].center()),
+            "the premise: the menu lies over the snare's row"
+        );
+        let mut labels: Vec<String> = State::<u8>::widgets(&harness.ctx, Region::Menu(menu))
+            .into_iter()
+            .map(|widget| widget.label)
+            .collect();
+        labels.sort();
+        assert_eq!(labels, ["Drum track", "Rename"]);
+        assert_eq!(
+            state
+                .borrow()
+                .now
+                .as_ref()
+                .map(|(widget, in_menu)| (widget.label.as_str(), *in_menu)),
+            Some(("Drum track", true))
+        );
+        press.set(true);
+        harness.run_steps(2);
+        assert_eq!(*chosen.borrow(), ["Drum track"]);
     }
 
     /// MENU closes an open menu even when nothing in it can be chosen, as BACK does.
