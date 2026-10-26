@@ -35,7 +35,7 @@ fixes in its `PATCHES.md` — which every repository that builds a plugin patche
 ## The crates
 
 The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.md#the-crate-rules-in-full).
-**Twenty crate rules, deliberately different** — count the bullets before editing this number:
+**Twenty-one crate rules, deliberately different** — count the bullets before editing this number:
 
 - `crates/ui` is **shared from day one**: design system §13 exempts the shell, theme tokens,
   typography and basic parameter controls; anything *beyond* them waits for two instruments.
@@ -64,6 +64,10 @@ The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.
 - `crates/mxm-drum-engine` is **what the sixteen-slot drum engines share**, moved verbatim (the audit's
   O4): the kit LFO, the modulation and output frames, the trigger group, the seeds. An engine, a voice
   or anything one instrument alone uses stays with it. MSRV 1.87; its dependencies have none.
+- `crates/mxm-drum-shell` is **what the sixteen-slot drum plugins share on the plugin side**, moved
+  from their copies (2026-10-26): slot names, Resample's capture thread, handover and state machine,
+  the sample pack, and the editor's Resample, Export and name box. A capture, a frozen reader, a
+  parameter or an editor's layout stays with its instrument and enters through a trait. MSRV 1.95.
 - `crates/mxm-audio-file` and `crates/mxm-audio-file-decode` own bytes ↔ samples and nothing a
   consumer decides. **Two crates, not a feature**: the decoder holds MPL-2.0 symphonia, so an
   export-only consumer never carries it.
@@ -147,6 +151,7 @@ cargo +1.87.0 build -p <crate>          # and `test`, which is the harder floor
 | `crates/mxm-control-map` | **1.95** | Inherited, not lowered: serde alone would allow less, but every consumer (the player, the plugins' tests) is at the GUI floor and none needs lower |
 | `crates/mxm-keys` | **1.87** | Zero dependencies and no egui, so any editor or host can take it without inheriting the GUI floor. **Verified on 1.87**, library and tests |
 | `crates/mxm-part-routing` | **1.87** | Zero dependencies; framework-free part assignments, claimed-channel matching, fixed-capacity arbitration, owner matching and bounded destination transfer. **Verified on 1.87**, library and tests |
+| `crates/mxm-drum-shell` | **1.95** | nice-plug and egui: the plugin side of the drums, beside the 1.87 engine side. **Verified on 1.95**, library and tests |
 | `crates/mxm-drum-engine` | **1.87** | Its dependencies are the kit's dependency-free `mxm-dsp`, `mxm-modulation` and `mxm-rng`, so a drum DSP crate takes it without the GUI floor. **Verified on 1.87**, library and tests |
 | `crates/mxm-measure` | **1.87** | No dependency but `mxm-rng` (zero-dependency, 1.87), so every crate that measures sound can dev-depend on it without inheriting the GUI floor. **Verified on 1.87**, library and tests |
 | `crates/mxm-xtask` | **1.95** | Build tooling, inherited: it runs on the developer's toolchain, never in a plugin |
@@ -223,6 +228,7 @@ their own shipped packages.
 | [`crates/mxm-tempo/AGENTS.md`](crates/mxm-tempo/AGENTS.md) | Tempo sync: the one sixteen-step division ladder, a control's span and direction, position → division, the clamp-never-rescale reach law, and the tempo in force |
 | [`crates/mxm-keys/AGENTS.md`](crates/mxm-keys/AGENTS.md) | The shared keyboard language's engine: physical keys, the jobs, the plain-text keymap and its refusals, held and tapped gestures and their rules, and why no keymap can take a standard shortcut |
 | [`crates/mxm-part-routing/AGENTS.md`](crates/mxm-part-routing/AGENTS.md) | Shared part assignments, claimed-channel matching, fixed-capacity arbitration, note ownership across parts, CLAP-style note-owner matching and bounded destination transfer |
+| [`crates/mxm-drum-shell/AGENTS.md`](crates/mxm-drum-shell/AGENTS.md) | What the sixteen-slot drum plugins share on the plugin side: slot names and the host's note names, Resample's capture thread, bank and state machine, the sample pack, the signals, the editor's Resample, Export and name box; the three traits a plugin implements, and what stays with each |
 | [`crates/mxm-drum-engine/AGENTS.md`](crates/mxm-drum-engine/AGENTS.md) | What the sixteen-slot drum engines share: the kit LFO, the frames, the trigger group, the seeds; and what stays with each engine |
 | [`crates/mxm-modulation-params/AGENTS.md`](crates/mxm-modulation-params/AGENTS.md) | The routing's parameter and interface half: why it is a second crate rather than a feature, removal as one parameter write with the amount left alone, rows derived from values rather than editor state, and the source as a label because a row *is* its source |
 | [`crates/mxm-measure/AGENTS.md`](crates/mxm-measure/AGENTS.md) | The measurement rulers every test and harness shares: a named computation and never a verdict, the dev-dependency-only rule and its check, the result forms, the extraction gate (its **declined register** in that folder's `NOTES.md`), and the closed-form controls that keep a shared ruler honest |

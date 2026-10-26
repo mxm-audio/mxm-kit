@@ -1,0 +1,27 @@
+[package]
+name = "mxm-drum-shell"
+description = "What the collection's sixteen-slot drum plugins share on the plugin side: slot names, Resample and the sample pack"
+version.workspace = true
+edition.workspace = true
+# nice-plug and egui, so the GUI floor: the plugin side of the drums, as `mxm-drum-engine` is the
+# engine side at 1.87.
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+nice-plug.workspace = true
+egui.workspace = true
+mxm-ui.workspace = true
+mxm-params.workspace = true
+mxm-part-routing.workspace = true
+mxm-drum-engine.workspace = true
+# 24-bit WAV and atomic writes; symphonia lives in `mxm-audio-file-decode`, which this does not take.
+mxm-audio-file.workspace = true
+# The pack's folder pick, off the frame (`mxm_ui::offthread`), as the products' file picks.
+rfd = "=0.15.4"
+# The pack root, under the platform's local data directory.
+dirs = "=5.0.1"
+# The slot names' persistent field.
+serde_json = "=1.0.145"

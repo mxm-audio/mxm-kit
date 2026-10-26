@@ -294,6 +294,23 @@ the plugins keep the CLAP translation and its ranges, the priority order, the st
 which strike sounds, the chromatic offset and the response to a flood. The plan is
 `ops/plans/plan-drum-shared.md` in the workspace.
 
+**`crates/mxm-drum-shell`** (2026-10-26; the owner: "model drums and drum machine be refactored
+to share more code?", then "yes, commit it and start"). `mxm-model-drums` took the drum machine's
+slot names and Resample on 2026-10-26, and every fix to them that day went into both. Measured on
+the two plugins (`40d26c9` and `69b8207`), their names normalised: `slot_names.rs` 513 and 511 lines,
+28 differing; `capture_bank.rs` 316 and 313, 19; `capture_worker.rs` 729 and 642, 193 (model drums'
+library handover, the live controls' fields, the tests' kits); `pack.rs` 695 and 723, 230 (the
+one-shot render, the label, a manifest paragraph); the Resample and audition telemetry, the same;
+the editor's thirteen Export, Resample and name-box functions, 257 lines each, 10 differing (the
+parameter type); `service_captures` and `refresh_captures`, 12 differing. Each moved, its
+differences behind `DrumSlots`, `Capturer` and `OneShots`. The capture trait also carries what a
+plugin's engine and kit must do (install, frozen, a kit's engage and rate), because a plugin may
+not implement this crate's trait on its DSP crate's types. Not moved: the frozen readers, which
+differ (the drum machine reads its rate every frame, four readers, a cut hit ends; model drums
+fixes it at the strike, thirteen readers, a cut hit fades); a third consumer, mxm-sample-drums
+(in the workspace's `ops/notes/synths.md`, not started), is what would show a shared sample
+voice's shape. The plan is `ops/plans/plan-drum-shell.md` in the workspace.
+
 ## Why every MSRV floor is compiled against
 
 **Every floor in this table has been compiled against, and a floor that has not is a guess.** Cargo
