@@ -43,11 +43,13 @@ pub fn check(workspace_root: &Path) -> Result<()> {
     Ok(())
 }
 
-/// One folder: each `.json` a preset of one plugin, and the order naming only files there.
+/// One folder: each `.json` a preset of one plugin, and the order naming only its presets, by
+/// their file names: anything else is an order the plugin can't follow.
 pub fn check_folder(folder: &Path) -> Result<()> {
     let mut plugin: Option<String> = None;
-    for path in preset_files(folder)? {
-        let text = std::fs::read_to_string(&path)
+    let files = preset_files(folder)?;
+    for path in &files {
+        let text = std::fs::read_to_string(path)
             .with_context(|| format!("{} can't be read", path.display()))?;
         let preset: serde_json::Value = serde_json::from_str(&text)
             .with_context(|| format!("{} isn't JSON", path.display()))?;
@@ -77,10 +79,12 @@ pub fn check_folder(folder: &Path) -> Result<()> {
     if order.exists() {
         let text = std::fs::read_to_string(&order)
             .with_context(|| format!("{} can't be read", order.display()))?;
+        let names: Vec<&std::ffi::OsStr> =
+            files.iter().filter_map(|path| path.file_name()).collect();
         for line in text.lines().map(str::trim).filter(|line| !line.is_empty()) {
-            if !folder.join(line).is_file() {
+            if !names.contains(&std::ffi::OsStr::new(line)) {
                 return Err(anyhow!(
-                    "{} names {line}, which isn't there",
+                    "{} names {line}, which isn't one of the folder's presets",
                     order.display()
                 ));
             }
@@ -251,6 +255,13 @@ mod tests {
             check_folder(&folder).is_err(),
             "the order names a missing file"
         );
+        std::fs::write(folder.join("notes.txt"), "not a preset").unwrap();
+        std::fs::write(scratch.0.join("outside.json"), preset("dk.x", "Out")).unwrap();
+        for line in ["notes.txt", "../outside.json", "./a.json"] {
+            std::fs::write(folder.join(ORDER), format!("{line}\n")).unwrap();
+            assert!(check_folder(&folder).is_err(), "the order names {line}");
+        }
+        std::fs::remove_file(folder.join("notes.txt")).unwrap();
         std::fs::write(folder.join(ORDER), "a.json\n").unwrap();
 
         std::fs::write(folder.join("b.json"), preset("dk.y", "B")).unwrap();

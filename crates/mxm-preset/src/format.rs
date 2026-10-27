@@ -31,7 +31,8 @@ const COMMENT: &str = "`v` is the value and is authoritative. `text` is this plu
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Origin {
-    /// Compiled into the plugin. Cannot be written at any price.
+    /// Installed with the plugin, in its factory folder ([`crate::installed_factory_dir`]), and
+    /// trusted for being there. Cannot be written at any price.
     Factory,
     /// A file in the user's own presets directory — the bank called *My presets*.
     User,

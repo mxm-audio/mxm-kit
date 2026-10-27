@@ -316,8 +316,8 @@ impl Library {
             .then_some("this system has no config directory, so presets cannot be saved here")
     }
 
-    /// The directory a preset of `origin` lives in. `None` for the factory, which has no files, and
-    /// for a library with no root.
+    /// The directory a preset of `origin` lives in. `None` for the factory, whose folder is the
+    /// install's and is never written, and for a library with no root.
     pub fn dir_for(&self, origin: &Origin) -> Option<PathBuf> {
         let root = self.root.as_ref()?;
         match origin {
@@ -391,7 +391,7 @@ impl Library {
         banks
     }
 
-    /// Every factory preset — the compiled set, then any [`Found`] — then the user's own, then each
+    /// Every factory preset — the installed set, then any [`Found`] — then the user's own, then each
     /// bank's, each group in name order.
     ///
     /// A missing directory is not an error — it is an empty list, which is what a fresh install

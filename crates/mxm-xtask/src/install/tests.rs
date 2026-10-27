@@ -565,6 +565,25 @@ fn a_destination_that_is_the_bundle_folder_is_refused_and_touched_nowhere() {
     }
 }
 
+/// The same for the presets alone, with no map: the staged folder is never set aside as an older
+/// one and lost.
+#[test]
+fn a_destination_where_the_presets_are_staged_is_refused_and_touched_nowhere() {
+    let scratch = Scratch::new("presets-staged-here");
+    let bundled = scratch.0.join("custom").join("bundled");
+    let staged = scratch.0.join("repository").join("target").join("bundled");
+    std::fs::create_dir_all(&bundled).unwrap();
+    std::fs::create_dir_all(staged.join("x.presets")).unwrap();
+    std::fs::write(bundled.join("x.clap"), "built").unwrap();
+    std::fs::write(staged.join("x.presets").join("a.json"), "{}").unwrap();
+    let presets = staged.join("x.presets");
+    let outcomes = installs(&bundled, std::slice::from_ref(&presets), &staged);
+    let error = format!("{:#}", outcomes[0].result.as_ref().unwrap_err());
+    assert!(error.starts_with("not installed"), "{error}");
+    assert_eq!(names_in(&staged), ["x.presets"]);
+    assert_eq!(names_in(&presets), ["a.json"]);
+}
+
 /// With a custom `CARGO_TARGET_DIR` the bundle is made in one folder and its map staged in the
 /// repository's `target/bundled`: `MXM_CLAP_DIR` naming the latter is refused as well.
 #[test]

@@ -492,16 +492,19 @@ fn install_one(
 ) -> Result<PathBuf> {
     let name = format!("{bundle}.{}", format.extension());
     let installed = folder.join(&name);
-    // A destination that is where the bundle was made or its map staged (`MXM_CLAP_DIR` naming a
-    // `target/bundled`) is refused, touching nothing: putting the plugin in would set aside the map
-    // it copies from, and what is there isn't kept to an install's rules.
+    // A destination that is where the bundle was made, or where what goes beside it (its map, its
+    // presets) was staged (`MXM_CLAP_DIR` naming a `target/bundled`), is refused, touching
+    // nothing: putting the plugin in would set aside what it copies from, and what is there isn't
+    // kept to an install's rules.
     let staged_here = map
-        .and_then(|map| map.parent())
-        .is_some_and(|staged| is_same_folder(folder, staged));
+        .into_iter()
+        .chain(presets)
+        .filter_map(|staged| staged.parent())
+        .any(|staged| is_same_folder(folder, staged));
     if is_same_folder(folder, bundled) || staged_here {
         bail!(
-            "not installed: {} is where the bundle is made or its map staged; set {} to another \
-             folder",
+            "not installed: {} is where the bundle is made or what goes beside it staged; set {} \
+             to another folder",
             folder.display(),
             format.variable()
         );

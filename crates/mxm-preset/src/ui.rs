@@ -1214,7 +1214,8 @@ pub fn apply_preset_checked(
 }
 
 /// Apply with trusted library provenance. An origin-less call remains strict so a JSON file cannot
-/// promote itself to factory status; only the compiled-in library entry supplies `Factory` here.
+/// promote itself to factory status; only an entry from the installed factory folder supplies
+/// `Factory` here.
 pub fn apply_preset_checked_from(
     instrument: &dyn Instrument,
     setter: &ParamSetter<'_>,
