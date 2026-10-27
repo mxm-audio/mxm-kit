@@ -133,11 +133,12 @@ fn a_plugins_presets_go_beside_its_clap_and_are_replaced_whole() {
     std::fs::write(staged.join("a.json"), "{}").unwrap();
     std::fs::write(staged.join("b.json"), "{}").unwrap();
 
-    assert!(installs(&bundled, &[], &folder)[0].result.is_ok());
+    let with_presets = std::slice::from_ref(&staged);
+    assert!(installs(&bundled, with_presets, &folder)[0].result.is_ok());
     assert_eq!(names_in(&folder.join("x.presets")), ["a.json", "b.json"]);
 
     std::fs::remove_file(staged.join("a.json")).unwrap();
-    assert!(installs(&bundled, &[], &folder)[0].result.is_ok());
+    assert!(installs(&bundled, with_presets, &folder)[0].result.is_ok());
     assert_eq!(names_in(&folder.join("x.presets")), ["b.json"]);
 
     std::fs::remove_dir_all(&staged).unwrap();

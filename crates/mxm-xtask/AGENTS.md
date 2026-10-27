@@ -35,11 +35,12 @@ and `test-bundles.txt` for the plugins to fetch; all three belong to the reposit
 - **A plugin's factory presets ship with it** (`presets`; the owner, 2026-10-27, in
   `docs/plugin-conventions.md`): `bundle` checks `plugins/<crate>/presets/` before the build
   (fatal: every `.json` a preset of one plugin, `order.txt` naming only files there), then stages
-  its `.json`s and order beside the bundled `.clap` as `<Bundle Name>.presets/` and inside the
-  `.vst3` as `Contents/Resources/presets/`, each replacing what an earlier bundle left; staging
-  is never fatal. The install puts the folder beside the `.clap` as it does the map, set aside
-  with it before the plugin goes in and retired with it, so an older set never stays beside a
-  newer plugin.
+  its `.json`s and order as `<Bundle Name>.presets/` in the repository's `target/bundled`, where
+  the map is staged whichever folder Cargo builds in, and inside the `.vst3` Cargo built (in the
+  folder `CARGO_TARGET_DIR` moves) as `Contents/Resources/presets/`, each replacing what an
+  earlier bundle left; staging is never fatal. The install is handed the staged folder with the
+  map and puts it beside the `.clap` as it does the map, set aside with it before the plugin goes
+  in and retired with it, so an older set never stays beside a newer plugin.
 - **Every bundle installs itself**, the CLAP with its map and, when the bundle made one, the VST3,
   where newDAWn, Bitwig and the other hosts look, so a host always loads the last build (newDAWn's
   owner, 2026-10-13, choosing every build over every commit: "So the latest ones are always in the

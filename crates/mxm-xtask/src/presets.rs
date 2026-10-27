@@ -89,14 +89,16 @@ pub fn check_folder(folder: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Stages each plugin's presets beside its bundled `.clap` and inside its `.vst3`, replacing
-/// what an earlier bundle left there. Returns the folders staged beside the `.clap`s.
-pub fn stage(workspace_root: &Path) -> Result<Vec<PathBuf>> {
-    let bundled = workspace_root.join("target").join("bundled");
+/// Stages each plugin's presets beside its `.clap`, in the repository's `target/bundled` where
+/// its control map is staged whichever folder Cargo builds in, and inside its `.vst3` in
+/// `bundled`, the folder Cargo built it in (`CARGO_TARGET_DIR` moves it), each replacing what an
+/// earlier bundle left there. Returns the folders staged beside the `.clap`s.
+pub fn stage(workspace_root: &Path, bundled: &Path) -> Result<Vec<PathBuf>> {
+    let staging = workspace_root.join("target").join("bundled");
     let mut staged = Vec::new();
     for (crate_dir, bundle) in bundle_names(workspace_root)? {
         let source = crate_dir.join(SOURCE);
-        let beside = bundled.join(staged_name(&bundle));
+        let beside = staging.join(staged_name(&bundle));
         let vst3 = bundled.join(format!("{bundle}.vst3"));
         remove(&beside)?;
         if vst3.is_dir() {
@@ -210,10 +212,12 @@ mod tests {
         std::fs::write(presets.join(ORDER), "b.json\na.json\n").unwrap();
         std::fs::write(presets.join("notes.md"), "not shipped").unwrap();
         let bundled = root.join("target").join("bundled");
-        let vst3 = bundled.join("x.vst3");
+        // Cargo builds in a folder of its own (`CARGO_TARGET_DIR`): the `.vst3` is there.
+        let built = scratch.0.join("shared").join("bundled");
+        let vst3 = built.join("x.vst3");
         std::fs::create_dir_all(vst3.join("Contents").join("x86_64-win")).unwrap();
 
-        let staged = stage(&root).unwrap();
+        let staged = stage(&root, &built).unwrap();
         assert_eq!(staged, [bundled.join("x.presets")]);
         let shipped = ["a.json", "b.json", ORDER];
         assert_eq!(names_in(&bundled.join("x.presets")), shipped);
@@ -222,13 +226,13 @@ mod tests {
         // A file taken out of the repository is gone from the next bundle.
         std::fs::remove_file(presets.join("a.json")).unwrap();
         std::fs::write(presets.join(ORDER), "b.json\n").unwrap();
-        stage(&root).unwrap();
+        stage(&root, &built).unwrap();
         assert_eq!(names_in(&bundled.join("x.presets")), ["b.json", ORDER]);
         assert_eq!(names_in(&in_vst3(&vst3)), ["b.json", ORDER]);
 
         // A plugin without presets has none staged.
         std::fs::remove_dir_all(&presets).unwrap();
-        assert!(stage(&root).unwrap().is_empty());
+        assert!(stage(&root, &built).unwrap().is_empty());
         assert!(!bundled.join("x.presets").exists());
         assert!(!in_vst3(&vst3).exists());
     }

@@ -60,17 +60,24 @@ pub fn main(workspace_root: &Path) -> nice_plug_xtask::Result<()> {
         ) {
             module_info::write(&bundles, &packages, &bundled);
         }
-        // Before the install too, which copies the presets beside each `.clap` and each `.vst3`
-        // whole. Never fatal, as a map isn't: a plugin without its presets still plays.
-        match presets::stage(workspace_root) {
+        // Before the install too, which copies each `.vst3` whole and places the folder beside
+        // each `.clap`. Never fatal, as a map isn't: a plugin without its presets still plays.
+        let staged_presets = match bundled_folder(workspace_root)
+            .map_err(anyhow::Error::from)
+            .and_then(|bundled| presets::stage(workspace_root, &bundled))
+        {
             Ok(staged) => {
                 for path in &staged {
                     println!("Staged presets {}", path.display());
                 }
+                staged
             }
-            Err(error) => eprintln!("Presets were not staged: {error:#}"),
-        }
-        let staged = match control_maps::stage(workspace_root) {
+            Err(error) => {
+                eprintln!("Presets were not staged: {error:#}");
+                Vec::new()
+            }
+        };
+        let mut staged = match control_maps::stage(workspace_root) {
             Ok(staged) => {
                 for path in &staged {
                     println!("Staged control map {}", path.display());
@@ -84,6 +91,7 @@ pub fn main(workspace_root: &Path) -> nice_plug_xtask::Result<()> {
                 Vec::new()
             }
         };
+        staged.extend(staged_presets);
         let switch = std::env::var(install::SWITCH).ok();
         if install::wanted(switch.as_deref(), std::env::var_os("CI").is_some()) {
             install_bundles(workspace_root, &packages, &staged);

@@ -294,7 +294,12 @@ pub fn install(
             path.file_name()
                 .is_some_and(|name| name == map_name.as_str())
         });
-        let result = install_one(bundle, Format::Clap, bundled, map, &folders.clap);
+        let presets_name = crate::presets::staged_name(bundle);
+        let presets = staged.iter().find(|path| {
+            path.file_name()
+                .is_some_and(|name| name == presets_name.as_str())
+        });
+        let result = install_one(bundle, Format::Clap, bundled, map, presets, &folders.clap);
         // The older copy goes only once this one is in, so a failed install leaves a working one.
         let left_behind = match (&result, &folders.retired) {
             (Ok(_), Some(retired)) if !may_be_same_folder(retired, &folders.clap) => {
@@ -310,7 +315,7 @@ pub fn install(
         });
         if bundled.join(format!("{bundle}.vst3")).exists() {
             let result = match &folders.vst3 {
-                Some(folder) => install_one(bundle, Format::Vst3, bundled, None, folder),
+                Some(folder) => install_one(bundle, Format::Vst3, bundled, None, None, folder),
                 None => Err(anyhow::anyhow!(unknown(Format::Vst3))).context("not installed"),
             };
             outcomes.push(Outcome {
@@ -482,6 +487,7 @@ fn install_one(
     format: Format,
     bundled: &Path,
     map: Option<&PathBuf>,
+    presets: Option<&PathBuf>,
     folder: &Path,
 ) -> Result<PathBuf> {
     let name = format!("{bundle}.{}", format.extension());
@@ -523,9 +529,8 @@ fn install_one(
         })?;
     }
     // The presets this bundle staged, or none: an older set never stays beside a newer plugin.
-    let staged_presets = bundled.join(crate::presets::staged_name(bundle));
-    if let Some(installed_presets) = installed_presets.filter(|_| staged_presets.is_dir()) {
-        place(&staged_presets, &installed_presets).with_context(|| {
+    if let (Some(staged_presets), Some(installed_presets)) = (presets, &installed_presets) {
+        place(staged_presets, installed_presets).with_context(|| {
             format!("{} is installed, but not its presets", installed.display())
         })?;
     }
