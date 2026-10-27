@@ -8,7 +8,7 @@
 //! `docs/plugin-conventions.md`), and are not restated line by line here.
 //!
 //! What a plugin supplies is an [`Instrument`]: its permanent id, its parameters in declaration
-//! order, where the loaded preset's identity is persisted, and its compiled-in factory files.
+//! order, where the loaded preset's identity is persisted, and its factory files, installed beside it.
 //! Everything else — the format, the library on disk, favourites, the three-state identity, the
 //! app-bar controls — is here, and identical for a synth with eighty parameters and an effect with
 //! four.
@@ -116,7 +116,7 @@ pub trait Instrument {
             .unwrap_or_default()
     }
 
-    /// Whether a compiled-in factory recipe deliberately leaves this patch parameter at its live
+    /// Whether a factory recipe deliberately leaves this patch parameter at its live
     /// value. The default-empty opt-in is provenance-sensitive: only an apply path carrying trusted
     /// [`Origin::Factory`] may consult it. User/bank files and origin-less direct calls remain
     /// complete presets and report an omission.

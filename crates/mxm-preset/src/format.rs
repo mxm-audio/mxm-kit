@@ -11,7 +11,8 @@ use mxm_params::ErasedParam;
 ///
 /// **Still 1 with the `category` field**: a file without it reads as *Uncategorised*, and an older
 /// build ignores the field, so neither direction needs refusing. A version moves when a file an
-/// older build read would be *wrong*, not merely poorer.
+/// older build read would be *wrong*, not merely poorer. `mxm-xtask`'s presets check holds the
+/// same number, refusing a factory file of another before the build.
 pub const SCHEMA_VERSION: u32 = 1;
 
 /// The extension a saved preset takes.

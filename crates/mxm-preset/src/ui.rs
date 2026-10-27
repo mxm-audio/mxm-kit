@@ -1424,7 +1424,7 @@ mod tests {
 
     /// **Presets found in a folder are factory presets filed under their folder** (the owner,
     /// 2026-09-28: mxm-fx-convolution's impulse files are its factory set, and their folders its
-    /// categories): listed after the compiled set as Factory, a row per folder after the
+    /// categories): listed after the installed set as Factory, a row per folder after the
     /// categories, a folder's row showing exactly its presets, and none of them counted under its
     /// own `Category` as well. One found outside any folder is filed by its category as before.
     #[test]

@@ -238,7 +238,8 @@ pub struct Entry {
     pub found: bool,
 }
 
-/// **A factory preset found at run time rather than compiled in** — mxm-fx-convolution's impulse
+/// **A factory preset the plugin finds itself rather than a file of its installed set** —
+/// mxm-fx-convolution's impulse
 /// files, one preset per file in the collection's impulses folder (the owner, 2026-09-28: *what is
 /// in that folder is the default presets*). The plugin scans and hands the list over
 /// ([`Library::with_found`]); the library never looks anywhere itself, as its root is injected.
@@ -289,7 +290,7 @@ impl Library {
         }
     }
 
-    /// This library with factory presets found at run time, listed after the compiled set as
+    /// This library with factory presets the plugin found itself, listed after the installed set as
     /// [`Origin::Factory`] under their folders ([`Found`]).
     #[must_use]
     pub fn with_found(mut self, found: Vec<Found>) -> Self {
@@ -743,7 +744,7 @@ pub fn is_favourite(favourites: &BTreeSet<String>, name: &str, origin: &Origin) 
 ///
 /// **Per-person state, beside the presets rather than inside them.** A favourite is a fact about
 /// somebody's setup, not about the sound: a `favourite` field in a preset would arrive on another
-/// machine carrying somebody else's stars, and a factory preset — compiled in and immutable —
+/// machine carrying somebody else's stars, and a factory preset — installed and immutable —
 /// could never be starred at all.
 ///
 /// A missing or unreadable file is **no favourites**, never an error: nothing here is worth
@@ -918,7 +919,7 @@ b.json
     #[test]
     fn favourites_live_beside_the_presets_and_not_inside_them() {
         // A favourite is a fact about somebody's setup, not about the sound. Inside the file it
-        // would travel with a copied preset — and a factory preset, compiled in and immutable,
+        // would travel with a copied preset — and a factory preset, installed and immutable,
         // could never be starred at all.
         let instrument = TestInstrument::new();
         let sandbox = Sandbox::new("favourites");
@@ -1009,7 +1010,7 @@ b.json
     #[test]
     fn a_missing_directory_is_an_empty_list_and_not_an_error() {
         // What a fresh install looks like. The factory presets are still there, because they are
-        // compiled in rather than read from anywhere.
+        // the instrument's own set, not files in the user's directory.
         let instrument = TestInstrument::new();
         let sandbox = Sandbox::new("missing");
         let entries = sandbox.library.list(&instrument);

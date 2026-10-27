@@ -6,9 +6,11 @@
 //! no `presets/` folder has none staged.
 //!
 //! The check reads the files as JSON, not through `mxm-preset`, which would bring the plugin
-//! framework into the build tool: every file is a preset of the schema's shape, all of one
-//! plugin, and the folder's order names only files that are there. Each plugin's own tests parse
-//! every file for its instrument.
+//! framework into the build tool, but field by field as `mxm-preset`'s `Preset` reads them, so a
+//! file it passes is one the plugin parses: the schema's version, a name, a plugin, each
+//! parameter a value `v` with its text, and a category and comment, if there, as text. All are of
+//! one plugin, and the folder's order names only files that are there. Each plugin's own tests
+//! parse every file for its instrument.
 
 use anyhow::{Context, Result, anyhow, bail};
 use std::path::{Path, PathBuf};
@@ -20,6 +22,9 @@ pub const SOURCE: &str = "presets";
 /// The file in a presets folder that gives their order, one file name a line (`mxm-preset`'s
 /// `ORDER_FILE`).
 pub const ORDER: &str = "order.txt";
+/// The preset schema the plugins read (`mxm-preset`'s `SCHEMA_VERSION`): a file of another is
+/// refused when it's loaded, so it's refused before the build.
+pub const SCHEMA_VERSION: u64 = 1;
 
 /// The presets folder staged beside a bundled `.clap`, and installed beside it.
 pub fn staged_name(bundle: &str) -> String {
@@ -53,18 +58,8 @@ pub fn check_folder(folder: &Path) -> Result<()> {
             .with_context(|| format!("{} can't be read", path.display()))?;
         let preset: serde_json::Value = serde_json::from_str(&text)
             .with_context(|| format!("{} isn't JSON", path.display()))?;
-        let field = |name: &str| preset.get(name);
-        let named = |name: &str| field(name).and_then(serde_json::Value::as_str);
-        if !field("schema_version").is_some_and(serde_json::Value::is_u64)
-            || named("name").is_none_or(str::is_empty)
-            || !field("params").is_some_and(serde_json::Value::is_object)
-        {
-            bail!(
-                "{} isn't a preset: it needs schema_version, name and params",
-                path.display()
-            );
-        }
-        let Some(this) = named("plugin").filter(|id| !id.is_empty()) else {
+        shaped_as_a_preset(&preset).map_err(|why| anyhow!("{} {why}", path.display()))?;
+        let Some(this) = preset["plugin"].as_str().filter(|id| !id.is_empty()) else {
             bail!("{} names no plugin", path.display());
         };
         match &plugin {
@@ -88,6 +83,45 @@ pub fn check_folder(folder: &Path) -> Result<()> {
                     order.display()
                 ));
             }
+        }
+    }
+    Ok(())
+}
+
+/// Whether `preset` has the shape `mxm-preset` parses, and if not, what it lacks: an object of
+/// the schema's version, a name and a plugin, its `params` an object of values, each a number
+/// `v` and, if there, a text, and a category and comment, if there, as text.
+fn shaped_as_a_preset(preset: &serde_json::Value) -> Result<(), String> {
+    let text_or_absent = |name: &str| preset.get(name).is_none_or(serde_json::Value::is_string);
+    match preset.get("schema_version").map(serde_json::Value::as_u64) {
+        Some(Some(SCHEMA_VERSION)) => {}
+        Some(Some(found)) => {
+            return Err(format!(
+                "is schema version {found}, and the plugins read version {SCHEMA_VERSION}"
+            ));
+        }
+        _ => return Err("isn't a preset: it needs a schema_version".to_owned()),
+    }
+    if preset
+        .get("name")
+        .and_then(serde_json::Value::as_str)
+        .is_none_or(str::is_empty)
+    {
+        return Err("isn't a preset: it needs a name".to_owned());
+    }
+    if !text_or_absent("plugin") || !text_or_absent("category") || !text_or_absent("_comment") {
+        return Err("isn't a preset: its plugin, category and _comment are text".to_owned());
+    }
+    let Some(params) = preset.get("params").and_then(serde_json::Value::as_object) else {
+        return Err("isn't a preset: it needs params".to_owned());
+    };
+    for (id, value) in params {
+        let number = value.get("v").is_some_and(serde_json::Value::is_number);
+        let text = value.get("text").is_none_or(serde_json::Value::is_string);
+        if !(value.is_object() && number && text) {
+            return Err(format!(
+                "has a parameter `{id}` that isn't a value: a number `v`, and its `text`"
+            ));
         }
     }
     Ok(())
@@ -270,5 +304,43 @@ mod tests {
         assert!(check_folder(&folder).is_err(), "not a preset's shape");
         std::fs::write(folder.join("b.json"), "{ not json").unwrap();
         assert!(check_folder(&folder).is_err(), "not JSON");
+    }
+
+    /// A file the plugin's own parsing would refuse, or a value it would skip, is refused before
+    /// the build, and one it reads passes.
+    #[test]
+    fn a_file_the_plugin_would_refuse_is_refused_before_the_build() {
+        let scratch = Scratch::new("shaped");
+        let folder = scratch.0.join("presets");
+        std::fs::create_dir_all(&folder).unwrap();
+        let file = |fields: &str| {
+            format!(r#"{{"schema_version": 1, "plugin": "dk.x", "name": "A"{fields}}}"#)
+        };
+        let read = [
+            file(r#", "params": {}"#),
+            file(r#", "params": {"cutoff": {"v": 0.5, "text": "1 kHz"}}"#),
+            file(r#", "params": {"cutoff": {"v": 1}}, "category": "Bass", "_comment": "x""#),
+            file(r#", "params": {}, "state": {"anything": [1, 2]}"#),
+        ];
+        for text in &read {
+            std::fs::write(folder.join("a.json"), text).unwrap();
+            check_folder(&folder).unwrap_or_else(|why| panic!("{text}: {why:#}"));
+        }
+        let refused = [
+            r#"{"schema_version": 2, "plugin": "dk.x", "name": "A", "params": {}}"#.to_owned(),
+            r#"{"schema_version": "1", "plugin": "dk.x", "name": "A", "params": {}}"#.to_owned(),
+            file(r#", "params": {"cutoff": "invalid"}"#),
+            file(r#", "params": {"cutoff": {"text": "1 kHz"}}"#),
+            file(r#", "params": {"cutoff": {"v": "0.5"}}"#),
+            file(r#", "params": {"cutoff": {"v": 0.5, "text": 3}}"#),
+            file(r#", "params": [] "#),
+            file(r#", "params": {}, "category": 4"#),
+            file(r#", "params": {}, "_comment": ["x"]"#),
+            r#"{"schema_version": 1, "plugin": 7, "name": "A", "params": {}}"#.to_owned(),
+        ];
+        for text in &refused {
+            std::fs::write(folder.join("a.json"), text).unwrap();
+            assert!(check_folder(&folder).is_err(), "{text}");
+        }
     }
 }
