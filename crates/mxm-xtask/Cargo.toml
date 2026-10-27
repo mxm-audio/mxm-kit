@@ -18,5 +18,7 @@ cargo_metadata = "=0.23.1"
 mxm-control-map.workspace = true
 # A VST3's `moduleinfo.json`, from its factory as the SDK's own tool reads it (`module_info`).
 mxm-vst3-host.workspace = true
-# A plugin's presets, checked as JSON before the build (`presets`).
+# A plugin's presets, checked before the build in a copy of the preset's shape (`presets`), the
+# versions `mxm-preset` reads them with.
+serde      = { version = "=1.0.229", features = ["derive"] }
 serde_json = "=1.0.145"

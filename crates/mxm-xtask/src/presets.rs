@@ -5,12 +5,12 @@
 //! bundle left, so a file taken out of the repository is gone from the bundle, and a plugin with
 //! no `presets/` folder has none staged.
 //!
-//! The check reads the files as JSON, not through `mxm-preset`, which would bring the plugin
-//! framework into the build tool, but field by field as `mxm-preset`'s `Preset` reads them, so a
-//! file it passes is one the plugin parses: the schema's version, a name, a plugin, each
-//! parameter a value `v` with its text, and a category and comment, if there, as text. All are of
-//! one plugin, and the folder's order names only files that are there. Each plugin's own tests
-//! parse every file for its instrument.
+//! The check reads the files not through `mxm-preset`, which would bring the plugin framework
+//! into the build tool, but into a copy of its `Preset`'s shape, read by the same serde, so a file
+//! it passes is one the plugin parses (`PresetFile`): of the schema's version, a name and a
+//! plugin, each parameter a value `v` with its text. All are of one plugin, and the folder's
+//! order names only files that are there. Each plugin's own tests parse every file for its
+//! instrument.
 
 use anyhow::{Context, Result, anyhow, bail};
 use std::path::{Path, PathBuf};
@@ -24,7 +24,7 @@ pub const SOURCE: &str = "presets";
 pub const ORDER: &str = "order.txt";
 /// The preset schema the plugins read (`mxm-preset`'s `SCHEMA_VERSION`): a file of another is
 /// refused when it's loaded, so it's refused before the build.
-pub const SCHEMA_VERSION: u64 = 1;
+pub const SCHEMA_VERSION: u32 = 1;
 
 /// The presets folder staged beside a bundled `.clap`, and installed beside it.
 pub fn staged_name(bundle: &str) -> String {
@@ -56,12 +56,22 @@ pub fn check_folder(folder: &Path) -> Result<()> {
     for path in &files {
         let text = std::fs::read_to_string(path)
             .with_context(|| format!("{} can't be read", path.display()))?;
-        let preset: serde_json::Value = serde_json::from_str(&text)
-            .with_context(|| format!("{} isn't JSON", path.display()))?;
-        shaped_as_a_preset(&preset).map_err(|why| anyhow!("{} {why}", path.display()))?;
-        let Some(this) = preset["plugin"].as_str().filter(|id| !id.is_empty()) else {
+        let preset: PresetFile = serde_json::from_str(&text)
+            .with_context(|| format!("{} isn't a preset", path.display()))?;
+        if preset.schema_version != SCHEMA_VERSION {
+            bail!(
+                "{} is schema version {}, and the plugins read version {SCHEMA_VERSION}",
+                path.display(),
+                preset.schema_version
+            );
+        }
+        if preset.name.is_empty() {
+            bail!("{} has no name", path.display());
+        }
+        let this = preset.plugin.as_str();
+        if this.is_empty() {
             bail!("{} names no plugin", path.display());
-        };
+        }
         match &plugin {
             Some(first) if first != this => bail!(
                 "{} is for `{this}`, and the folder's others are for `{first}`",
@@ -88,43 +98,32 @@ pub fn check_folder(folder: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Whether `preset` has the shape `mxm-preset` parses, and if not, what it lacks: an object of
-/// the schema's version, a name and a plugin, its `params` an object of values, each a number
-/// `v` and, if there, a text, and a category and comment, if there, as text.
-fn shaped_as_a_preset(preset: &serde_json::Value) -> Result<(), String> {
-    let text_or_absent = |name: &str| preset.get(name).is_none_or(serde_json::Value::is_string);
-    match preset.get("schema_version").map(serde_json::Value::as_u64) {
-        Some(Some(SCHEMA_VERSION)) => {}
-        Some(Some(found)) => {
-            return Err(format!(
-                "is schema version {found}, and the plugins read version {SCHEMA_VERSION}"
-            ));
-        }
-        _ => return Err("isn't a preset: it needs a schema_version".to_owned()),
-    }
-    if preset
-        .get("name")
-        .and_then(serde_json::Value::as_str)
-        .is_none_or(str::is_empty)
-    {
-        return Err("isn't a preset: it needs a name".to_owned());
-    }
-    if !text_or_absent("plugin") || !text_or_absent("category") || !text_or_absent("_comment") {
-        return Err("isn't a preset: its plugin, category and _comment are text".to_owned());
-    }
-    let Some(params) = preset.get("params").and_then(serde_json::Value::as_object) else {
-        return Err("isn't a preset: it needs params".to_owned());
-    };
-    for (id, value) in params {
-        let number = value.get("v").is_some_and(serde_json::Value::is_number);
-        let text = value.get("text").is_none_or(serde_json::Value::is_string);
-        if !(value.is_object() && number && text) {
-            return Err(format!(
-                "has a parameter `{id}` that isn't a value: a number `v`, and its `text`"
-            ));
-        }
-    }
-    Ok(())
+/// A preset file as `mxm-preset`'s `Preset` reads it, field for field and type for type, so serde
+/// refuses here what it refuses there: a missing or repeated field, or one of another type. Its
+/// fields are read only to be checked.
+#[derive(serde::Deserialize)]
+#[allow(dead_code)]
+struct PresetFile {
+    schema_version: u32,
+    plugin: String,
+    name: String,
+    /// `mxm-preset`'s `Category` takes any text, an unknown one as *Uncategorised*.
+    #[serde(default)]
+    category: String,
+    #[serde(rename = "_comment", default)]
+    comment: String,
+    params: std::collections::BTreeMap<String, ValueFile>,
+    #[serde(default)]
+    state: Option<serde_json::Value>,
+}
+
+/// One parameter's value as `mxm-preset`'s `Value` reads it.
+#[derive(serde::Deserialize)]
+#[allow(dead_code)]
+struct ValueFile {
+    v: f32,
+    #[serde(default)]
+    text: String,
 }
 
 /// Stages each plugin's presets beside its `.clap`, in the repository's `target/bundled` where
@@ -337,6 +336,11 @@ mod tests {
             file(r#", "params": {}, "category": 4"#),
             file(r#", "params": {}, "_comment": ["x"]"#),
             r#"{"schema_version": 1, "plugin": 7, "name": "A", "params": {}}"#.to_owned(),
+            r#"{"schema_version": 1, "schema_version": 1, "plugin": "dk.x", "name": "A", "params": {}}"#
+                .to_owned(),
+            file(r#", "params": {"cutoff": {"v": 0.5, "v": 0.6}}"#),
+            file(r#", "params": {}, "category": null"#),
+            r#"{"schema_version": 1, "plugin": "dk.x", "name": "", "params": {}}"#.to_owned(),
         ];
         for text in &refused {
             std::fs::write(folder.join("a.json"), text).unwrap();
