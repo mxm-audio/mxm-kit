@@ -1,9 +1,10 @@
 //! The build tooling every MXM repository's `cargo xtask` shares: a thin wrapper over
 //! `nice_plug_xtask`, which produces the loadable `.clap`, followed by staging each plugin's control
 //! map beside its bundle — an instrument owns its mapping, so the two must ship together. See
-//! [`control_maps`]. Each VST3 gets its `moduleinfo.json` ([`module_info`]). Then each plugin
-//! bundled is installed, CLAP and VST3, in the standard plugin folders, so the hosts load the last
-//! one built. See [`install`].
+//! [`control_maps`]. Each VST3 gets its `moduleinfo.json` ([`module_info`]). Each plugin's factory
+//! presets go beside its `.clap` and inside its `.vst3` ([`presets`]). Then each plugin bundled is
+//! installed, CLAP and VST3, in the standard plugin folders, so the hosts load the last one built.
+//! See [`install`].
 //!
 //! `cargo xtask fetch` builds the plugins of other MXM repositories that this repository's tests
 //! load, at the tags `test-bundles.txt` pins. See [`fetch`].
@@ -15,6 +16,7 @@ pub mod control_maps;
 pub mod fetch;
 pub mod install;
 pub mod module_info;
+pub mod presets;
 
 use std::path::Path;
 
@@ -38,6 +40,8 @@ pub fn main(workspace_root: &Path) -> nice_plug_xtask::Result<()> {
         // Fatal, and before the build: a map every host would refuse is a broken product, as a
         // failing test is. (A missing map is not; see below.)
         control_maps::check(workspace_root)?;
+        // Fatal too: a preset that doesn't parse is a broken product, and is shipped as a file.
+        presets::check(workspace_root)?;
         // Fatal too: an earlier VST3 left in `target/bundled` would be installed as this build's.
         if let (Ok(bundled), Ok(bundles)) = (
             bundled_folder(workspace_root),
@@ -55,6 +59,16 @@ pub fn main(workspace_root: &Path) -> nice_plug_xtask::Result<()> {
             control_maps::bundles(workspace_root),
         ) {
             module_info::write(&bundles, &packages, &bundled);
+        }
+        // Before the install too, which copies the presets beside each `.clap` and each `.vst3`
+        // whole. Never fatal, as a map isn't: a plugin without its presets still plays.
+        match presets::stage(workspace_root) {
+            Ok(staged) => {
+                for path in &staged {
+                    println!("Staged presets {}", path.display());
+                }
+            }
+            Err(error) => eprintln!("Presets were not staged: {error:#}"),
         }
         let staged = match control_maps::stage(workspace_root) {
             Ok(staged) => {

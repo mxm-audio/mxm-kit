@@ -575,7 +575,7 @@ mod tests {
                 self.inner.identity()
             }
 
-            fn factory_files(&self) -> &'static [(&'static str, &'static str)] {
+            fn factory_files(&self) -> Vec<(String, String)> {
                 self.inner.factory_files()
             }
         }
@@ -674,7 +674,7 @@ mod tests {
         fn identity(&self) -> &std::sync::RwLock<crate::PresetIdentity> {
             self.0.identity()
         }
-        fn factory_files(&self) -> &'static [(&'static str, &'static str)] {
+        fn factory_files(&self) -> Vec<(String, String)> {
             self.0.factory_files()
         }
         fn is_instance_setting(&self, id: &str) -> bool {

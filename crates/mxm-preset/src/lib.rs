@@ -24,6 +24,7 @@
 //!   conversion, and there is deliberately no mismatch detection — checking would mean formatting
 //!   `v` back through a nice-plug API, which is the conversion the format exists to avoid.
 
+pub mod clap;
 pub mod format;
 pub mod identity;
 pub mod library;
@@ -40,8 +41,9 @@ pub use identity::{
 };
 pub use library::{
     BANK_EXTENSION, BANK_FILE, Bank, BankFile, BankInfo, Entry, Found, ImportRefused, Library,
-    banks_root, dir_name, factory, favourite_key, file_name, is_favourite, open_folder,
-    read_favourites, user_root, write_favourites,
+    ORDER_FILE, banks_root, dir_name, factory, factory_dir_of, favourite_key, file_name,
+    installed_factory_dir, is_favourite, open_folder, read_factory_dir, read_favourites, user_root,
+    write_favourites,
 };
 pub use transaction::{
     DeferredBeginError, DeferredContent, DeferredPresetTransaction, DeferredRequest,
@@ -104,9 +106,15 @@ pub trait Instrument {
     /// Where the loaded preset's identity is persisted with the patch.
     fn identity(&self) -> &RwLock<PresetIdentity>;
 
-    /// The factory set, compiled in with `include_str!`, as `(name, json)`. Init is not among
-    /// them: it is generated from the parameter defaults.
-    fn factory_files(&self) -> &'static [(&'static str, &'static str)];
+    /// The factory set, `(file name, json)`: the files installed with the plugin
+    /// ([`installed_factory_dir`]), read when asked, in their folder's order ([`read_factory_dir`]).
+    /// Init is not among them: it is generated from the parameter defaults. A plugin's tests read
+    /// its repository's folder through [`read_factory_dir`] instead.
+    fn factory_files(&self) -> Vec<(String, String)> {
+        installed_factory_dir()
+            .map(|dir| read_factory_dir(&dir))
+            .unwrap_or_default()
+    }
 
     /// Whether a compiled-in factory recipe deliberately leaves this patch parameter at its live
     /// value. The default-empty opt-in is provenance-sensitive: only an apply path carrying trusted
@@ -228,7 +236,7 @@ pub trait Instrument {
 pub fn stale_factory_texts(instrument: &dyn Instrument) -> Vec<String> {
     let mut stale = Vec::new();
     for (name, json) in instrument.factory_files() {
-        let preset = match Preset::parse(json, instrument.clap_id()) {
+        let preset = match Preset::parse(&json, instrument.clap_id()) {
             Ok(preset) => preset,
             Err(refused) => {
                 stale.push(format!("{name:?} does not parse: {refused:?}"));
@@ -342,8 +350,8 @@ mod stale_text_tests {
         fn identity(&self) -> &RwLock<PresetIdentity> {
             self.0.identity()
         }
-        fn factory_files(&self) -> &'static [(&'static str, &'static str)] {
-            self.1
+        fn factory_files(&self) -> Vec<(String, String)> {
+            crate::owned(self.1)
         }
     }
 
@@ -430,8 +438,8 @@ mod stale_text_tests {
         fn identity(&self) -> &RwLock<PresetIdentity> {
             &self.preset
         }
-        fn factory_files(&self) -> &'static [(&'static str, &'static str)] {
-            self.files
+        fn factory_files(&self) -> Vec<(String, String)> {
+            crate::owned(self.files)
         }
     }
 
@@ -460,7 +468,7 @@ mod stale_text_tests {
     fn refreshed_texts_are_written_in_the_presets_own_state() {
         let instrument = Dependent::new(dependent_file("0.25"));
         let mut preset =
-            Preset::parse(instrument.factory_files()[0].1, CLAP_ID).expect("the file parses");
+            Preset::parse(&instrument.factory_files()[0].1, CLAP_ID).expect("the file parses");
         refresh_texts(&instrument, &mut preset);
         assert_eq!(preset.params["level"].text, "2.50");
         assert_eq!(preset.params["high"].text, "On");
@@ -574,8 +582,8 @@ pub(crate) mod testing {
             &self.preset
         }
 
-        fn factory_files(&self) -> &'static [(&'static str, &'static str)] {
-            FACTORY
+        fn factory_files(&self) -> Vec<(String, String)> {
+            crate::owned(FACTORY)
         }
 
         fn patch_replaced(&self) {
@@ -608,4 +616,14 @@ pub(crate) mod testing {
     "sync": { "v": 1.0, "text": "On" }
   }
 }"#;
+}
+
+/// Static `(name, json)` pairs, owned, as [`Instrument::factory_files`] hands them out: for the
+/// tests' instruments.
+#[cfg(test)]
+pub(crate) fn owned(files: &[(&str, &str)]) -> Vec<(String, String)> {
+    files
+        .iter()
+        .map(|(name, json)| ((*name).to_owned(), (*json).to_owned()))
+        .collect()
 }

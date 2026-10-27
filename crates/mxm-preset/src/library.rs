@@ -24,13 +24,79 @@ pub fn factory(instrument: &dyn Instrument) -> Vec<Preset> {
     all
 }
 
+/// The file in a factory folder that gives its presets' order: one file name a line.
+pub const ORDER_FILE: &str = "order.txt";
+
+/// Where the factory presets installed with this plugin are (`ops/plans/plan-external-presets.md`
+/// in the workspace): beside the `.clap`, or inside the `.vst3` ([`factory_dir_of`]). `None`
+/// outside a bundle, as in a unit test.
+pub fn installed_factory_dir() -> Option<PathBuf> {
+    nice_plug::prelude::plugin_location().map(|location| factory_dir_of(&location))
+}
+
+/// The factory folder of a plugin at `location`: `<Bundle Name>.presets/` beside a `.clap`, as its
+/// control map is beside it; `Contents/Resources/presets/` inside a `.vst3`, as its
+/// `moduleinfo.json` is.
+pub fn factory_dir_of(location: &nice_plug::prelude::PluginLocation) -> PathBuf {
+    let bundle = &location.bundle;
+    match location.format {
+        nice_plug::prelude::PluginFormat::Clap => {
+            let stem = bundle
+                .file_stem()
+                .map(|stem| stem.to_string_lossy().into_owned())
+                .unwrap_or_default();
+            bundle.with_file_name(format!("{stem}.presets"))
+        }
+        nice_plug::prelude::PluginFormat::Vst3 => {
+            bundle.join("Contents").join("Resources").join("presets")
+        }
+    }
+}
+
+/// The preset files in a factory folder, `(file name, json)`, in the order its [`ORDER_FILE`]
+/// gives; a file it doesn't name follows in name order, and one it names that isn't there is
+/// passed over. A missing folder is none, and a file that can't be read is passed over: every
+/// shipped file is held to parsing by its plugin's tests and by the bundle's check.
+pub fn read_factory_dir(dir: &Path) -> Vec<(String, String)> {
+    let Ok(read) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut names: Vec<String> = read
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.is_file() && path.extension().and_then(|e| e.to_str()) == Some(EXTENSION)
+        })
+        .filter_map(|path| Some(path.file_name()?.to_str()?.to_owned()))
+        .collect();
+    names.sort();
+    let order: Vec<String> = std::fs::read_to_string(dir.join(ORDER_FILE))
+        .map(|text| {
+            text.lines()
+                .map(str::trim)
+                .filter(|line| !line.is_empty())
+                .map(str::to_owned)
+                .collect()
+        })
+        .unwrap_or_default();
+    let position = |name: &String| order.iter().position(|listed| listed == name);
+    // Stable, so what the order doesn't name keeps its name order, after what it does.
+    names.sort_by_key(|name| position(name).map_or((1, 0), |at| (0, at)));
+    names
+        .into_iter()
+        .filter_map(|name| {
+            let json = std::fs::read_to_string(dir.join(&name)).ok()?;
+            Some((name, json))
+        })
+        .collect()
+}
+
 /// Where a user's presets live, under the platform config directory, namespaced by the plugin's id
 /// so another instrument's presets cannot appear in this one's list.
 ///
-/// Not beside the `.clap`: a plugin instance is never handed the path its bundle was loaded from,
-/// and a directory next to a bundle is not part of it on every platform — copy the `.clap` alone and
-/// the sounds are gone. Compiled-in factory presets are as portable as the code; a user's own live
-/// where the rest of this collection's settings do.
+/// Not beside the plugin, where its factory presets are ([`installed_factory_dir`]): an install
+/// replaces that folder, and a user's own must survive every install. They live where the rest of
+/// this collection's settings do.
 pub fn user_root(clap_id: &str) -> Option<PathBuf> {
     dirs::config_dir().map(|dir| dir.join("mxm").join(clap_id).join("presets"))
 }
@@ -717,6 +783,67 @@ pub(crate) mod tests {
     use super::*;
     use crate::Category;
     use crate::testing::{CLAP_ID, FACTORY, TestInstrument};
+
+    #[test]
+    fn a_factory_folder_is_read_in_its_order_then_by_name() {
+        let dir = std::env::temp_dir().join(format!(
+            "mxm-preset-order-{}-{}",
+            std::process::id(),
+            next_temp_serial()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        for name in ["a.json", "b.json", "c.json"] {
+            std::fs::write(dir.join(name), "{}").unwrap();
+        }
+        std::fs::write(dir.join("notes.txt"), "not a preset").unwrap();
+        std::fs::write(
+            dir.join(ORDER_FILE),
+            "c.json
+
+missing.json
+b.json
+",
+        )
+        .unwrap();
+        let names = |dir: &Path| -> Vec<String> {
+            read_factory_dir(dir)
+                .into_iter()
+                .map(|(name, _)| name)
+                .collect()
+        };
+        assert_eq!(names(&dir), ["c.json", "b.json", "a.json"]);
+        std::fs::remove_file(dir.join(ORDER_FILE)).unwrap();
+        assert_eq!(
+            names(&dir),
+            ["a.json", "b.json", "c.json"],
+            "no order: by name"
+        );
+        assert!(names(&dir.join("missing")).is_empty());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn the_factory_folder_is_beside_a_clap_and_inside_a_vst3() {
+        use nice_plug::prelude::{PluginFormat, PluginLocation};
+        let at = |format, bundle: &str| {
+            factory_dir_of(&PluginLocation {
+                format,
+                bundle: PathBuf::from(bundle),
+            })
+        };
+        assert_eq!(
+            at(PluginFormat::Clap, "C:/CLAP/mxm-mono-01.clap"),
+            PathBuf::from("C:/CLAP/mxm-mono-01.presets")
+        );
+        assert_eq!(
+            at(PluginFormat::Vst3, "C:/VST3/mxm-mono-01.vst3"),
+            Path::new("C:/VST3/mxm-mono-01.vst3")
+                .join("Contents")
+                .join("Resources")
+                .join("presets")
+        );
+        assert_eq!(installed_factory_dir(), None, "a unit test is no plugin");
+    }
 
     /// A library rooted in a fresh temporary directory, removed when the test ends.
     ///

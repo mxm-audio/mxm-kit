@@ -1231,7 +1231,7 @@ pub fn apply_preset_checked_from(
 /// CLAP may apply GUI-authored parameter events on a later process or flush call. Reading the live
 /// atomics immediately after emitting the gestures therefore captures the patch being replaced,
 /// not the preset being loaded.
-fn apply_preset_checked_from_with_baseline(
+pub(crate) fn apply_preset_checked_from_with_baseline(
     instrument: &dyn Instrument,
     setter: &ParamSetter<'_>,
     preset: &Preset,
@@ -1599,7 +1599,7 @@ mod tests {
         fn identity(&self) -> &std::sync::RwLock<crate::PresetIdentity> {
             self.inner.identity()
         }
-        fn factory_files(&self) -> &'static [(&'static str, &'static str)] {
+        fn factory_files(&self) -> Vec<(String, String)> {
             self.inner.factory_files()
         }
         fn validate_preset_state(&self, _state: Option<&serde_json::Value>) -> Result<(), String> {

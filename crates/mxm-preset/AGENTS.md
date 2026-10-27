@@ -31,7 +31,12 @@ collection's one binding are [`mxm-params`](../mxm-params/AGENTS.md)'; this crat
 the permanent `clap_id`; `parameters()` as `(id, &dyn ErasedParam)` **in declaration order**, the
 order files are written and Init writes in; `identity()`, the `#[persist = "preset"]`ed
 `RwLock<PresetIdentity>` that keeps the loaded preset's name and baseline with the patch; and
-`factory_files()`, the compiled-in `(name, json)` set. Everything takes `&dyn Instrument`, and a
+`factory_files()`, the factory set as `(file name, json)`, which by default reads the folder
+installed with the plugin (`installed_factory_dir`: `<Bundle Name>.presets/` beside the `.clap`,
+`Contents/Resources/presets/` in the `.vst3`) in its `order.txt`'s order (`read_factory_dir`), so a
+plugin implements it only in a test. `clap` is what a plugin gives nice-plug's preset capability:
+`PRESETS` (this format's metadata for a host's index) and `Loader`, which loads a file as the
+browser loads an entry, factory content only inside the installed folder. Everything takes `&dyn Instrument`, and a
 `&MxmXxxParams` coerces, so a plugin's editor passes its params and nothing else.
 
 The seams ([NOTES.md § The instrument's seams in full](NOTES.md#the-instruments-seams-in-full)):
@@ -40,11 +45,11 @@ The seams ([NOTES.md § The instrument's seams in full](NOTES.md#the-instruments
   `add_switches_off(state, ids)` — first, if it may clear a malformed state — restoring each missing
   switch Off and extending a loaded preset's baseline with it at normalised zero.
 - **Factory presets found at run time** (`Found`): the plugin scans and hands the list to
-  `Library::with_found`; they list after the compiled set as `Origin::Factory`, each `Entry` carrying
+  `Library::with_found`; they list after the installed set as `Origin::Factory`, each `Entry` carrying
   its folder as `group`. **The library never looks anywhere itself.** An effect is an instrument
   here: four parameters or eighty, the crate does not know the difference.
 - **Factory-preserved patch parameters** (`is_factory_preserved`, `mxm-fx-delay`'s Mix): consulted
-  only on trusted `Origin::Factory` provenance from the compiled-in entry, never a JSON claim;
+  only on trusted `Origin::Factory` provenance from the installed folder, never a JSON claim;
   independent of `is_source_owned`.
 - **Synchronous durable content** (`mxm-creative-sampler`, `mxm-classic-verb`, `mxm-fx-curve`): the
   instrument supplies captured versioned JSON content, a cheap deterministic fingerprint,
@@ -59,7 +64,7 @@ The seams ([NOTES.md § The instrument's seams in full](NOTES.md#the-instruments
 
 The rules, all the crate's, not a plugin's ([NOTES.md § The rules in full](NOTES.md#the-rules-in-full)):
 
-- **Factory preservation requires trusted provenance.** Only an entry compiled as `Origin::Factory`
+- **Factory preservation requires trusted provenance.** Only an entry from the installed factory folder, as `Origin::Factory`,
   may omit an id named by `is_factory_preserved`; everything else reports the omission. Captures and
   Init stay complete except for explicit sparse defaults.
 - **Prepared before the gestures, committed after them.** `apply_preset_state` runs before any

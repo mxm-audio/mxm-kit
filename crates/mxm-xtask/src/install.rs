@@ -444,6 +444,7 @@ fn retire(bundle: &str, folder: &Path) -> Vec<PathBuf> {
     let files = [
         folder.join(format!("{bundle}.clap")),
         folder.join(format!("{bundle}.control-map.json")),
+        folder.join(crate::presets::staged_name(bundle)),
     ];
     if !folder.is_dir() {
         return Vec::new();
@@ -499,17 +500,20 @@ fn install_one(
             format.variable()
         );
     }
-    // Only the CLAP carries the control map; the VST3 has no installed map to set aside.
+    // Only the CLAP carries the control map and the presets beside it; the VST3 carries its
+    // presets inside, and has nothing beside it to set aside.
     let installed_map =
         (format == Format::Clap).then(|| folder.join(format!("{bundle}.control-map.json")));
-    // Held until this install ends, its map placed too.
-    let _lock = put_in(
-        &bundled.join(&name),
-        &installed,
-        installed_map.as_deref(),
-        folder,
-    )
-    .context("not installed")?;
+    let installed_presets =
+        (format == Format::Clap).then(|| folder.join(crate::presets::staged_name(bundle)));
+    let beside: Vec<&Path> = installed_map
+        .iter()
+        .chain(installed_presets.iter())
+        .map(PathBuf::as_path)
+        .collect();
+    // Held until this install ends, what goes beside it placed too.
+    let _lock =
+        put_in(&bundled.join(&name), &installed, &beside, folder).context("not installed")?;
     if let (Some(map), Some(installed_map)) = (map, &installed_map) {
         place(map, installed_map).with_context(|| {
             format!(
@@ -518,16 +522,24 @@ fn install_one(
             )
         })?;
     }
+    // The presets this bundle staged, or none: an older set never stays beside a newer plugin.
+    let staged_presets = bundled.join(crate::presets::staged_name(bundle));
+    if let Some(installed_presets) = installed_presets.filter(|_| staged_presets.is_dir()) {
+        place(&staged_presets, &installed_presets).with_context(|| {
+            format!("{} is installed, but not its presets", installed.display())
+        })?;
+    }
     Ok(installed)
 }
 
-/// The plugin put in at `installed`, under the folder's lock, which it returns. The installed map
-/// is set aside first and gone once the plugin is in, so a map that then fails to go in leaves
-/// none beside the new plugin, never an older one; if the plugin can't go in, the map goes back.
+/// The plugin put in at `installed`, under the folder's lock, which it returns. What was installed
+/// `beside` it (its map, its presets) is set aside first and gone once the plugin is in, so what
+/// then fails to go in leaves nothing beside the new plugin, never an older one; if the plugin
+/// can't go in, all of it goes back.
 fn put_in(
     source: &Path,
     installed: &Path,
-    installed_map: Option<&Path>,
+    beside: &[&Path],
     folder: &Path,
 ) -> Result<std::fs::File> {
     if !source.exists() {
@@ -538,21 +550,28 @@ fn put_in(
     let lock = lock(folder)?;
 
     clear_leftovers(installed);
-    let map_aside = match installed_map {
-        Some(installed_map) => {
-            clear_leftovers(installed_map);
-            set_aside(installed_map)?
+    let mut aside: Vec<(PathBuf, &Path)> = Vec::new();
+    for path in beside {
+        clear_leftovers(path);
+        match set_aside(path) {
+            Ok(Some(moved)) => aside.push((moved, path)),
+            Ok(None) => {}
+            Err(error) => {
+                for (moved, path) in &aside {
+                    let _ = std::fs::rename(moved, path);
+                }
+                return Err(error);
+            }
         }
-        None => None,
-    };
+    }
     if let Err(error) = place(source, installed) {
-        if let (Some(map_aside), Some(installed_map)) = (&map_aside, installed_map) {
-            let _ = std::fs::rename(map_aside, installed_map);
+        for (moved, path) in &aside {
+            let _ = std::fs::rename(moved, path);
         }
         return Err(error);
     }
-    if let Some(map_aside) = map_aside {
-        let _ = remove(&map_aside);
+    for (moved, _) in aside {
+        let _ = remove(&moved);
     }
     Ok(lock)
 }

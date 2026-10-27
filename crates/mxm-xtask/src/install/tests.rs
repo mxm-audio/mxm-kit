@@ -120,6 +120,31 @@ fn a_plugin_and_its_map_are_installed_and_replaced_whole() {
     assert_eq!(names_in(&folder), [LOCK, "x.clap"]);
 }
 
+/// The presets the bundle staged go beside the `.clap` whole: a file a later bundle dropped is
+/// gone, and a bundle that staged none leaves none beside it.
+#[test]
+fn a_plugins_presets_go_beside_its_clap_and_are_replaced_whole() {
+    let scratch = Scratch::new("presets");
+    let bundled = scratch.0.join("bundled");
+    let folder = scratch.0.join("CLAP");
+    let staged = bundled.join("x.presets");
+    std::fs::create_dir_all(&staged).unwrap();
+    std::fs::write(bundled.join("x.clap"), "first").unwrap();
+    std::fs::write(staged.join("a.json"), "{}").unwrap();
+    std::fs::write(staged.join("b.json"), "{}").unwrap();
+
+    assert!(installs(&bundled, &[], &folder)[0].result.is_ok());
+    assert_eq!(names_in(&folder.join("x.presets")), ["a.json", "b.json"]);
+
+    std::fs::remove_file(staged.join("a.json")).unwrap();
+    assert!(installs(&bundled, &[], &folder)[0].result.is_ok());
+    assert_eq!(names_in(&folder.join("x.presets")), ["b.json"]);
+
+    std::fs::remove_dir_all(&staged).unwrap();
+    assert!(installs(&bundled, &[], &folder)[0].result.is_ok());
+    assert_eq!(names_in(&folder), [LOCK, "x.clap"]);
+}
+
 #[test]
 fn a_map_that_fails_to_go_in_leaves_none_beside_the_new_plugin() {
     let scratch = Scratch::new("map-failed");
@@ -282,6 +307,8 @@ fn the_older_copy_goes_once_the_new_one_is_in_and_nothing_else_there_does() {
     ] {
         std::fs::write(retired.join(name), contents).unwrap();
     }
+    std::fs::create_dir_all(retired.join("x.presets")).unwrap();
+    std::fs::write(retired.join("x.presets").join("a.json"), "{}").unwrap();
     let folders = Folders {
         clap: scratch.0.join("CLAP"),
         vst3: Some(scratch.0.join("VST3")),

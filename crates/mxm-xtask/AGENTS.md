@@ -18,7 +18,7 @@ one copy of the tooling is what keeps them bundling the same way.
 # Ownership
 
 Owns `Cargo.toml` and
-`src/{lib.rs, control_maps.rs, fetch.rs, install.rs, install/tests.rs, module_info.rs}`.
+`src/{lib.rs, control_maps.rs, fetch.rs, install.rs, install/tests.rs, module_info.rs, presets.rs}`.
 Reads the caller's `bundler.toml` for display names, `plugins/<crate>/control-map.json` for the maps
 and `test-bundles.txt` for the plugins to fetch; all three belong to the repository being built.
 
@@ -32,6 +32,14 @@ and `test-bundles.txt` for the plugins to fetch; all three belong to the reposit
   `target/bundled/<Bundle Name>.control-map.json`, which is where MXM Player looks for it. A plugin
   without one is not an error — it simply has no roles filled. Staging never fails the bundle: an
   unmapped plugin still works.
+- **A plugin's factory presets ship with it** (`presets`; the owner, 2026-10-27, in
+  `docs/plugin-conventions.md`): `bundle` checks `plugins/<crate>/presets/` before the build
+  (fatal: every `.json` a preset of one plugin, `order.txt` naming only files there), then stages
+  its `.json`s and order beside the bundled `.clap` as `<Bundle Name>.presets/` and inside the
+  `.vst3` as `Contents/Resources/presets/`, each replacing what an earlier bundle left; staging
+  is never fatal. The install puts the folder beside the `.clap` as it does the map, set aside
+  with it before the plugin goes in and retired with it, so an older set never stays beside a
+  newer plugin.
 - **Every bundle installs itself**, the CLAP with its map and, when the bundle made one, the VST3,
   where newDAWn, Bitwig and the other hosts look, so a host always loads the last build (newDAWn's
   owner, 2026-10-13, choosing every build over every commit: "So the latest ones are always in the

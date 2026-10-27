@@ -83,7 +83,7 @@ fn check_text(text: &str) -> Result<()> {
 }
 
 /// Each plugin's crate folder and bundle name, from [`bundles`].
-fn bundle_names(workspace_root: &Path) -> Result<Vec<(PathBuf, String)>> {
+pub(crate) fn bundle_names(workspace_root: &Path) -> Result<Vec<(PathBuf, String)>> {
     Ok(bundles(workspace_root)?
         .into_iter()
         .map(|(package, bundle)| (workspace_root.join("plugins").join(package), bundle))
