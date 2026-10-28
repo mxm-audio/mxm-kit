@@ -29,7 +29,8 @@ CLAP to VST3, is the table in `src/lib.rs`.
 - `module_info.rs`: a bundle's `moduleinfo.json`, the factory's own answers in the keys and order
   of the SDK's `moduleinfotool`, for mxm-xtask's bundle.
 - `examples/vst3_probe.rs` and `examples/vst3_editor.rs`: checks against installed plugins. The
-  probe lists the parameters a host shows and counts the hidden ones, asking them for no text:
+  probe gives every output port a buffer and reports each one's level; it lists the parameters a
+  host shows and counts the hidden ones, asking them for no text:
   nice-plug's VST3 gives none to its 2080 hidden MIDI parameters, and clack logs each refusal as an
   error.
 
@@ -52,9 +53,15 @@ CLAP to VST3, is the table in `src/lib.rs`.
 - **Values:** a continuous parameter is its normalised value, a stepped one its step
   (`params::to_clap`, the SDK's rule). CLAP modulation is added before the processor hears it; the
   controller keeps showing the value.
-- **Only main buses are offered**, and an instrument's input is not (hosts take an instrument as a
-  source without one); the rest are processed with silence in. Stereo is asked for when a main bus
-  is neither mono nor stereo.
+- **The ports are the main buses, then every other output bus with channels**, in bus order: the
+  aux outputs, a drum machine's per-slot ones (newDAWn's tracks fed from a port). An instrument's
+  input is not offered (hosts take an instrument as a source without one), nor an aux input (a
+  sidechain): those are processed with silence in. Every output offered is activated
+  (`activateBus`) at setup, as Bitwig does; an aux bus starts inactive and produces nothing. Stereo
+  is asked for when a main bus is neither mono nor stereo.
+- **An output port's id is its VST3 bus index**, the main bus's 0 (`plugin::output_port_id`): the
+  same each load, never its name or its place among the ports. Hosts store it in projects: never
+  change the rule.
 - **A tail of 0 is "unknown"**, CLAP's infinite: VST3 hosts process regardless, and plugins report 0
   while ringing (ValhallaSupermassive).
 - **A floating editor is a window of this crate's**, the view attached inside; closing it hides it
@@ -81,14 +88,18 @@ cargo test -p mxm-vst3-host
 cargo clippy -p mxm-vst3-host --all-targets -- -D warnings
 cargo clippy -p mxm-vst3-host --lib --target x86_64-unknown-linux-gnu -- -D warnings
 cargo clippy -p mxm-vst3-host --lib --target aarch64-apple-darwin -- -D warnings
-# Installed plugins (Windows): parameters, a sine through it, state round trip; and the editor.
-cargo run -p mxm-vst3-host --example vst3_probe -- "<path.vst3>"
+# Installed plugins (Windows): parameters, a sine or a note through it, every output port's
+# level, state round trip; and the editor.
+cargo run -p mxm-vst3-host --example vst3_probe -- "<path.vst3>" [--note <key>] [--set <param id>=<value>]
 cargo run -p mxm-vst3-host --example vst3_editor -- "<path.vst3>" floating out.bmp
 ```
 
 The two cross-target checks compile only (no linker, no run): they are how the other platforms'
 code is kept compiling between batches. A change to `gui.rs` or `window*.rs` gets a
-`vst3_editor` run, floating and embedded.
+`vst3_editor` run, floating and embedded. A change to the ports or their buffers gets a probe of
+a multi-output instrument with a voice sent to its own output: the MXM drum machine, its first
+slot's key played and that slot's Output parameter (id from the probe's list) set to 1, sounds on
+port 1, "Slot 01", and not on the main.
 
 # Child DOX Index
 

@@ -1,12 +1,13 @@
 //! Loads a `.vst3` through clack-host, as MXM Player and newDAWn do, and reports what a host sees:
-//! its plugins, one plugin's ports, latency and parameters, a sine run through it, and its state
+//! its plugins, one plugin's ports, latency and parameters, a sine run through it (an instrument
+//! plays a note instead, middle C unless `--note` says), every output port's level, and its state
 //! saved and loaded back.
 //!
 //! ```text
-//! cargo run -p mxm-vst3-host --example vst3_probe -- <path.vst3> [plugin id] [--set <param id>=<value>]...
+//! cargo run -p mxm-vst3-host --example vst3_probe -- <path.vst3> [plugin id] [--note <key>] [--set <param id>=<value>]...
 //! ```
 
-use clack_extensions::audio_ports::{AudioPortInfoBuffer, PluginAudioPorts};
+use clack_extensions::audio_ports::{AudioPortFlags, AudioPortInfoBuffer, PluginAudioPorts};
 use clack_extensions::latency::PluginLatency;
 use clack_extensions::params::{ParamInfoBuffer, ParamInfoFlags, PluginParams};
 use clack_extensions::state::PluginState;
@@ -37,8 +38,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .ok_or("usage: vst3_probe <path.vst3> [plugin id]")?;
     let mut wanted_id = None;
     let mut settings: Vec<(u32, f64)> = Vec::new();
+    let mut key = 60u16;
     while let Some(arg) = args.next() {
-        if arg == "--set" {
+        if arg == "--note" {
+            key = args.next().ok_or("--note needs a key, 0 to 127")?.parse()?;
+        } else if arg == "--set" {
             let setting = args.next().ok_or("--set needs <param id>=<value>")?;
             let (id, value) = setting
                 .split_once('=')
@@ -99,7 +103,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
 
     let ports: Option<PluginAudioPorts> = instance.plugin_shared_handle().get_extension();
-    let mut channels = (0, 0);
+    // The main input's channels, and every output port's.
+    let mut input_channels = 0;
+    let mut output_channels = Vec::new();
     if let Some(ports) = ports {
         let mut handle = instance.plugin_handle();
         let mut buffer = AudioPortInfoBuffer::new();
@@ -107,17 +113,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             for index in 0..ports.count(&mut handle, is_input) {
                 if let Some(port) = ports.get(&mut handle, index, is_input, &mut buffer) {
                     println!(
-                        "{} port {index}: \"{}\", {} channels",
+                        "{} port {index}: id {}, \"{}\", {} channels{}",
                         if is_input { "input" } else { "output" },
+                        port.id.get(),
                         String::from_utf8_lossy(port.name),
-                        port.channel_count
-                    );
-                    if index == 0 {
-                        if is_input {
-                            channels.0 = port.channel_count as usize;
+                        port.channel_count,
+                        if port.flags.contains(AudioPortFlags::IS_MAIN) {
+                            ", main"
                         } else {
-                            channels.1 = port.channel_count as usize;
+                            ""
                         }
+                    );
+                    if is_input && index == 0 {
+                        input_channels = port.channel_count as usize;
+                    } else if !is_input {
+                        output_channels.push(port.channel_count as usize);
                     }
                 }
             }
@@ -197,12 +207,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         },
     )?;
     let mut processor = processor.start_processing()?;
-    let (in_channels, out_channels) = (channels.0.max(1), channels.1.max(1));
+    let in_channels = input_channels.max(1);
+    // Every output port gets its buffer; a plugin that offers none still gets one channel.
+    if output_channels.is_empty() {
+        output_channels.push(1);
+    }
+    let output_channels: Vec<usize> = output_channels.iter().map(|&count| count.max(1)).collect();
     let mut input_block = vec![vec![0.0f32; BLOCK]; in_channels];
-    let mut output_block = vec![vec![0.0f32; BLOCK]; out_channels];
-    let mut output = vec![Vec::with_capacity(frames); out_channels];
+    let mut output_blocks: Vec<Vec<Vec<f32>>> = output_channels
+        .iter()
+        .map(|&count| vec![vec![0.0f32; BLOCK]; count])
+        .collect();
+    let mut output: Vec<Vec<Vec<f32>>> = output_channels
+        .iter()
+        .map(|&count| vec![Vec::with_capacity(frames); count])
+        .collect();
     let mut input_ports = AudioPorts::with_capacity(in_channels, 1);
-    let mut output_ports = AudioPorts::with_capacity(out_channels, 1);
+    let mut output_ports =
+        AudioPorts::with_capacity(output_channels.iter().sum(), output_channels.len());
     let mut input_events = EventBuffer::new();
     let mut output_events = EventBuffer::new();
     let mut frame = 0;
@@ -213,17 +235,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         input_events.clear();
         output_events.clear();
-        // An instrument plays middle C for the first second.
-        let middle_c = Pckn::new(0u16, 0u16, 60u16, Match::All);
+        // An instrument plays its note for the first second.
+        let note = Pckn::new(0u16, 0u16, key, Match::All);
         if is_instrument && frame == 0 {
-            input_events.push(&NoteOnEvent::new(0, middle_c, 0.8));
+            input_events.push(&NoteOnEvent::new(0, note, 0.8));
         }
         if is_instrument && frame < frames / 2 && frame + n >= frames / 2 {
-            input_events.push(&NoteOffEvent::new(
-                (frames / 2 - frame) as u32,
-                middle_c,
-                0.0,
-            ));
+            input_events.push(&NoteOffEvent::new((frames / 2 - frame) as u32, note, 0.0));
         }
         if frame == 0 {
             for &(id, value) in &settings {
@@ -246,12 +264,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .map(|b| InputChannel::from_buffer(&mut b[..n], false)),
             ),
         }]);
-        let mut outputs = output_ports.with_output_buffers([AudioPortBuffer {
-            latency: 0,
-            channels: AudioPortBufferType::f32_output_only(
-                output_block.iter_mut().map(|b| &mut b[..n]),
-            ),
-        }]);
+        let mut outputs = output_ports.with_output_buffers(output_blocks.iter_mut().map(|port| {
+            AudioPortBuffer {
+                latency: 0,
+                channels: AudioPortBufferType::f32_output_only(
+                    port.iter_mut().map(|b| &mut b[..n]),
+                ),
+            }
+        }));
         processor.process(
             &inputs,
             &mut outputs,
@@ -260,8 +280,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Some(frame as u64),
             None,
         )?;
-        for (channel, block) in output.iter_mut().zip(&output_block) {
-            channel.extend_from_slice(&block[..n]);
+        for (port, blocks) in output.iter_mut().zip(&output_blocks) {
+            for (channel, block) in port.iter_mut().zip(blocks) {
+                channel.extend_from_slice(&block[..n]);
+            }
         }
         frame += n;
     }
@@ -282,15 +304,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "in:  sine at {:.1} dBFS RMS",
         db(rms(&source[..frames / 2]))
     );
-    for (index, channel) in output.iter().enumerate() {
-        let peak = channel.iter().fold(0.0f32, |peak, s| peak.max(s.abs()));
-        println!(
-            "out {index}: {:.1} dBFS RMS while the sine plays, {:.1} dBFS RMS in the silence after, peak {:.1} dBFS, finite {}",
-            db(rms(&channel[frames / 4..frames / 2])),
-            db(rms(&channel[frames * 3 / 4..])),
-            db(peak),
-            channel.iter().all(|s| s.is_finite())
-        );
+    for (port, channels) in output.iter().enumerate() {
+        for (index, channel) in channels.iter().enumerate() {
+            let peak = channel.iter().fold(0.0f32, |peak, s| peak.max(s.abs()));
+            // The first port's channels as `out <channel>`, another port's as `out <port>.<channel>`.
+            let name = if port == 0 {
+                index.to_string()
+            } else {
+                format!("{port}.{index}")
+            };
+            println!(
+                "out {name}: {:.1} dBFS RMS while the sine plays, {:.1} dBFS RMS in the silence after, peak {:.1} dBFS, finite {}",
+                db(rms(&channel[frames / 4..frames / 2])),
+                db(rms(&channel[frames * 3 / 4..])),
+                db(peak),
+                channel.iter().all(|s| s.is_finite())
+            );
+        }
     }
 
     if let Some(state) = instance

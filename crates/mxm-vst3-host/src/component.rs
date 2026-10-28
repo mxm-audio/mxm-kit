@@ -26,16 +26,28 @@ pub(crate) struct Bus {
     pub channels: u32,
 }
 
-/// The buses of a component. Every audio bus is processed, but only the main ones are offered to
-/// the host as CLAP ports; the others get silence in and are listened to by no one.
+/// The buses of a component. Every audio bus is processed. The host is offered the main input,
+/// the main output and every other output bus with channels (an aux output: a drum machine's
+/// per-slot outputs) as CLAP ports; the other inputs (sidechains) get silence in.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Layout {
     pub inputs: Vec<Bus>,
     pub outputs: Vec<Bus>,
     pub main_input: Option<usize>,
     pub main_output: Option<usize>,
+    /// The output buses offered after the main one, in bus order, as indexes into `outputs`.
+    pub aux_outputs: Vec<usize>,
     /// Whether it takes notes: its first event input bus.
     pub note_input: bool,
+}
+
+impl Layout {
+    /// The output buses offered as CLAP ports, in port order: the main one, then the others.
+    pub fn output_ports(&self) -> impl Iterator<Item = usize> + '_ {
+        self.main_output
+            .into_iter()
+            .chain(self.aux_outputs.iter().copied())
+    }
 }
 
 /// A created and initialised instance. Dropping it disconnects and terminates both halves.
@@ -167,7 +179,9 @@ impl Component {
     }
 
     /// Reads the buses, asks for stereo where a main bus is neither mono nor stereo, and turns on
-    /// the main audio buses and the first event input.
+    /// the main audio buses, every other output bus offered, and the first event input. Aux
+    /// outputs start inactive in VST3 and produce nothing until turned on; all of them are, as
+    /// Bitwig does.
     ///
     /// # Safety
     ///
@@ -205,6 +219,10 @@ impl Component {
                 self.component
                     .activateBus(kAudio as i32, kOutput as i32, main as i32, 1);
             }
+            for &aux in &layout.aux_outputs {
+                self.component
+                    .activateBus(kAudio as i32, kOutput as i32, aux as i32, 1);
+            }
             if layout.note_input {
                 self.component
                     .activateBus(kEvent as i32, kInput as i32, 0, 1);
@@ -218,11 +236,17 @@ impl Component {
         unsafe {
             let (inputs, main_input) = self.read_buses(kInput as BusDirection);
             let (outputs, main_output) = self.read_buses(kOutput as BusDirection);
+            // A bus without channels has nothing to offer; a second bus marked main is offered as
+            // an extra output like an aux one.
+            let aux_outputs = (0..outputs.len())
+                .filter(|&index| Some(index) != main_output && outputs[index].channels > 0)
+                .collect();
             Layout {
                 inputs,
                 outputs,
                 main_input,
                 main_output,
+                aux_outputs,
                 note_input: self.component.getBusCount(kEvent as i32, kInput as i32) > 0,
             }
         }

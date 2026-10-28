@@ -136,6 +136,23 @@ fn offered(mut layout: Layout, instrument: bool) -> Layout {
     layout
 }
 
+/// The CLAP id of the port output bus `bus` is offered as, `main` being the main output bus.
+///
+/// It is the bus's VST3 index, the one identity VST3 gives a bus (`activateBus` and the process
+/// data address it by it), so the same bus has the same id every time the plugin loads with the
+/// same buses: never its name, nor its place among the ports offered, which a bus left out would
+/// shift. The main bus keeps 0, as it always has; were it not the first bus, the first takes the
+/// main bus's index, so no two ports share an id. A host stores these ids in projects (newDAWn's
+/// tracks fed from a port): never change the rule.
+fn output_port_id(bus: usize, main: Option<usize>) -> u32 {
+    let id = match main {
+        Some(main) if bus == main => 0,
+        Some(main) if bus == 0 => main,
+        _ => bus,
+    };
+    id as u32
+}
+
 fn error(message: String) -> PluginError {
     PluginError::Error(message.into())
 }
@@ -360,33 +377,49 @@ impl<'a> PluginMainThread<'a, Shared<'a>> for MainThread<'a> {
 
 impl PluginAudioPortsImpl for MainThread<'_> {
     fn count(&mut self, is_input: bool) -> u32 {
-        let main = if is_input {
-            self.layout.main_input
+        if is_input {
+            u32::from(self.layout.main_input.is_some())
         } else {
-            self.layout.main_output
-        };
-        u32::from(main.is_some())
+            self.layout.output_ports().count() as u32
+        }
     }
 
     fn get(&mut self, index: u32, is_input: bool, writer: &mut AudioPortInfoWriter) {
-        let (buses, main) = if is_input {
-            (&self.layout.inputs, self.layout.main_input)
+        let layout = &self.layout;
+        let (buses, main, bus) = if is_input {
+            let bus = layout.main_input.filter(|_| index == 0);
+            (&layout.inputs, layout.main_input, bus)
         } else {
-            (&self.layout.outputs, self.layout.main_output)
+            let bus = layout.output_ports().nth(index as usize);
+            (&layout.outputs, layout.main_output, bus)
         };
-        let Some(bus) = main.filter(|_| index == 0).map(|main| &buses[main]) else {
+        let Some(bus_index) = bus else {
             return;
         };
-        let name = if bus.name.is_empty() {
+        let bus = &buses[bus_index];
+        let is_main = Some(bus_index) == main;
+        let unnamed;
+        let name = if !bus.name.is_empty() {
+            bus.name.as_str()
+        } else if is_main {
             if is_input { "Input" } else { "Output" }
         } else {
-            &bus.name
+            unnamed = format!("Output {}", bus_index + 1);
+            &unnamed
         };
         writer.set(&AudioPortInfo {
-            id: ClapId::new(0),
+            id: ClapId::new(if is_input {
+                0
+            } else {
+                output_port_id(bus_index, main)
+            }),
             name: name.as_bytes(),
             channel_count: bus.channels,
-            flags: AudioPortFlags::IS_MAIN,
+            flags: if is_main {
+                AudioPortFlags::IS_MAIN
+            } else {
+                AudioPortFlags::empty()
+            },
             port_type: AudioPortType::from_channel_count(bus.channels),
             in_place_pair: None,
         });
@@ -1150,7 +1183,8 @@ impl AudioProcessor<'_> {
     }
 
     /// Points the processor's buses at this block's memory: the host's input copied into the
-    /// main input bus, the host's output as the main output bus, silence everywhere else.
+    /// main input bus, each of the host's output ports as the bus it is offered for, silence
+    /// everywhere else.
     fn bind_buffers(&mut self, audio: &mut Audio, frames: u32) -> Result<(), PluginError> {
         let frames = frames as usize;
         let (host_inputs, host_outputs) = audio.raw_buffers();
@@ -1174,21 +1208,29 @@ impl AudioProcessor<'_> {
                 }
             }
         }
-        for (index, bus) in self.outputs.iter_mut().enumerate() {
+        for bus in &mut self.outputs {
             bus.use_scratch();
-            if Some(index) == self.layout.main_output
-                && let Some(buffer) = host_outputs.first()
-            {
-                if buffer.data32.is_null() {
+        }
+        // The ports in the order offered, so the host's port `port` is its buffer `port`.
+        for (port, index) in self.layout.output_ports().enumerate() {
+            let Some(buffer) = host_outputs.get(port) else {
+                break;
+            };
+            if buffer.data32.is_null() {
+                if Some(index) == self.layout.main_output {
                     return Err(PluginError::Message("the host gave no 32-bit output"));
                 }
-                for (channel, pointer) in bus.pointers.iter_mut().enumerate() {
-                    if channel < buffer.channel_count as usize {
-                        // SAFETY: the host's port has `channel_count` channels.
-                        *pointer = unsafe { *buffer.data32.add(channel) };
-                    }
+                // An extra port given no memory: its bus writes into its own, heard by no one.
+                continue;
+            }
+            for (channel, pointer) in self.outputs[index].pointers.iter_mut().enumerate() {
+                if channel < buffer.channel_count as usize {
+                    // SAFETY: the host's port has `channel_count` channels.
+                    *pointer = unsafe { *buffer.data32.add(channel) };
                 }
             }
+        }
+        for bus in &self.outputs {
             for &pointer in &bus.pointers {
                 // A processor that writes nothing leaves silence, not the last block.
                 // SAFETY: every pointer holds `frames` samples: the host's or the scratch's.
@@ -1234,26 +1276,26 @@ impl AudioProcessor<'_> {
         }
     }
 
-    /// A channel the processor flagged silent is made exactly silent, and marked constant.
+    /// A channel the processor flagged silent is made exactly silent, and marked constant, on
+    /// every port offered.
     fn mark_silence(&mut self, audio: &mut Audio, frames: u32) {
-        let Some(main) = self.layout.main_output else {
-            return;
-        };
-        let flags = self.output_headers[main].silenceFlags;
-        if flags == 0 {
-            return;
-        }
-        let mut mask = clack_plugin::process::ConstantMask::FULLY_DYNAMIC;
-        let bus = &self.outputs[main];
-        for (channel, &pointer) in bus.pointers.iter().enumerate().take(64) {
-            if flags & (1 << channel) != 0 {
-                // SAFETY: as in `bind_buffers`.
-                unsafe { std::slice::from_raw_parts_mut(pointer, frames as usize) }.fill(0.0);
-                mask.set_channel_constant(channel as u64, true);
+        for (port, index) in self.layout.output_ports().enumerate() {
+            let flags = self.output_headers[index].silenceFlags;
+            if flags == 0 {
+                continue;
             }
-        }
-        if let Some(mut port) = audio.output_port(0) {
-            port.set_constant_mask(mask);
+            let mut mask = clack_plugin::process::ConstantMask::FULLY_DYNAMIC;
+            let bus = &self.outputs[index];
+            for (channel, &pointer) in bus.pointers.iter().enumerate().take(64) {
+                if flags & (1 << channel) != 0 {
+                    // SAFETY: as in `bind_buffers`.
+                    unsafe { std::slice::from_raw_parts_mut(pointer, frames as usize) }.fill(0.0);
+                    mask.set_channel_constant(channel as u64, true);
+                }
+            }
+            if let Some(mut port) = audio.output_port(port) {
+                port.set_constant_mask(mask);
+            }
         }
     }
 }
@@ -1301,5 +1343,49 @@ impl PluginTailImpl for AudioProcessor<'_> {
             0 => TailLength::Infinite,
             frames => TailLength::from_raw(frames),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_output_port_id_is_its_bus_index_and_the_main_bus_keeps_0() {
+        // The usual layout, the main bus first: a drum machine's L+R and its slots.
+        let ids: Vec<u32> = (0..17).map(|bus| output_port_id(bus, Some(0))).collect();
+        assert_eq!(ids, (0..17).collect::<Vec<u32>>());
+        // No main bus: every bus is its index.
+        assert_eq!(output_port_id(0, None), 0);
+        assert_eq!(output_port_id(3, None), 3);
+        // A main bus that isn't first still has 0, and the first bus takes its index.
+        assert_eq!(output_port_id(2, Some(2)), 0);
+        assert_eq!(output_port_id(0, Some(2)), 2);
+        assert_eq!(output_port_id(1, Some(2)), 1);
+        assert_eq!(output_port_id(3, Some(2)), 3);
+        // Never two ports with one id, wherever the main bus is.
+        for count in 1..8 {
+            for main in (0..count).map(Some).chain([None]) {
+                let mut ids: Vec<u32> = (0..count).map(|bus| output_port_id(bus, main)).collect();
+                ids.sort_unstable();
+                ids.dedup();
+                assert_eq!(ids.len(), count, "{count} buses, main {main:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn the_main_output_is_the_first_port_and_the_rest_follow_in_bus_order() {
+        let layout = Layout {
+            main_output: Some(1),
+            aux_outputs: vec![0, 2, 3],
+            ..Layout::default()
+        };
+        assert_eq!(layout.output_ports().collect::<Vec<_>>(), [1, 0, 2, 3]);
+        let without_main = Layout {
+            aux_outputs: vec![0, 1],
+            ..Layout::default()
+        };
+        assert_eq!(without_main.output_ports().collect::<Vec<_>>(), [0, 1]);
     }
 }

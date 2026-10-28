@@ -21,7 +21,7 @@
 //! | `params` | `IEditController` parameters; stepped ones as their steps, the rest normalised |
 //! | parameter modulation | added to the parameter's value before it reaches the processor |
 //! | `state` | the component's and the controller's state, in one blob |
-//! | `audio-ports` / `note-ports` | the main audio buses and the first event bus |
+//! | `audio-ports` / `note-ports` | the main audio buses, then the other output buses (aux outputs), each port's id its bus index; the first event bus |
 //! | `latency` / `tail` | `getLatencySamples` / `getTailSamples` |
 //! | `render` | the process mode, realtime or offline |
 //! | `gui` | `IPlugView`: embedded, or floating in a window of this crate's |
