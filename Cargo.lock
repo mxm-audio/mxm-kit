@@ -2319,6 +2319,8 @@ dependencies = [
  "mxm-control-map",
  "mxm-vst3-host",
  "nice-plug-xtask",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
