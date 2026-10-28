@@ -555,6 +555,9 @@ mod tests {
             fn clap_id(&self) -> &'static str {
                 self.inner.clap_id()
             }
+            fn version(&self) -> &'static str {
+                self.inner.version()
+            }
 
             fn parameters(&self) -> Vec<(&'static str, &dyn mxm_params::ErasedParam)> {
                 self.inner.parameters()
@@ -667,6 +670,9 @@ mod tests {
     impl Instrument for Instanced {
         fn clap_id(&self) -> &'static str {
             self.0.clap_id()
+        }
+        fn version(&self) -> &'static str {
+            self.0.version()
         }
         fn parameters(&self) -> Vec<(&'static str, &dyn mxm_params::ErasedParam)> {
             self.0.parameters()

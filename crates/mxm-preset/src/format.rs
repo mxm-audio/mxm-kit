@@ -32,7 +32,7 @@ const COMMENT: &str = "`v` is the value and is authoritative. `text` is this plu
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Origin {
-    /// Installed with the plugin, in its factory folder ([`crate::installed_factory_dir`]), and
+    /// Installed with the plugin, in its factory folder ([`crate::factory_dir`]), and
     /// trusted for being there. Cannot be written at any price.
     Factory,
     /// A file in the user's own presets directory — the bank called *My presets*.
@@ -375,6 +375,9 @@ mod tests {
         fn clap_id(&self) -> &'static str {
             self.0.clap_id()
         }
+        fn version(&self) -> &'static str {
+            self.0.version()
+        }
         fn parameters(&self) -> Vec<(&'static str, &dyn ErasedParam)> {
             self.0.parameters()
         }
@@ -397,6 +400,9 @@ mod tests {
     impl Instrument for Instanced {
         fn clap_id(&self) -> &'static str {
             self.0.clap_id()
+        }
+        fn version(&self) -> &'static str {
+            self.0.version()
         }
         fn parameters(&self) -> Vec<(&'static str, &dyn ErasedParam)> {
             self.0.parameters()
@@ -441,6 +447,9 @@ mod tests {
     impl Instrument for FactoryPreserving {
         fn clap_id(&self) -> &'static str {
             self.0.clap_id()
+        }
+        fn version(&self) -> &'static str {
+            self.0.version()
         }
         fn parameters(&self) -> Vec<(&'static str, &dyn ErasedParam)> {
             self.0.parameters()

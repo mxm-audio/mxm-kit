@@ -27,30 +27,22 @@ pub fn factory(instrument: &dyn Instrument) -> Vec<Preset> {
 /// The file in a factory folder that gives its presets' order: one file name a line.
 pub const ORDER_FILE: &str = "order.txt";
 
-/// Where the factory presets installed with this plugin are (`ops/plans/plan-external-presets.md`
-/// in the workspace): beside the `.clap`, or inside the `.vst3` ([`factory_dir_of`]). `None`
-/// outside a bundle, as in a unit test.
-pub fn installed_factory_dir() -> Option<PathBuf> {
-    nice_plug::prelude::plugin_location().map(|location| factory_dir_of(&location))
+/// Where the factory presets installed for the plugin `clap_id` at `version` are
+/// (`ops/plans/plan-external-presets.md` in the workspace): `mxm/<clap id>/factory/<version>/` under
+/// the platform's local data directory, where the collection's impulse responses are too. One
+/// folder per version, so each installed version reads the set it shipped with (the owner,
+/// 2026-10-28). `None` where the platform has no local data directory.
+pub fn factory_dir(clap_id: &str, version: &str) -> Option<PathBuf> {
+    factory_dir_under(dirs::data_local_dir(), clap_id, version)
 }
 
-/// The factory folder of a plugin at `location`: `<Bundle Name>.presets/` beside a `.clap`, as its
-/// control map is beside it; `Contents/Resources/presets/` inside a `.vst3`, as its
-/// `moduleinfo.json` is.
-pub fn factory_dir_of(location: &nice_plug::prelude::PluginLocation) -> PathBuf {
-    let bundle = &location.bundle;
-    match location.format {
-        nice_plug::prelude::PluginFormat::Clap => {
-            let stem = bundle
-                .file_stem()
-                .map(|stem| stem.to_string_lossy().into_owned())
-                .unwrap_or_default();
-            bundle.with_file_name(format!("{stem}.presets"))
-        }
-        nice_plug::prelude::PluginFormat::Vst3 => {
-            bundle.join("Contents").join("Resources").join("presets")
-        }
-    }
+/// [`factory_dir`] under `data_local`, the platform's local data directory.
+pub fn factory_dir_under(
+    data_local: Option<PathBuf>,
+    clap_id: &str,
+    version: &str,
+) -> Option<PathBuf> {
+    data_local.map(|dir| dir.join("mxm").join(clap_id).join("factory").join(version))
 }
 
 /// The preset files in a factory folder, `(file name, json)`, in the order its [`ORDER_FILE`]
@@ -94,9 +86,8 @@ pub fn read_factory_dir(dir: &Path) -> Vec<(String, String)> {
 /// Where a user's presets live, under the platform config directory, namespaced by the plugin's id
 /// so another instrument's presets cannot appear in this one's list.
 ///
-/// Not beside the plugin, where its factory presets are ([`installed_factory_dir`]): an install
-/// replaces that folder, and a user's own must survive every install. They live where the rest of
-/// this collection's settings do.
+/// Not in the factory folder ([`factory_dir`]), which an install replaces: a user's own must
+/// survive every install. They live where the rest of this collection's settings do.
 pub fn user_root(clap_id: &str) -> Option<PathBuf> {
     dirs::config_dir().map(|dir| dir.join("mxm").join(clap_id).join("presets"))
 }
@@ -824,26 +815,23 @@ b.json
     }
 
     #[test]
-    fn the_factory_folder_is_beside_a_clap_and_inside_a_vst3() {
-        use nice_plug::prelude::{PluginFormat, PluginLocation};
-        let at = |format, bundle: &str| {
-            factory_dir_of(&PluginLocation {
-                format,
-                bundle: PathBuf::from(bundle),
-            })
-        };
+    fn the_factory_folder_is_the_versions_own_under_the_local_data_directory() {
+        let base = PathBuf::from("data-local");
         assert_eq!(
-            at(PluginFormat::Clap, "C:/CLAP/mxm-mono-01.clap"),
-            PathBuf::from("C:/CLAP/mxm-mono-01.presets")
+            factory_dir_under(Some(base.clone()), "dk.mxm.mxm-mono-01", "1.2.0"),
+            Some(
+                base.join("mxm")
+                    .join("dk.mxm.mxm-mono-01")
+                    .join("factory")
+                    .join("1.2.0")
+            )
         );
-        assert_eq!(
-            at(PluginFormat::Vst3, "C:/VST3/mxm-mono-01.vst3"),
-            Path::new("C:/VST3/mxm-mono-01.vst3")
-                .join("Contents")
-                .join("Resources")
-                .join("presets")
+        assert_ne!(
+            factory_dir_under(Some(base.clone()), "dk.mxm.mxm-mono-01", "1.2.0"),
+            factory_dir_under(Some(base), "dk.mxm.mxm-mono-01", "1.3.0"),
+            "each version has its own"
         );
-        assert_eq!(installed_factory_dir(), None, "a unit test is no plugin");
+        assert_eq!(factory_dir_under(None, "dk.mxm.mxm-mono-01", "1.2.0"), None);
     }
 
     /// A library rooted in a fresh temporary directory, removed when the test ends.

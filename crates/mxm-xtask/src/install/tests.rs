@@ -31,13 +31,20 @@ fn bundles() -> Vec<(String, String)> {
     vec![("x-plugin".to_owned(), "x".to_owned())]
 }
 
-/// The CLAP going into `clap`, the VST3 into a `VST3` beside it, and no older copy to retire.
+/// The CLAP going into `clap`, the VST3 into a `VST3` beside it, the presets under `data/mxm`
+/// beside it, and no older copy to retire.
 fn folders(clap: &Path) -> Folders {
     Folders {
         clap: clap.to_path_buf(),
         vst3: Some(clap.with_file_name("VST3")),
         retired: None,
+        presets: Some(clap.with_file_name("data").join("mxm")),
     }
+}
+
+/// The test plugin's package at version 1.0.0.
+fn versions() -> HashMap<String, String> {
+    HashMap::from([("x-plugin".to_owned(), "1.0.0".to_owned())])
 }
 
 fn installs(bundled: &Path, staged: &[PathBuf], folder: &Path) -> Vec<Outcome> {
@@ -46,6 +53,7 @@ fn installs(bundled: &Path, staged: &[PathBuf], folder: &Path) -> Vec<Outcome> {
         &strings(&["x-plugin"]),
         bundled,
         staged,
+        &versions(),
         &folders(folder),
     )
 }
@@ -120,30 +128,91 @@ fn a_plugin_and_its_map_are_installed_and_replaced_whole() {
     assert_eq!(names_in(&folder), [LOCK, "x.clap"]);
 }
 
-/// The presets the bundle staged go beside the `.clap` whole: a file a later bundle dropped is
-/// gone, and a bundle that staged none leaves none beside it.
+/// The presets the bundle staged go in their plugin's folder for its version, whole: a file a later
+/// bundle dropped is gone, another version's folder stays, and nothing goes beside the `.clap`.
 #[test]
-fn a_plugins_presets_go_beside_its_clap_and_are_replaced_whole() {
+fn a_plugins_presets_go_in_its_versions_folder_and_are_replaced_whole() {
     let scratch = Scratch::new("presets");
     let bundled = scratch.0.join("bundled");
     let folder = scratch.0.join("CLAP");
     let staged = bundled.join("x.presets");
     std::fs::create_dir_all(&staged).unwrap();
     std::fs::write(bundled.join("x.clap"), "first").unwrap();
-    std::fs::write(staged.join("a.json"), "{}").unwrap();
-    std::fs::write(staged.join("b.json"), "{}").unwrap();
+    let preset = |name: &str| {
+        format!(r#"{{"schema_version": 1, "plugin": "dk.x", "name": "{name}", "params": {{}}}}"#)
+    };
+    std::fs::write(staged.join("a.json"), preset("A")).unwrap();
+    std::fs::write(staged.join("b.json"), preset("B")).unwrap();
+    let factory = scratch
+        .0
+        .join("data")
+        .join("mxm")
+        .join("dk.x")
+        .join("factory");
 
     let with_presets = std::slice::from_ref(&staged);
-    assert!(installs(&bundled, with_presets, &folder)[0].result.is_ok());
-    assert_eq!(names_in(&folder.join("x.presets")), ["a.json", "b.json"]);
+    let outcomes = installs(&bundled, with_presets, &folder);
+    assert!(outcomes[0].result.is_ok(), "{:?}", outcomes[0].result);
+    assert_eq!(outcomes[0].presets, Some(factory.join("1.0.0")));
+    assert_eq!(names_in(&factory.join("1.0.0")), ["a.json", "b.json"]);
+    assert_eq!(names_in(&folder), [LOCK, "x.clap"]);
 
     std::fs::remove_file(staged.join("a.json")).unwrap();
     assert!(installs(&bundled, with_presets, &folder)[0].result.is_ok());
-    assert_eq!(names_in(&folder.join("x.presets")), ["b.json"]);
+    assert_eq!(names_in(&factory.join("1.0.0")), ["b.json"]);
 
-    std::fs::remove_dir_all(&staged).unwrap();
-    assert!(installs(&bundled, &[], &folder)[0].result.is_ok());
-    assert_eq!(names_in(&folder), [LOCK, "x.clap"]);
+    // The next version's set beside it, the last one's kept for that version.
+    let next = HashMap::from([("x-plugin".to_owned(), "1.1.0".to_owned())]);
+    let outcomes = install(
+        &bundles(),
+        &strings(&["x-plugin"]),
+        &bundled,
+        with_presets,
+        &next,
+        &folders(&folder),
+    );
+    assert!(outcomes[0].result.is_ok(), "{:?}", outcomes[0].result);
+    assert_eq!(names_in(&factory), [LOCK, "1.0.0", "1.1.0"]);
+
+    // A bundle that staged none installs none.
+    let outcomes = installs(&bundled, &[], &folder);
+    assert!(outcomes[0].result.is_ok());
+    assert_eq!(outcomes[0].presets, None);
+}
+
+/// Without a version or a data folder to put them in, the plugin goes in and says its presets
+/// didn't.
+#[test]
+fn presets_with_nowhere_to_go_are_said_not_installed() {
+    let scratch = Scratch::new("presets-nowhere");
+    let bundled = scratch.0.join("bundled");
+    let folder = scratch.0.join("CLAP");
+    let staged = bundled.join("x.presets");
+    std::fs::create_dir_all(&staged).unwrap();
+    std::fs::write(bundled.join("x.clap"), "built").unwrap();
+    std::fs::write(
+        staged.join("a.json"),
+        r#"{"schema_version": 1, "plugin": "dk.x", "name": "A", "params": {}}"#,
+    )
+    .unwrap();
+    let mut nowhere = folders(&folder);
+    nowhere.presets = None;
+    for (versions, folders) in [(HashMap::new(), folders(&folder)), (versions(), nowhere)] {
+        let outcomes = install(
+            &bundles(),
+            &strings(&["x-plugin"]),
+            &bundled,
+            std::slice::from_ref(&staged),
+            &versions,
+            &folders,
+        );
+        let error = format!("{:#}", outcomes[0].result.as_ref().unwrap_err());
+        assert!(
+            error.contains("is installed, but not its presets"),
+            "{error}"
+        );
+        assert!(folder.join("x.clap").exists());
+    }
 }
 
 #[test]
@@ -187,6 +256,7 @@ fn only_a_package_bundler_toml_names_and_the_command_line_bundled_is_installed()
         &strings(&["other"]),
         &scratch.0,
         &[],
+        &versions(),
         &folders(&folder),
     );
     assert!(outcomes.is_empty());
@@ -308,18 +378,18 @@ fn the_older_copy_goes_once_the_new_one_is_in_and_nothing_else_there_does() {
     ] {
         std::fs::write(retired.join(name), contents).unwrap();
     }
-    std::fs::create_dir_all(retired.join("x.presets")).unwrap();
-    std::fs::write(retired.join("x.presets").join("a.json"), "{}").unwrap();
     let folders = Folders {
         clap: scratch.0.join("CLAP"),
         vst3: Some(scratch.0.join("VST3")),
         retired: Some(retired.clone()),
+        presets: None,
     };
     let outcomes = install(
         &bundles(),
         &strings(&["x-plugin"]),
         &scratch.0,
         &[],
+        &versions(),
         &folders,
     );
     assert!(outcomes[0].result.is_ok());
@@ -342,12 +412,14 @@ fn a_failed_install_leaves_the_older_copy_where_it_is() {
         clap,
         vst3: Some(scratch.0.join("VST3")),
         retired: Some(retired.clone()),
+        presets: None,
     };
     let outcomes = install(
         &bundles(),
         &strings(&["x-plugin"]),
         &scratch.0,
         &[],
+        &versions(),
         &folders,
     );
     assert!(outcomes[0].result.is_err());
@@ -367,10 +439,18 @@ fn retiring_waits_for_an_install_holding_the_folders_lock() {
         clap: scratch.0.join("CLAP"),
         vst3: Some(scratch.0.join("VST3")),
         retired: Some(retired.clone()),
+        presets: None,
     };
     let bundled = scratch.0.clone();
     let installing = std::thread::spawn(move || {
-        install(&bundles(), &strings(&["x-plugin"]), &bundled, &[], &folders)
+        install(
+            &bundles(),
+            &strings(&["x-plugin"]),
+            &bundled,
+            &[],
+            &versions(),
+            &folders,
+        )
     });
     std::thread::sleep(std::time::Duration::from_millis(300));
     assert!(
@@ -417,6 +497,7 @@ fn a_clap_only_plugin_needs_no_vst3_folder_and_a_vst3_says_it_has_none() {
             &strings(&["x-plugin"]),
             &scratch.0,
             &[],
+            &versions(),
             folders,
         )
     };
@@ -524,12 +605,14 @@ fn an_install_into_the_older_folder_by_another_spelling_is_not_taken_back_out() 
         clap: retired.join("..").join("user"),
         vst3: Some(scratch.0.join("VST3")),
         retired: Some(retired.clone()),
+        presets: None,
     };
     let outcomes = install(
         &bundles(),
         &strings(&["x-plugin"]),
         &scratch.0,
         &[],
+        &versions(),
         &folders,
     );
     assert!(outcomes[0].result.is_ok());
@@ -563,25 +646,6 @@ fn a_destination_that_is_the_bundle_folder_is_refused_and_touched_nowhere() {
         assert_eq!(std::fs::read_to_string(&map).unwrap(), "{}");
         assert_eq!(names_in(&bundled), ["x.clap", "x.control-map.json"]);
     }
-}
-
-/// The same for the presets alone, with no map: the staged folder is never set aside as an older
-/// one and lost.
-#[test]
-fn a_destination_where_the_presets_are_staged_is_refused_and_touched_nowhere() {
-    let scratch = Scratch::new("presets-staged-here");
-    let bundled = scratch.0.join("custom").join("bundled");
-    let staged = scratch.0.join("repository").join("target").join("bundled");
-    std::fs::create_dir_all(&bundled).unwrap();
-    std::fs::create_dir_all(staged.join("x.presets")).unwrap();
-    std::fs::write(bundled.join("x.clap"), "built").unwrap();
-    std::fs::write(staged.join("x.presets").join("a.json"), "{}").unwrap();
-    let presets = staged.join("x.presets");
-    let outcomes = installs(&bundled, std::slice::from_ref(&presets), &staged);
-    let error = format!("{:#}", outcomes[0].result.as_ref().unwrap_err());
-    assert!(error.starts_with("not installed"), "{error}");
-    assert_eq!(names_in(&staged), ["x.presets"]);
-    assert_eq!(names_in(&presets), ["a.json"]);
 }
 
 /// With a custom `CARGO_TARGET_DIR` the bundle is made in one folder and its map staged in the

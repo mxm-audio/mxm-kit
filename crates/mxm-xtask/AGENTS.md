@@ -5,8 +5,8 @@
 The build tooling every MXM repository's `cargo xtask` shares: `main` runs `nice_plug_xtask`, which
 produces the loadable `.clap` (and the `.vst3` of a plugin that exports one), and after a `bundle`
 writes each VST3's `moduleinfo.json` (`module_info`), stages each plugin's control map beside its
-bundle (`control_maps`) and installs the CLAP, its map and the VST3 in the standard plugin folders
-(`install`). `cargo xtask
+bundle (`control_maps`) and its presets (`presets`), and installs the CLAP, its map and the VST3
+in the standard plugin folders and the presets in their version's folder (`install`). `cargo xtask
 fetch` builds the plugins of *other* MXM repositories that this repository's tests load, at the tags
 its `test-bundles.txt` pins (`fetch`). A repository's own `xtask` passes its workspace root and adds
 only the commands that repository alone needs.
@@ -32,15 +32,18 @@ and `test-bundles.txt` for the plugins to fetch; all three belong to the reposit
   `target/bundled/<Bundle Name>.control-map.json`, which is where MXM Player looks for it. A plugin
   without one is not an error — it simply has no roles filled. Staging never fails the bundle: an
   unmapped plugin still works.
-- **A plugin's factory presets ship with it** (`presets`; the owner, 2026-10-27, in
-  `docs/plugin-conventions.md`): `bundle` checks `plugins/<crate>/presets/` before the build
-  (fatal: every `.json` a preset of one plugin, `order.txt` naming only files there), then stages
-  its `.json`s and order as `<Bundle Name>.presets/` in the repository's `target/bundled`, where
-  the map is staged whichever folder Cargo builds in, and inside the `.vst3` Cargo built (in the
-  folder `CARGO_TARGET_DIR` moves) as `Contents/Resources/presets/`, each replacing what an
-  earlier bundle left; staging is never fatal. The install is handed the staged folder with the
-  map and puts it beside the `.clap` as it does the map, set aside with it before the plugin goes
-  in and retired with it, so an older set never stays beside a newer plugin.
+- **A plugin's factory presets ship with it, for its version** (`presets`; the owner, 2026-10-27
+  and 2026-10-28, in `docs/plugin-conventions.md`): `bundle` checks `plugins/<crate>/presets/`
+  before the build (fatal: every `.json` a preset of one plugin, `order.txt` naming only files
+  there), then stages its `.json`s and order as `<Bundle Name>.presets/` in the repository's
+  `target/bundled`, where the map is staged whichever folder Cargo builds in, replacing what an
+  earlier bundle left; staging is never fatal. With the CLAP, the install puts the staged set in
+  `mxm/<clap id>/factory/<version>/` under the local data directory (`presets::folder_for`, the
+  folder `mxm-preset`'s `factory_dir` reads): the id read from the files, the version the
+  package's, whole, so a file a later bundle dropped is gone, under that plugin's
+  `factory/.mxm-install.lock`. Other versions' folders stay, each for its own version. Nothing
+  goes beside the `.clap` or into the `.vst3`. A set that can't go in is said, and the plugin is
+  still in; a bundle that staged none installs none.
 - **Every bundle installs itself**, the CLAP with its map and, when the bundle made one, the VST3,
   where newDAWn, Bitwig and the other hosts look, so a host always loads the last build (newDAWn's
   owner, 2026-10-13, choosing every build over every commit: "So the latest ones are always in the

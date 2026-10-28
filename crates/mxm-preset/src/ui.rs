@@ -1594,6 +1594,9 @@ mod tests {
         fn clap_id(&self) -> &'static str {
             self.inner.clap_id()
         }
+        fn version(&self) -> &'static str {
+            self.inner.version()
+        }
         fn parameters(&self) -> Vec<(&'static str, &dyn mxm_params::ErasedParam)> {
             self.inner.parameters()
         }

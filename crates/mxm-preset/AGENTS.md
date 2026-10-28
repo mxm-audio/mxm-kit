@@ -28,15 +28,17 @@ collection's one binding are [`mxm-params`](../mxm-params/AGENTS.md)'; this crat
 ## An instrument is four core answers, with instance-setting, sparse-default, factory-preserved and durable-content seams
 
 `Instrument` is implemented on a plugin's `Params` struct, in its `src/preset.rs`, and asks for:
-the permanent `clap_id`; `parameters()` as `(id, &dyn ErasedParam)` **in declaration order**, the
-order files are written and Init writes in; `identity()`, the `#[persist = "preset"]`ed
-`RwLock<PresetIdentity>` that keeps the loaded preset's name and baseline with the patch; and
-`factory_files()`, the factory set as `(file name, json)`, which by default reads the folder
-installed with the plugin (`installed_factory_dir`: `<Bundle Name>.presets/` beside the `.clap`,
-`Contents/Resources/presets/` in the `.vst3`) in its `order.txt`'s order (`read_factory_dir`), so a
-plugin implements it only in a test. `clap` is what a plugin gives nice-plug's preset capability:
-`PRESETS` (this format's metadata for a host's index) and `Loader`, which loads a file as the
-browser loads an entry, factory content only inside the installed folder. Everything takes `&dyn Instrument`, and a
+the permanent `clap_id`; its `version()`, the plugin's `Plugin::VERSION`; `parameters()` as
+`(id, &dyn ErasedParam)` **in declaration order**, the order files are written and Init writes in;
+`identity()`, the `#[persist = "preset"]`ed `RwLock<PresetIdentity>` that keeps the loaded
+preset's name and baseline with the patch; and `factory_files()`, the factory set as `(file name,
+json)`, which by default reads the folder installed for that version (`factory_dir`:
+`mxm/<clap id>/factory/<version>/` under the local data directory, one per version, the owner's
+ruling of 2026-10-28) in its `order.txt`'s order (`read_factory_dir`), so a plugin implements it
+only in a test, which reads its repository's folder, never the machine's. `clap` is what a plugin
+gives nice-plug's preset capability: `PRESETS` (this format's metadata for a host's index, the
+folder by id and version) and `Loader`, which loads a file as the browser loads an entry, factory
+content only inside that folder. Everything takes `&dyn Instrument`, and a
 `&MxmXxxParams` coerces, so a plugin's editor passes its params and nothing else.
 
 The seams ([NOTES.md § The instrument's seams in full](NOTES.md#the-instruments-seams-in-full)):

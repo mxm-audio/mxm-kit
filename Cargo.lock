@@ -2316,6 +2316,7 @@ version = "0.4.1"
 dependencies = [
  "anyhow",
  "cargo_metadata",
+ "dirs",
  "mxm-control-map",
  "mxm-vst3-host",
  "nice-plug-xtask",

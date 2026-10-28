@@ -10,7 +10,8 @@
 //! folders, where every installer puts a plugin and every host looks unconfigured (JUCE's
 //! copy-after-build default too, which warns they may need write access granted once); on macOS
 //! and Linux this user's. The control map goes beside the `.clap` only: a host reads MXM's roles
-//! from the CLAP.
+//! from the CLAP. The factory presets go in the plugin's folder for its version under the local
+//! data directory, which both formats read ([`crate::presets::folder_for`]).
 //!
 //! On by default, off with `MXM_INSTALL_CLAP=0` and under CI ([`wanted`]). Never fatal: a bundle a
 //! test made still succeeds when its install doesn't, and says why.
@@ -24,6 +25,7 @@
 //! a plugin.
 
 use anyhow::{Context, Result, bail};
+use std::collections::HashMap;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
@@ -207,22 +209,27 @@ fn scan_order(format: Format) -> Vec<PathBuf> {
     folders
 }
 
-/// Where each format goes, and the folder an older install of the CLAP is taken out of. The VST3's
-/// is needed only when a bundle made one, so a CLAP-only plugin installs without it.
+/// Where each format goes, the folder an older install of the CLAP is taken out of, and where
+/// factory presets go. The VST3's is needed only when a bundle made one, so a CLAP-only plugin
+/// installs without it.
 #[derive(Clone, Debug)]
 pub struct Folders {
     pub clap: PathBuf,
     pub vst3: Option<PathBuf>,
     pub retired: Option<PathBuf>,
+    /// The root the presets go under ([`crate::presets::root`]).
+    pub presets: Option<PathBuf>,
 }
 
 impl Folders {
-    /// [`folder`] for each format and [`retired_folder`], or why the CLAP's isn't known.
+    /// [`folder`] for each format, [`retired_folder`] and [`crate::presets::root`], or why the
+    /// CLAP's isn't known.
     pub fn chosen() -> Result<Self> {
         Ok(Self {
             clap: folder(Format::Clap).with_context(|| unknown(Format::Clap))?,
             vst3: folder(Format::Vst3),
             retired: retired_folder(),
+            presets: crate::presets::root(),
         })
     }
 
@@ -271,21 +278,25 @@ pub struct Outcome {
     /// An older copy that should have gone and couldn't: hosts reading its folder list the plugin
     /// twice until it does.
     pub left_behind: Vec<PathBuf>,
+    /// The folder the plugin's factory presets went in, with its CLAP.
+    pub presets: Option<PathBuf>,
 }
 
 /// Installs each of `packages` that `bundles` (`bundler.toml`'s `(package, bundle name)` pairs)
-/// names, from `bundled` into `folders`: the CLAP, with its control map if `staged` holds one, and
-/// the VST3 when the bundle made one. One outcome per plugin and format; never an error, so a
-/// failed install never fails the bundle.
+/// names, from `bundled` into `folders`: the CLAP, with its control map if `staged` holds one, its
+/// factory presets if `staged` holds them, in their folder for the package's version in
+/// `versions`, and the VST3 when the bundle made one. One outcome per plugin and format; never an
+/// error, so a failed install never fails the bundle.
 pub fn install(
     bundles: &[(String, String)],
     packages: &[String],
     bundled: &Path,
     staged: &[PathBuf],
+    versions: &HashMap<String, String>,
     folders: &Folders,
 ) -> Vec<Outcome> {
     let mut outcomes = Vec::new();
-    for (_, bundle) in bundles
+    for (package, bundle) in bundles
         .iter()
         .filter(|(package, _)| packages.contains(package))
     {
@@ -299,7 +310,18 @@ pub fn install(
             path.file_name()
                 .is_some_and(|name| name == presets_name.as_str())
         });
-        let result = install_one(bundle, Format::Clap, bundled, map, presets, &folders.clap);
+        let mut installed_presets = None;
+        let result =
+            install_one(bundle, Format::Clap, bundled, map, &folders.clap).and_then(|installed| {
+                if let Some(presets) = presets {
+                    installed_presets =
+                        install_presets(presets, versions.get(package), folders.presets.as_deref())
+                            .with_context(|| {
+                                format!("{} is installed, but not its presets", installed.display())
+                            })?;
+                }
+                Ok(installed)
+            });
         // The older copy goes only once this one is in, so a failed install leaves a working one.
         let left_behind = match (&result, &folders.retired) {
             (Ok(_), Some(retired)) if !may_be_same_folder(retired, &folders.clap) => {
@@ -312,10 +334,11 @@ pub fn install(
             format: Format::Clap,
             result,
             left_behind,
+            presets: installed_presets,
         });
         if bundled.join(format!("{bundle}.vst3")).exists() {
             let result = match &folders.vst3 {
-                Some(folder) => install_one(bundle, Format::Vst3, bundled, None, None, folder),
+                Some(folder) => install_one(bundle, Format::Vst3, bundled, None, folder),
                 None => Err(anyhow::anyhow!(unknown(Format::Vst3))).context("not installed"),
             };
             outcomes.push(Outcome {
@@ -323,6 +346,7 @@ pub fn install(
                 format: Format::Vst3,
                 result,
                 left_behind: Vec::new(),
+                presets: None,
             });
         }
     }
@@ -337,6 +361,9 @@ pub fn report(outcomes: &[Outcome], folders: &Folders) {
         match &outcome.result {
             Ok(path) => {
                 println!("Installed {}", path.display());
+                if let Some(presets) = &outcome.presets {
+                    println!("Installed presets {}", presets.display());
+                }
                 let Some(folder) = folders.of(outcome.format) else {
                     continue;
                 };
@@ -449,7 +476,6 @@ fn retire(bundle: &str, folder: &Path) -> Vec<PathBuf> {
     let files = [
         folder.join(format!("{bundle}.clap")),
         folder.join(format!("{bundle}.control-map.json")),
-        folder.join(crate::presets::staged_name(bundle)),
     ];
     if !folder.is_dir() {
         return Vec::new();
@@ -487,40 +513,30 @@ fn install_one(
     format: Format,
     bundled: &Path,
     map: Option<&PathBuf>,
-    presets: Option<&PathBuf>,
     folder: &Path,
 ) -> Result<PathBuf> {
     let name = format!("{bundle}.{}", format.extension());
     let installed = folder.join(&name);
-    // A destination that is where the bundle was made, or where what goes beside it (its map, its
-    // presets) was staged (`MXM_CLAP_DIR` naming a `target/bundled`), is refused, touching
-    // nothing: putting the plugin in would set aside what it copies from, and what is there isn't
-    // kept to an install's rules.
+    // A destination that is where the bundle was made, or where its map was staged
+    // (`MXM_CLAP_DIR` naming a `target/bundled`), is refused, touching nothing: putting the plugin
+    // in would set aside what it copies from, and what is there isn't kept to an install's rules.
     let staged_here = map
-        .into_iter()
-        .chain(presets)
-        .filter_map(|staged| staged.parent())
-        .any(|staged| is_same_folder(folder, staged));
+        .and_then(|staged| staged.parent())
+        .is_some_and(|staged| is_same_folder(folder, staged));
     if is_same_folder(folder, bundled) || staged_here {
         bail!(
-            "not installed: {} is where the bundle is made or what goes beside it staged; set {} \
-             to another folder",
+            "not installed: {} is where the bundle is made or its map staged; set {} to another \
+             folder",
             folder.display(),
             format.variable()
         );
     }
-    // Only the CLAP carries the control map and the presets beside it; the VST3 carries its
-    // presets inside, and has nothing beside it to set aside.
+    // Only the CLAP carries the control map beside it; the VST3 has nothing beside it to set
+    // aside.
     let installed_map =
         (format == Format::Clap).then(|| folder.join(format!("{bundle}.control-map.json")));
-    let installed_presets =
-        (format == Format::Clap).then(|| folder.join(crate::presets::staged_name(bundle)));
-    let beside: Vec<&Path> = installed_map
-        .iter()
-        .chain(installed_presets.iter())
-        .map(PathBuf::as_path)
-        .collect();
-    // Held until this install ends, what goes beside it placed too.
+    let beside: Vec<&Path> = installed_map.iter().map(PathBuf::as_path).collect();
+    // Held until this install ends, the map placed too.
     let _lock =
         put_in(&bundled.join(&name), &installed, &beside, folder).context("not installed")?;
     if let (Some(map), Some(installed_map)) = (map, &installed_map) {
@@ -531,19 +547,41 @@ fn install_one(
             )
         })?;
     }
-    // The presets this bundle staged, or none: an older set never stays beside a newer plugin.
-    if let (Some(staged_presets), Some(installed_presets)) = (presets, &installed_presets) {
-        place(staged_presets, installed_presets).with_context(|| {
-            format!("{} is installed, but not its presets", installed.display())
-        })?;
-    }
     Ok(installed)
 }
 
+/// Installs `staged`, a plugin's staged presets, in its folder for `version` under `root`
+/// ([`crate::presets::folder_for`]), the plugin's id read from the files: whole, replacing what an
+/// earlier install of that version put there, so a file a later bundle dropped is gone. Returns
+/// that folder, or `None` when nothing was staged. Other versions' folders stay, each read by its
+/// own version.
+fn install_presets(
+    staged: &Path,
+    version: Option<&String>,
+    root: Option<&Path>,
+) -> Result<Option<PathBuf>> {
+    let Some(clap_id) = crate::presets::check_folder(staged)? else {
+        return Ok(None);
+    };
+    let version = version.context("its version isn't known")?;
+    let root = root.context("the local data folder isn't known")?;
+    let destination = crate::presets::folder_for(root, &clap_id, version);
+    let plugin = destination
+        .parent()
+        .context("a version's folder is in its plugin's")?;
+    std::fs::create_dir_all(plugin)
+        .with_context(|| format!("{} can't be made", plugin.display()))?;
+    // Installs of the plugin's presets take turns, as installs into a plugin folder do.
+    let _lock = lock(plugin)?;
+    clear_leftovers(&destination);
+    place(staged, &destination)?;
+    Ok(Some(destination))
+}
+
 /// The plugin put in at `installed`, under the folder's lock, which it returns. What was installed
-/// `beside` it (its map, its presets) is set aside first and gone once the plugin is in, so what
-/// then fails to go in leaves nothing beside the new plugin, never an older one; if the plugin
-/// can't go in, all of it goes back.
+/// `beside` it (its map) is set aside first and gone once the plugin is in, so what then fails to
+/// go in leaves nothing beside the new plugin, never an older one; if the plugin can't go in, all
+/// of it goes back.
 fn put_in(
     source: &Path,
     installed: &Path,

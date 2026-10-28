@@ -196,17 +196,19 @@ Ready emits eligible gestures then queues one prepared process-boundary publicat
 identity changes only after callback acknowledgment. A model overlay declares
 `MergeWithCommittedSource`; `state = null` keeps its existing preserve-only meaning.
 
-**Factory presets are files installed with the plugin** (the owner, 2026-10-27: "The presets
-should not be compiled into the plugins. It should be external files"; `plans/plan-external-presets.md`
-in the workspace's ops). `plugins/<crate>/presets/` holds them, in the order its `order.txt` gives
-(one file name a line); `cargo xtask bundle` checks them, puts them beside the `.clap` as
-`<Bundle Name>.presets/` and inside the `.vst3` as `Contents/Resources/presets/`, and installs them
-with it. The plugin reads them from where it was loaded (`mxm_preset::installed_factory_dir`), and
-any CLAP host lists and loads them, through preset discovery and `preset-load`
-(`mxm_preset::clap`): two lines in the plugin's `ClapPlugin`, `CLAP_PRESETS` and `preset_loader`.
-A file is factory content because it lies in that folder, never because it says so. A plugin's
-tests read its repository's folder (`mxm_preset::read_factory_dir`), as a unit test is loaded from
-no bundle. **The one exception is content the collection installs per user**: mxm-fx-convolution's factory set is the impulse files in the collection's
+**Factory presets are files installed for the plugin's version** (the owner, 2026-10-27: "The
+presets should not be compiled into the plugins. It should be external files"; and 2026-10-28: in a
+data folder, one per version; `plans/plan-external-presets.md` in the workspace's ops).
+`plugins/<crate>/presets/` holds them, in the order its `order.txt` gives (one file name a line);
+`cargo xtask bundle` checks them and installs them, with the plugin, in
+`mxm/<clap id>/factory/<version>/` under the local data directory (`%LOCALAPPDATA%` on Windows),
+where the collection's impulse responses are too: each installed version reads the set it shipped
+with, and a newer set never reaches an older plugin. The plugin reads them there
+(`mxm_preset::factory_dir`, by its `Instrument::version`, its `Plugin::VERSION`), and any CLAP
+host lists and loads them, through preset discovery and `preset-load` (`mxm_preset::clap`): two
+lines in the plugin's `ClapPlugin`, `CLAP_PRESETS` and `preset_loader`. A file is factory content
+because it lies in that folder, never because it says so. A plugin's tests read its repository's
+folder (`mxm_preset::read_factory_dir`), never the machine's. **The one exception is content the collection installs per user**: mxm-fx-convolution's factory set is the impulse files in the collection's
 impulses folder, scanned when its editor opens and handed over as `mxm_preset::Found` (the owner,
 2026-09-28), because the folder is the content and a file added to it is a sound.
 

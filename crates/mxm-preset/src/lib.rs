@@ -7,8 +7,9 @@
 //! in `plugins/AGENTS.md`, *A preset is parameter values* (in full, this repository's
 //! `docs/plugin-conventions.md`), and are not restated line by line here.
 //!
-//! What a plugin supplies is an [`Instrument`]: its permanent id, its parameters in declaration
-//! order, where the loaded preset's identity is persisted, and its factory files, installed beside it.
+//! What a plugin supplies is an [`Instrument`]: its permanent id and version, its parameters in
+//! declaration order, where the loaded preset's identity is persisted, and its factory files,
+//! installed for its version.
 //! Everything else — the format, the library on disk, favourites, the three-state identity, the
 //! app-bar controls — is here, and identical for a synth with eighty parameters and an effect with
 //! four.
@@ -41,8 +42,8 @@ pub use identity::{
 };
 pub use library::{
     BANK_EXTENSION, BANK_FILE, Bank, BankFile, BankInfo, Entry, Found, ImportRefused, Library,
-    ORDER_FILE, banks_root, dir_name, factory, factory_dir_of, favourite_key, file_name,
-    installed_factory_dir, is_favourite, open_folder, read_factory_dir, read_favourites, user_root,
+    ORDER_FILE, banks_root, dir_name, factory, factory_dir, factory_dir_under, favourite_key,
+    file_name, is_favourite, open_folder, read_factory_dir, read_favourites, user_root,
     write_favourites,
 };
 pub use transaction::{
@@ -60,6 +61,10 @@ use std::sync::RwLock;
 pub trait Instrument {
     /// The permanent `CLAP_ID`. A preset for one plugin loaded into another is refused by it.
     fn clap_id(&self) -> &'static str;
+
+    /// The plugin's version, its `Plugin::VERSION` (`env!("CARGO_PKG_VERSION")` in its crate): its
+    /// factory presets are installed for it ([`factory_dir`]).
+    fn version(&self) -> &'static str;
 
     /// Every parameter with its permanent id, **in declaration order** — the order a preset file
     /// is written in and the order Init writes them.
@@ -106,12 +111,12 @@ pub trait Instrument {
     /// Where the loaded preset's identity is persisted with the patch.
     fn identity(&self) -> &RwLock<PresetIdentity>;
 
-    /// The factory set, `(file name, json)`: the files installed with the plugin
-    /// ([`installed_factory_dir`]), read when asked, in their folder's order ([`read_factory_dir`]).
-    /// Init is not among them: it is generated from the parameter defaults. A plugin's tests read
-    /// its repository's folder through [`read_factory_dir`] instead.
+    /// The factory set, `(file name, json)`: the files installed for this plugin's version
+    /// ([`factory_dir`]), read when asked, in their folder's order ([`read_factory_dir`]). Init is
+    /// not among them: it is generated from the parameter defaults. A plugin's tests read its
+    /// repository's folder through [`read_factory_dir`] instead, never the machine's.
     fn factory_files(&self) -> Vec<(String, String)> {
-        installed_factory_dir()
+        factory_dir(self.clap_id(), self.version())
             .map(|dir| read_factory_dir(&dir))
             .unwrap_or_default()
     }
@@ -344,6 +349,9 @@ mod stale_text_tests {
         fn clap_id(&self) -> &'static str {
             CLAP_ID
         }
+        fn version(&self) -> &'static str {
+            "1.0.0"
+        }
         fn parameters(&self) -> Vec<(&'static str, &dyn ErasedParam)> {
             self.0.parameters()
         }
@@ -431,6 +439,9 @@ mod stale_text_tests {
     impl Instrument for Dependent {
         fn clap_id(&self) -> &'static str {
             CLAP_ID
+        }
+        fn version(&self) -> &'static str {
+            "1.0.0"
         }
         fn parameters(&self) -> Vec<(&'static str, &dyn ErasedParam)> {
             vec![("high", &self.high), ("level", &self.level)]
@@ -564,6 +575,9 @@ pub(crate) mod testing {
     impl Instrument for TestInstrument {
         fn clap_id(&self) -> &'static str {
             CLAP_ID
+        }
+        fn version(&self) -> &'static str {
+            "1.0.0"
         }
 
         fn parameters(&self) -> Vec<(&'static str, &dyn ErasedParam)> {

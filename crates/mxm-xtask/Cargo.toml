@@ -22,3 +22,5 @@ mxm-vst3-host.workspace = true
 # versions `mxm-preset` reads them with.
 serde      = { version = "=1.0.229", features = ["derive"] }
 serde_json = "=1.0.145"
+# Where factory presets are installed: the local data directory, as `mxm-preset` reads it.
+dirs       = "=5.0.1"

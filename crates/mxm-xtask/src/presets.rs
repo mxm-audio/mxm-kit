@@ -1,9 +1,10 @@
-//! Each plugin's factory presets, installed with it (`ops/plans/plan-external-presets.md` in the
-//! workspace): `plugins/<crate>/presets/` is checked before the build, then staged beside the
-//! bundled `.clap` as `<Bundle Name>.presets/`, as its control map is, and put inside the `.vst3`
-//! as `Contents/Resources/presets/`, as its `moduleinfo.json` is. Each replaces what an earlier
-//! bundle left, so a file taken out of the repository is gone from the bundle, and a plugin with
-//! no `presets/` folder has none staged.
+//! Each plugin's factory presets, installed for its version (`ops/plans/plan-external-presets.md`
+//! in the workspace): `plugins/<crate>/presets/` is checked before the build, then staged in the
+//! repository's `target/bundled` as `<Bundle Name>.presets/`, as its control map is, and installed
+//! in `mxm/<clap id>/factory/<version>/` under the local data directory ([`folder_for`]), where the
+//! plugin reads them (`mxm-preset`'s `factory_dir`; the owner, 2026-10-28: a data folder, one per
+//! version). A staging replaces what an earlier bundle left, so a file taken out of the repository
+//! is gone from the next install, and a plugin with no `presets/` folder has none staged.
 //!
 //! The check reads the files not through `mxm-preset`, which would bring the plugin framework
 //! into the build tool, but into a copy of its `Preset`'s shape, read by the same serde, so a file
@@ -26,14 +27,21 @@ pub const ORDER: &str = "order.txt";
 /// refused when it's loaded, so it's refused before the build.
 pub const SCHEMA_VERSION: u32 = 1;
 
-/// The presets folder staged beside a bundled `.clap`, and installed beside it.
+/// The presets folder staged in a repository's `target/bundled`.
 pub fn staged_name(bundle: &str) -> String {
     format!("{bundle}.presets")
 }
 
-/// Where a `.vst3` carries its presets.
-pub fn in_vst3(vst3: &Path) -> PathBuf {
-    vst3.join("Contents").join("Resources").join("presets")
+/// Where factory presets are installed: `mxm` under the local data directory. `None` where the
+/// platform has none.
+pub fn root() -> Option<PathBuf> {
+    dirs::data_local_dir().map(|dir| dir.join("mxm"))
+}
+
+/// The folder under `root` ([`root`]) that the presets of the plugin `clap_id` at `version` go in,
+/// the one the plugin reads (`mxm-preset`'s `factory_dir`).
+pub fn folder_for(root: &Path, clap_id: &str, version: &str) -> PathBuf {
+    root.join(clap_id).join("factory").join(version)
 }
 
 /// Checks every plugin's presets. A plugin with no `presets/` folder passes.
@@ -49,8 +57,9 @@ pub fn check(workspace_root: &Path) -> Result<()> {
 }
 
 /// One folder: each `.json` a preset of one plugin, and the order naming only its presets, by
-/// their file names: anything else is an order the plugin can't follow.
-pub fn check_folder(folder: &Path) -> Result<()> {
+/// their file names: anything else is an order the plugin can't follow. Returns that plugin's id,
+/// or `None` for a folder with no presets.
+pub fn check_folder(folder: &Path) -> Result<Option<String>> {
     let mut plugin: Option<String> = None;
     let files = preset_files(folder)?;
     for path in &files {
@@ -95,7 +104,7 @@ pub fn check_folder(folder: &Path) -> Result<()> {
             }
         }
     }
-    Ok(())
+    Ok(plugin)
 }
 
 /// A preset file as `mxm-preset`'s `Preset` reads it, field for field and type for type, so serde
@@ -126,29 +135,21 @@ struct ValueFile {
     text: String,
 }
 
-/// Stages each plugin's presets beside its `.clap`, in the repository's `target/bundled` where
-/// its control map is staged whichever folder Cargo builds in, and inside its `.vst3` in
-/// `bundled`, the folder Cargo built it in (`CARGO_TARGET_DIR` moves it), each replacing what an
-/// earlier bundle left there. Returns the folders staged beside the `.clap`s.
-pub fn stage(workspace_root: &Path, bundled: &Path) -> Result<Vec<PathBuf>> {
+/// Stages each plugin's presets in the repository's `target/bundled`, where its control map is
+/// staged whichever folder Cargo builds in, each replacing what an earlier bundle left there.
+/// Returns the folders staged.
+pub fn stage(workspace_root: &Path) -> Result<Vec<PathBuf>> {
     let staging = workspace_root.join("target").join("bundled");
     let mut staged = Vec::new();
     for (crate_dir, bundle) in bundle_names(workspace_root)? {
         let source = crate_dir.join(SOURCE);
-        let beside = staging.join(staged_name(&bundle));
-        let vst3 = bundled.join(format!("{bundle}.vst3"));
-        remove(&beside)?;
-        if vst3.is_dir() {
-            remove(&in_vst3(&vst3))?;
-        }
+        let folder = staging.join(staged_name(&bundle));
+        remove(&folder)?;
         if !source.is_dir() {
             continue;
         }
-        copy_presets(&source, &beside)?;
-        if vst3.is_dir() {
-            copy_presets(&source, &in_vst3(&vst3))?;
-        }
-        staged.push(beside);
+        copy_presets(&source, &folder)?;
+        staged.push(folder);
     }
     Ok(staged)
 }
@@ -240,7 +241,7 @@ mod tests {
     }
 
     #[test]
-    fn presets_are_staged_beside_the_clap_and_in_the_vst3_replacing_the_last() {
+    fn presets_are_staged_replacing_the_last() {
         let scratch = Scratch::new("staged");
         let root = repository(&scratch);
         let presets = root.join("plugins").join("x-plugin").join(SOURCE);
@@ -249,29 +250,36 @@ mod tests {
         std::fs::write(presets.join(ORDER), "b.json\na.json\n").unwrap();
         std::fs::write(presets.join("notes.md"), "not shipped").unwrap();
         let bundled = root.join("target").join("bundled");
-        // Cargo builds in a folder of its own (`CARGO_TARGET_DIR`): the `.vst3` is there.
-        let built = scratch.0.join("shared").join("bundled");
-        let vst3 = built.join("x.vst3");
-        std::fs::create_dir_all(vst3.join("Contents").join("x86_64-win")).unwrap();
 
-        let staged = stage(&root, &built).unwrap();
+        let staged = stage(&root).unwrap();
         assert_eq!(staged, [bundled.join("x.presets")]);
-        let shipped = ["a.json", "b.json", ORDER];
-        assert_eq!(names_in(&bundled.join("x.presets")), shipped);
-        assert_eq!(names_in(&in_vst3(&vst3)), shipped);
+        assert_eq!(
+            names_in(&bundled.join("x.presets")),
+            ["a.json", "b.json", ORDER]
+        );
+        assert_eq!(check_folder(&staged[0]).unwrap(), Some("dk.x".to_owned()));
 
         // A file taken out of the repository is gone from the next bundle.
         std::fs::remove_file(presets.join("a.json")).unwrap();
         std::fs::write(presets.join(ORDER), "b.json\n").unwrap();
-        stage(&root, &built).unwrap();
+        stage(&root).unwrap();
         assert_eq!(names_in(&bundled.join("x.presets")), ["b.json", ORDER]);
-        assert_eq!(names_in(&in_vst3(&vst3)), ["b.json", ORDER]);
 
         // A plugin without presets has none staged.
         std::fs::remove_dir_all(&presets).unwrap();
-        assert!(stage(&root, &built).unwrap().is_empty());
+        assert!(stage(&root).unwrap().is_empty());
         assert!(!bundled.join("x.presets").exists());
-        assert!(!in_vst3(&vst3).exists());
+    }
+
+    #[test]
+    fn a_plugins_presets_go_in_its_versions_own_folder() {
+        let root = Path::new("data-local").join("mxm");
+        assert_eq!(
+            folder_for(&root, "dk.mxm.mxm-mono-01", "1.2.0"),
+            root.join("dk.mxm.mxm-mono-01")
+                .join("factory")
+                .join("1.2.0")
+        );
     }
 
     #[test]
@@ -281,7 +289,7 @@ mod tests {
         std::fs::create_dir_all(&folder).unwrap();
         std::fs::write(folder.join("a.json"), preset("dk.x", "A")).unwrap();
         std::fs::write(folder.join(ORDER), "a.json\n").unwrap();
-        check_folder(&folder).unwrap();
+        assert_eq!(check_folder(&folder).unwrap(), Some("dk.x".to_owned()));
 
         std::fs::write(folder.join(ORDER), "a.json\nmissing.json\n").unwrap();
         assert!(

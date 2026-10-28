@@ -2,9 +2,9 @@
 //! `nice_plug_xtask`, which produces the loadable `.clap`, followed by staging each plugin's control
 //! map beside its bundle — an instrument owns its mapping, so the two must ship together. See
 //! [`control_maps`]. Each VST3 gets its `moduleinfo.json` ([`module_info`]). Each plugin's factory
-//! presets go beside its `.clap` and inside its `.vst3` ([`presets`]). Then each plugin bundled is
-//! installed, CLAP and VST3, in the standard plugin folders, so the hosts load the last one built.
-//! See [`install`].
+//! presets are staged too ([`presets`]). Then each plugin bundled is installed, CLAP and VST3, in
+//! the standard plugin folders, so the hosts load the last one built, and its presets in their
+//! folder for its version under the local data directory. See [`install`].
 //!
 //! `cargo xtask fetch` builds the plugins of other MXM repositories that this repository's tests
 //! load, at the tags `test-bundles.txt` pins. See [`fetch`].
@@ -60,12 +60,9 @@ pub fn main(workspace_root: &Path) -> nice_plug_xtask::Result<()> {
         ) {
             module_info::write(&bundles, &packages, &bundled);
         }
-        // Before the install too, which copies each `.vst3` whole and places the folder beside
-        // each `.clap`. Never fatal, as a map isn't: a plugin without its presets still plays.
-        let staged_presets = match bundled_folder(workspace_root)
-            .map_err(anyhow::Error::from)
-            .and_then(|bundled| presets::stage(workspace_root, &bundled))
-        {
+        // Before the install too, which takes each set from where it is staged. Never fatal, as
+        // a map isn't: a plugin without its presets still plays.
+        let staged_presets = match presets::stage(workspace_root) {
             Ok(staged) => {
                 for path in &staged {
                     println!("Staged presets {}", path.display());
@@ -117,20 +114,41 @@ fn install_bundles(workspace_root: &Path, packages: &[String], staged: &[std::pa
             return;
         }
     };
+    // Each package's version, the folder its presets go in. Unknown, a plugin still installs, and
+    // says it went in without its presets.
+    let versions = package_versions(workspace_root).unwrap_or_default();
     match control_maps::bundles(workspace_root) {
         Ok(bundles) => {
-            let outcomes = install::install(&bundles, packages, &bundled, staged, &folders);
+            let outcomes =
+                install::install(&bundles, packages, &bundled, staged, &versions, &folders);
             install::report(&outcomes, &folders);
         }
         Err(error) => eprintln!("Not installed: {error:#}"),
     }
 }
 
-/// `target/bundled` as nice-plug's bundler finds it, so `CARGO_TARGET_DIR` moves both.
-fn bundled_folder(workspace_root: &Path) -> Result<std::path::PathBuf, cargo_metadata::Error> {
-    let metadata = cargo_metadata::MetadataCommand::new()
+fn metadata(workspace_root: &Path) -> Result<cargo_metadata::Metadata, cargo_metadata::Error> {
+    cargo_metadata::MetadataCommand::new()
         .manifest_path(workspace_root.join("Cargo.toml"))
         .no_deps()
-        .exec()?;
-    Ok(metadata.target_directory.as_std_path().join("bundled"))
+        .exec()
+}
+
+/// `target/bundled` as nice-plug's bundler finds it, so `CARGO_TARGET_DIR` moves both.
+fn bundled_folder(workspace_root: &Path) -> Result<std::path::PathBuf, cargo_metadata::Error> {
+    Ok(metadata(workspace_root)?
+        .target_directory
+        .as_std_path()
+        .join("bundled"))
+}
+
+/// The version of each package in the workspace, by name.
+fn package_versions(
+    workspace_root: &Path,
+) -> Result<std::collections::HashMap<String, String>, cargo_metadata::Error> {
+    Ok(metadata(workspace_root)?
+        .packages
+        .into_iter()
+        .map(|package| (package.name.to_string(), package.version.to_string()))
+        .collect())
 }

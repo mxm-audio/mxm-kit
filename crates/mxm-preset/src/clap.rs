@@ -5,7 +5,7 @@
 //! A plugin opts in with two lines in its `ClapPlugin`: `const CLAP_PRESETS = Some(PRESETS)`, and a
 //! `preset_loader` that returns a [`Loader`] over its parameters.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use nice_plug::prelude::{ClapPresetLoader, ClapPresets, ParamSetter, PresetMetadata};
@@ -13,13 +13,13 @@ use nice_plug::wrapper::clap::presets::in_folder;
 
 use crate::identity::mark_loaded_with_baseline;
 use crate::ui::apply_preset_checked_from_with_baseline;
-use crate::{EXTENSION, Instrument, Origin, Preset, Refused, installed_factory_dir};
+use crate::{EXTENSION, Instrument, Origin, Preset, Refused, factory_dir};
 
 /// A plugin's `ClapPlugin::CLAP_PRESETS`: this format's files, in the factory folder installed
-/// with it.
+/// for its version.
 pub const PRESETS: ClapPresets = ClapPresets {
     file_extension: EXTENSION,
-    factory_folder: installed_factory_dir,
+    factory_folder: factory_dir,
     metadata,
 };
 
@@ -47,19 +47,31 @@ impl<I: Instrument + Send + Sync + 'static> ClapPresetLoader for Loader<I> {
 
 /// Loads the preset file at `path` as the browser loads an entry: through the same checked
 /// apply, then marked loaded with the values it set. It is factory content only when it lies in
-/// the installed factory folder, never because it says so; anywhere else it loads as the user's
-/// own. A file the instrument refuses, or a durable payload it rejects, isn't loaded, and says
-/// why; parameters a loaded file leaves out or doesn't know keep their values, as in the browser.
+/// the factory folder installed for the instrument's version, never because it says so; anywhere
+/// else it loads as the user's own. A file the instrument refuses, or a durable payload it
+/// rejects, isn't loaded, and says why; parameters a loaded file leaves out or doesn't know keep
+/// their values, as in the browser.
 pub fn load_file(
     instrument: &dyn Instrument,
     path: &Path,
     setter: &ParamSetter<'_>,
 ) -> Result<(), String> {
+    let factory = factory_dir(instrument.clap_id(), instrument.version());
+    load_file_with_factory(instrument, path, setter, factory)
+}
+
+/// [`load_file`], `factory` being the factory folder.
+fn load_file_with_factory(
+    instrument: &dyn Instrument,
+    path: &Path,
+    setter: &ParamSetter<'_>,
+    factory: Option<PathBuf>,
+) -> Result<(), String> {
     let text =
         std::fs::read_to_string(path).map_err(|error| format!("{}: {error}", path.display()))?;
     let preset =
         Preset::parse(&text, instrument.clap_id()).map_err(|refused| refused.to_string())?;
-    let origin = match installed_factory_dir() {
+    let origin = match factory {
         Some(folder) if in_folder(path, &folder) => Origin::Factory,
         _ => Origin::User,
     };
@@ -111,8 +123,8 @@ mod tests {
         assert!(metadata(&broken, CLAP_ID).is_err());
     }
 
-    /// Outside the installed factory folder (a unit test has none) a file loads as the user's
-    /// own, marked loaded by its name; one for another plugin isn't loaded, and says why.
+    /// A file in the factory folder loads as factory content and one anywhere else as the user's
+    /// own, each marked loaded by its name; one for another plugin isn't loaded, and says why.
     #[test]
     fn a_file_loads_as_the_browser_loads_an_entry() {
         let instrument = TestInstrument::new();
@@ -120,16 +132,26 @@ mod tests {
         let setter = ParamSetter::new(&host);
         let (_, json) = FACTORY[1];
         let path = file("brass.json", json);
-        assert_eq!(load_file(&instrument, &path, &setter), Ok(()));
-        let now = loaded(&instrument);
+        let factory = path.parent().map(Path::to_path_buf);
+        let elsewhere = file("brass.json", json);
+        let name = Preset::parse(json, CLAP_ID).unwrap().name;
+
         assert_eq!(
-            now.name(),
-            Some(Preset::parse(json, CLAP_ID).unwrap().name.as_str())
+            load_file_with_factory(&instrument, &path, &setter, factory.clone()),
+            Ok(())
         );
-        assert_eq!(now.origin(), Some(&Origin::User));
+        assert_eq!(loaded(&instrument).name(), Some(name.as_str()));
+        assert_eq!(loaded(&instrument).origin(), Some(&Origin::Factory));
+
+        assert_eq!(
+            load_file_with_factory(&instrument, &elsewhere, &setter, factory.clone()),
+            Ok(())
+        );
+        assert_eq!(loaded(&instrument).name(), Some(name.as_str()));
+        assert_eq!(loaded(&instrument).origin(), Some(&Origin::User));
 
         let other = file("other.json", &json.replace(CLAP_ID, "dk.mxm.another"));
-        let refused = load_file(&instrument, &other, &setter).unwrap_err();
+        let refused = load_file_with_factory(&instrument, &other, &setter, factory).unwrap_err();
         assert!(refused.contains("dk.mxm.another"), "{refused}");
     }
 }
