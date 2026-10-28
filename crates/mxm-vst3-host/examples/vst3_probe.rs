@@ -1,13 +1,14 @@
 //! Loads a `.vst3` through clack-host, as MXM Player and newDAWn do, and reports what a host sees:
-//! its plugins, one plugin's ports, latency and parameters, a sine run through it (an instrument
-//! plays a note instead, middle C unless `--note` says), every output port's level, and its state
-//! saved and loaded back.
+//! its plugins, one plugin's audio ports configurations (each `--config` selected in turn) and
+//! ports, latency and parameters, a sine run through it (an instrument plays a note instead,
+//! middle C unless `--note` says), every output port's level, and its state saved and loaded back.
 //!
 //! ```text
-//! cargo run -p mxm-vst3-host --example vst3_probe -- <path.vst3> [plugin id] [--note <key>] [--set <param id>=<value>]...
+//! cargo run -p mxm-vst3-host --example vst3_probe -- <path.vst3> [plugin id] [--config <id>]... [--note <key>] [--set <param id>=<value>]...
 //! ```
 
 use clack_extensions::audio_ports::{AudioPortFlags, AudioPortInfoBuffer, PluginAudioPorts};
+use clack_extensions::audio_ports_config::{AudioPortsConfigBuffer, PluginAudioPortsConfig};
 use clack_extensions::latency::PluginLatency;
 use clack_extensions::params::{ParamInfoBuffer, ParamInfoFlags, PluginParams};
 use clack_extensions::state::PluginState;
@@ -39,8 +40,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut wanted_id = None;
     let mut settings: Vec<(u32, f64)> = Vec::new();
     let mut key = 60u16;
+    let mut selections: Vec<u32> = Vec::new();
     while let Some(arg) = args.next() {
-        if arg == "--note" {
+        if arg == "--config" {
+            selections.push(
+                args.next()
+                    .ok_or("--config needs a configuration id")?
+                    .parse()?,
+            );
+        } else if arg == "--note" {
             key = args.next().ok_or("--note needs a key, 0 to 127")?.parse()?;
         } else if arg == "--set" {
             let setting = args.next().ok_or("--set needs <param id>=<value>")?;
@@ -101,6 +109,37 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &CString::new(id.clone())?,
         &host_info,
     )?;
+
+    // The configurations it offers, and those asked for selected in turn, before the ports are read.
+    let configs: Option<PluginAudioPortsConfig> = instance.plugin_shared_handle().get_extension();
+    match configs {
+        None => println!("audio ports configurations: none (no audio-ports-config)"),
+        Some(configs) => {
+            let mut handle = instance.plugin_handle();
+            let mut buffer = AudioPortsConfigBuffer::new();
+            for index in 0..configs.count(&mut handle) {
+                if let Some(config) = configs.get(&mut handle, index, &mut buffer) {
+                    println!(
+                        "configuration {index}: id {}, \"{}\", {} in, {} out, main output {:?} channels",
+                        config.id.get(),
+                        String::from_utf8_lossy(config.name),
+                        config.input_port_count,
+                        config.output_port_count,
+                        config.main_output.map(|main| main.channel_count)
+                    );
+                }
+            }
+        }
+    }
+    for &selection in &selections {
+        let configs = configs.ok_or("--config: the plugin offers no configurations")?;
+        let id = ClapId::from_raw(selection).ok_or("--config: not an id")?;
+        let selected = configs.select(&mut instance.plugin_handle(), id).is_ok();
+        println!(
+            "select configuration {selection}: {}",
+            if selected { "selected" } else { "refused" }
+        );
+    }
 
     let ports: Option<PluginAudioPorts> = instance.plugin_shared_handle().get_extension();
     // The main input's channels, and every output port's.

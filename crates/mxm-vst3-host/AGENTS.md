@@ -60,8 +60,15 @@ CLAP to VST3, is the table in `src/lib.rs`.
   (`activateBus`) at setup, as Bitwig does; an aux bus starts inactive and produces nothing. Stereo
   is asked for when a main bus is neither mono nor stereo.
 - **An output port's id is its VST3 bus index**, the main bus's 0 (`plugin::output_port_id`): the
-  same each load, never its name or its place among the ports. Hosts store it in projects: never
-  change the rule.
+  same each load and in either configuration, never its name or its place among the ports. Hosts
+  store it in projects: never change the rule.
+- **A plugin with aux outputs beside a main one offers two configurations** (`audio-ports-config`,
+  `plugin::CONFIGURATIONS`, ids fixed): "All outputs" first, as it starts, then "Main only", the
+  main port alone, so a host that takes one output port (MXM Player's envelope) still loads it, as
+  the CLAP drum machine offers its stereo layout second. Selecting one switches the aux buses off or
+  on (`activateBus`, inactive). Any other plugin has no such extension, as before. **"Main only"
+  only stops listening**: a plugin may ignore `activateBus` (nice-plug's VST3 does), so a voice it
+  sends to an aux output is silent there, not folded into the main one.
 - **A tail of 0 is "unknown"**, CLAP's infinite: VST3 hosts process regardless, and plugins report 0
   while ringing (ValhallaSupermassive).
 - **A floating editor is a window of this crate's**, the view attached inside; closing it hides it
@@ -88,9 +95,9 @@ cargo test -p mxm-vst3-host
 cargo clippy -p mxm-vst3-host --all-targets -- -D warnings
 cargo clippy -p mxm-vst3-host --lib --target x86_64-unknown-linux-gnu -- -D warnings
 cargo clippy -p mxm-vst3-host --lib --target aarch64-apple-darwin -- -D warnings
-# Installed plugins (Windows): parameters, a sine or a note through it, every output port's
-# level, state round trip; and the editor.
-cargo run -p mxm-vst3-host --example vst3_probe -- "<path.vst3>" [--note <key>] [--set <param id>=<value>]
+# Installed plugins (Windows): configurations, parameters, a sine or a note through it, every
+# output port's level, state round trip; and the editor.
+cargo run -p mxm-vst3-host --example vst3_probe -- "<path.vst3>" [--config <id>]... [--note <key>] [--set <param id>=<value>]
 cargo run -p mxm-vst3-host --example vst3_editor -- "<path.vst3>" floating out.bmp
 ```
 
@@ -99,7 +106,8 @@ code is kept compiling between batches. A change to `gui.rs` or `window*.rs` get
 `vst3_editor` run, floating and embedded. A change to the ports or their buffers gets a probe of
 a multi-output instrument with a voice sent to its own output: the MXM drum machine, its first
 slot's key played and that slot's Output parameter (id from the probe's list) set to 1, sounds on
-port 1, "Slot 01", and not on the main.
+port 1, "Slot 01", and not on the main, also after `--config 1 --config 0`; with `--config 1`
+alone and the Output left at L+R, one port, the main, which it sounds on.
 
 # Child DOX Index
 

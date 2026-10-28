@@ -11,7 +11,7 @@
 //! the start of its next block. A parameter's CLAP modulation is added to its value there, so the
 //! processor hears value plus modulation while the controller keeps showing the value.
 
-use crate::component::{Component, Layout};
+use crate::component::{Bus, Component, Layout};
 use crate::events::{EventList, note_off, note_on, poly_pressure};
 use crate::gui::Editor;
 use crate::handler::{Edit, HandlerState};
@@ -21,6 +21,10 @@ use crate::strings::{from_utf16, to_string128};
 use clack_extensions::audio_ports::{
     AudioPortFlags, AudioPortInfo, AudioPortInfoWriter, AudioPortRescanFlags, AudioPortType,
     HostAudioPorts, PluginAudioPorts, PluginAudioPortsImpl,
+};
+use clack_extensions::audio_ports_config::{
+    AudioPortConfigWriter, AudioPortsConfiguration, HostAudioPortsConfig, MainPortInfo,
+    PluginAudioPortsConfig, PluginAudioPortsConfigImpl,
 };
 use clack_extensions::gui::PluginGui;
 use clack_extensions::latency::{HostLatency, PluginLatency, PluginLatencyImpl};
@@ -88,7 +92,12 @@ impl Plugin for Vst3Plugin {
     type Shared<'a> = Shared<'a>;
     type MainThread<'a> = MainThread<'a>;
 
-    fn declare_extensions(builder: &mut PluginExtensions<Self>, _shared: Option<&Shared<'_>>) {
+    fn declare_extensions(builder: &mut PluginExtensions<Self>, shared: Option<&Shared<'_>>) {
+        // Only a plugin with aux outputs has configurations to offer; any other looks as it
+        // always has, with a static layout.
+        if shared.is_some_and(|shared| shared.configurable.load(Ordering::Acquire)) {
+            builder.register::<PluginAudioPortsConfig>();
+        }
         builder
             .register::<PluginAudioPorts>()
             .register::<PluginNotePorts>()
@@ -112,6 +121,9 @@ pub(crate) struct Shared<'a> {
     pub(crate) name: String,
     /// An instrument's audio input is not offered (see [`offered`]).
     instrument: bool,
+    /// Whether `audio-ports-config` is offered (`Layout::has_configurations`), kept with the
+    /// layout for `declare_extensions`, which sees only this part.
+    configurable: AtomicBool,
     /// The processor's tail, read on the main thread at activation, for `tail.get` on the audio
     /// thread, which VST3 does not allow to ask.
     tail: AtomicU32,
@@ -175,8 +187,8 @@ pub(crate) fn create<'a>(
     // SAFETY: on the main thread, as CLAP `init` is.
     let vst =
         unsafe { Component::create(module, class, &host_name, handler.clone()) }.map_err(error)?;
-    // SAFETY: on the main thread, inactive.
-    let layout = offered(unsafe { vst.layout() }, class.is_instrument());
+    // SAFETY: on the main thread, inactive. A plugin starts with all its outputs.
+    let layout = offered(unsafe { vst.layout(false) }, class.is_instrument());
     let params = match &vst.controller {
         // SAFETY: on the main thread.
         Some(controller) => unsafe { read_params(controller) },
@@ -188,6 +200,7 @@ pub(crate) fn create<'a>(
         handler,
         name: class.name.clone(),
         instrument: class.is_instrument(),
+        configurable: AtomicBool::new(layout.has_configurations()),
         tail: AtomicU32::new(0),
         active: AtomicBool::new(false),
     };
@@ -296,8 +309,13 @@ impl<'a> MainThread<'a> {
             }
         } else {
             if has(kIoChanged) || has(kReloadComponent) {
-                // SAFETY: on the main thread, inactive.
-                self.layout = offered(unsafe { self.shared.vst.layout() }, self.shared.instrument);
+                let was_configurable = self.relayout();
+                if (was_configurable || self.layout.has_configurations())
+                    && let Some(configs) =
+                        self.host.shared().get_extension::<HostAudioPortsConfig>()
+                {
+                    configs.rescan(&mut self.host);
+                }
                 if let Some(ports) = self.host.shared().get_extension::<HostAudioPorts>() {
                     ports.rescan(&mut self.host, AudioPortRescanFlags::LIST);
                 }
@@ -319,8 +337,7 @@ impl<'a> MainThread<'a> {
             if has(kIoTitlesChanged)
                 && let Some(ports) = self.host.shared().get_extension::<HostAudioPorts>()
             {
-                // SAFETY: on the main thread, inactive.
-                self.layout = offered(unsafe { self.shared.vst.layout() }, self.shared.instrument);
+                self.relayout();
                 ports.rescan(&mut self.host, AudioPortRescanFlags::NAMES);
             }
         }
@@ -338,6 +355,17 @@ impl<'a> MainThread<'a> {
         {
             params.rescan(&mut self.host, ParamRescanFlags::VALUES);
         }
+    }
+
+    /// Reads the buses again, keeping the configuration selected; says whether configurations
+    /// were offered before.
+    fn relayout(&mut self) -> bool {
+        // SAFETY: on the main thread, inactive (the caller's).
+        let layout = unsafe { self.shared.vst.layout(self.layout.main_only) };
+        self.layout = offered(layout, self.shared.instrument);
+        self.shared
+            .configurable
+            .swap(self.layout.has_configurations(), Ordering::AcqRel)
     }
 
     fn reread_params(&mut self) {
@@ -423,6 +451,85 @@ impl PluginAudioPortsImpl for MainThread<'_> {
             port_type: AudioPortType::from_channel_count(bus.channels),
             in_place_pair: None,
         });
+    }
+}
+
+/// A configuration offered to a host (`audio-ports-config`).
+struct Configuration {
+    id: u32,
+    name: &'static str,
+    main_only: bool,
+}
+
+/// What a plugin with aux outputs offers: all its outputs first, as it starts, then its main
+/// output alone, for a host that takes one output port (MXM Player), as the CLAP drum machine
+/// offers its stereo-only layout second. A host may store an id: never change one.
+const CONFIGURATIONS: [Configuration; 2] = [
+    Configuration {
+        id: 0,
+        name: "All outputs",
+        main_only: false,
+    },
+    Configuration {
+        id: 1,
+        name: "Main only",
+        main_only: true,
+    },
+];
+
+/// The configurations `layout` offers: both, or none for a plugin without aux outputs.
+fn configurations(layout: &Layout) -> &'static [Configuration] {
+    if layout.has_configurations() {
+        &CONFIGURATIONS
+    } else {
+        &[]
+    }
+}
+
+/// The configuration `layout` offers with id `id`, for `select`.
+fn configuration(layout: &Layout, id: u32) -> Option<&'static Configuration> {
+    configurations(layout)
+        .iter()
+        .find(|configuration| configuration.id == id)
+}
+
+/// `configuration` as the host reads it: its ports as `audio-ports` lists them once it is
+/// selected.
+fn describe(layout: &Layout, configuration: &Configuration) -> AudioPortsConfiguration<'static> {
+    let main = |buses: &[Bus], main: Option<usize>| {
+        main.map(|index| MainPortInfo {
+            channel_count: buses[index].channels,
+            port_type: AudioPortType::from_channel_count(buses[index].channels),
+        })
+    };
+    AudioPortsConfiguration {
+        id: ClapId::new(configuration.id),
+        name: configuration.name.as_bytes(),
+        input_port_count: u32::from(layout.main_input.is_some()),
+        output_port_count: layout.output_ports_in(configuration.main_only).count() as u32,
+        main_input: main(&layout.inputs, layout.main_input),
+        main_output: main(&layout.outputs, layout.main_output),
+    }
+}
+
+impl PluginAudioPortsConfigImpl for MainThread<'_> {
+    fn count(&mut self) -> u32 {
+        configurations(&self.layout).len() as u32
+    }
+
+    fn get(&mut self, index: u32, writer: &mut AudioPortConfigWriter) {
+        if let Some(configuration) = configurations(&self.layout).get(index as usize) {
+            writer.write(&describe(&self.layout, configuration));
+        }
+    }
+
+    fn select(&mut self, config_id: ClapId) -> Result<(), PluginError> {
+        let configuration = configuration(&self.layout, config_id.get())
+            .ok_or(PluginError::Message("no such audio ports configuration"))?;
+        self.layout.main_only = configuration.main_only;
+        // SAFETY: on the main thread, inactive, as CLAP selects (clack checks it is inactive).
+        unsafe { self.shared.vst.switch_aux_outputs(&self.layout) };
+        Ok(())
     }
 }
 
@@ -1387,5 +1494,63 @@ mod tests {
             ..Layout::default()
         };
         assert_eq!(without_main.output_ports().collect::<Vec<_>>(), [0, 1]);
+    }
+
+    fn bus(channels: u32) -> Bus {
+        Bus {
+            name: String::new(),
+            channels,
+        }
+    }
+
+    #[test]
+    fn a_plugin_with_aux_outputs_offers_all_of_them_first_then_the_main_one_alone() {
+        // A drum machine: a stereo main bus and sixteen mono slots, no input offered.
+        let mut layout = Layout {
+            outputs: std::iter::once(bus(2))
+                .chain((0..16).map(|_| bus(1)))
+                .collect(),
+            main_output: Some(0),
+            aux_outputs: (1..17).collect(),
+            ..Layout::default()
+        };
+        let offered = configurations(&layout);
+        assert_eq!(offered.len(), 2);
+        let [all, main] = [&offered[0], &offered[1]].map(|c| describe(&layout, c));
+        assert_eq!((all.id.get(), all.name), (0, &b"All outputs"[..]));
+        assert_eq!((main.id.get(), main.name), (1, &b"Main only"[..]));
+        for configuration in [&all, &main] {
+            assert_eq!(configuration.input_port_count, 0);
+            assert!(configuration.main_input.is_none());
+            let output = configuration.main_output.unwrap();
+            assert_eq!(output.channel_count, 2);
+            assert_eq!(output.port_type, Some(AudioPortType::STEREO));
+        }
+        assert_eq!((all.output_port_count, main.output_port_count), (17, 1));
+
+        // What is offered follows the selection, `select`'s, with the same ids either way.
+        assert!(configuration(&layout, 2).is_none());
+        layout.main_only = configuration(&layout, 1).unwrap().main_only;
+        assert_eq!(layout.output_ports().collect::<Vec<_>>(), [0]);
+        layout.main_only = configuration(&layout, 0).unwrap().main_only;
+        assert_eq!(
+            layout.output_ports().collect::<Vec<_>>(),
+            (0..17).collect::<Vec<_>>()
+        );
+
+        // Without aux outputs, or without a main one, there is nothing to choose.
+        let plain = Layout {
+            outputs: vec![bus(2)],
+            main_output: Some(0),
+            ..Layout::default()
+        };
+        assert!(configurations(&plain).is_empty());
+        assert!(configuration(&plain, 0).is_none());
+        let no_main = Layout {
+            outputs: vec![bus(1), bus(1)],
+            aux_outputs: vec![0, 1],
+            ..Layout::default()
+        };
+        assert!(configurations(&no_main).is_empty());
     }
 }

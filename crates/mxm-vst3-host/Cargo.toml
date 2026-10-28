@@ -18,6 +18,8 @@ clack-plugin = "=0.1.1"
 clack-extensions = { version = "=0.1.1", default-features = false, features = [
     "clack-plugin",
     "audio-ports", "note-ports", "params", "state", "latency", "tail", "render", "gui",
+    # All outputs or the main one alone, for a plugin with aux outputs.
+    "audio-ports-config",
     # A plugin's editor on Linux runs on the host's main loop: its timers and file descriptors.
     "timer", "posix-fd",
 ] }
@@ -55,7 +57,8 @@ x11rb = { version = "=0.13.2", default-features = false, features = ["allow-unsa
 [dev-dependencies]
 clack-host = { version = "=0.1.1", features = ["clack-plugin"] }
 clack-extensions = { version = "=0.1.1", default-features = false, features = [
-    "clack-host", "audio-ports", "note-ports", "params", "state", "latency", "tail", "gui",
+    "clack-host", "audio-ports", "audio-ports-config", "note-ports", "params", "state", "latency",
+    "tail", "gui",
 ] }
 
 # `examples/vst3_editor.rs`: a parent window for an embedded editor, and the capture.

@@ -35,18 +35,46 @@ pub(crate) struct Layout {
     pub outputs: Vec<Bus>,
     pub main_input: Option<usize>,
     pub main_output: Option<usize>,
-    /// The output buses offered after the main one, in bus order, as indexes into `outputs`.
+    /// The other output buses with channels, in bus order, as indexes into `outputs`: offered
+    /// after the main one unless `main_only`.
     pub aux_outputs: Vec<usize>,
+    /// The "main only" configuration is selected (`audio-ports-config`): the aux outputs are
+    /// switched off and not offered. A plugin starts with them on, "all outputs".
+    pub main_only: bool,
     /// Whether it takes notes: its first event input bus.
     pub note_input: bool,
 }
 
 impl Layout {
-    /// The output buses offered as CLAP ports, in port order: the main one, then the others.
+    /// Whether the host is offered a choice of configurations, all outputs or the main one
+    /// alone: when there are aux outputs beside a main one.
+    pub fn has_configurations(&self) -> bool {
+        self.main_output.is_some() && !self.aux_outputs.is_empty()
+    }
+
+    /// The output buses offered as CLAP ports, in port order: the main one, then the others
+    /// unless `main_only`.
+    pub fn output_ports_in(&self, main_only: bool) -> impl Iterator<Item = usize> + '_ {
+        let aux: &[usize] = if main_only { &[] } else { &self.aux_outputs };
+        self.main_output.into_iter().chain(aux.iter().copied())
+    }
+
+    /// The output buses offered as CLAP ports now, in port order.
     pub fn output_ports(&self) -> impl Iterator<Item = usize> + '_ {
-        self.main_output
-            .into_iter()
-            .chain(self.aux_outputs.iter().copied())
+        self.output_ports_in(self.main_only)
+    }
+}
+
+/// Switches `layout`'s aux output buses on, or off when it is "main only" (`activateBus`).
+///
+/// # Safety
+///
+/// Only while the component is inactive, on the main thread.
+unsafe fn switch_aux_outputs(component: &ComPtr<IComponent>, layout: &Layout) {
+    let state = u8::from(!layout.main_only);
+    for &aux in &layout.aux_outputs {
+        // SAFETY: the caller's.
+        unsafe { component.activateBus(kAudio as i32, kOutput as i32, aux as i32, state) };
     }
 }
 
@@ -179,14 +207,14 @@ impl Component {
     }
 
     /// Reads the buses, asks for stereo where a main bus is neither mono nor stereo, and turns on
-    /// the main audio buses, every other output bus offered, and the first event input. Aux
-    /// outputs start inactive in VST3 and produce nothing until turned on; all of them are, as
-    /// Bitwig does.
+    /// the main audio buses and the first event input, and the aux outputs unless `main_only`.
+    /// Aux outputs start inactive in VST3 and produce nothing until turned on; with "all
+    /// outputs", as a plugin starts, all of them are, as Bitwig does.
     ///
     /// # Safety
     ///
     /// Only while the component is inactive, on the main thread.
-    pub(crate) unsafe fn layout(&self) -> Layout {
+    pub(crate) unsafe fn layout(&self, main_only: bool) -> Layout {
         // SAFETY (this block): the caller's.
         unsafe {
             let mut layout = self.read_layout();
@@ -219,10 +247,8 @@ impl Component {
                 self.component
                     .activateBus(kAudio as i32, kOutput as i32, main as i32, 1);
             }
-            for &aux in &layout.aux_outputs {
-                self.component
-                    .activateBus(kAudio as i32, kOutput as i32, aux as i32, 1);
-            }
+            layout.main_only = main_only && layout.has_configurations();
+            switch_aux_outputs(&self.component, &layout);
             if layout.note_input {
                 self.component
                     .activateBus(kEvent as i32, kInput as i32, 0, 1);
@@ -247,9 +273,20 @@ impl Component {
                 main_input,
                 main_output,
                 aux_outputs,
+                main_only: false,
                 note_input: self.component.getBusCount(kEvent as i32, kInput as i32) > 0,
             }
         }
+    }
+
+    /// Switches the aux outputs on, or off for "main only", as `layout.main_only` says.
+    ///
+    /// # Safety
+    ///
+    /// Only while the component is inactive, on the main thread.
+    pub(crate) unsafe fn switch_aux_outputs(&self, layout: &Layout) {
+        // SAFETY: the caller's.
+        unsafe { switch_aux_outputs(&self.component, layout) }
     }
 
     unsafe fn read_buses(&self, direction: BusDirection) -> (Vec<Bus>, Option<usize>) {
@@ -422,6 +459,96 @@ impl Drop for Component {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+    use vst3::Class;
+    use vst3::Steinberg::Vst::{IoMode, MediaType, RoutingInfo};
+    use vst3::Steinberg::{IBStream, TBool, int32, tresult};
+
+    /// A component that only records the buses it is told to switch.
+    #[derive(Default)]
+    struct Switches {
+        calls: Mutex<Vec<(MediaType, BusDirection, int32, TBool)>>,
+    }
+
+    impl Class for Switches {
+        type Interfaces = (IComponent,);
+    }
+
+    impl IPluginBaseTrait for Switches {
+        unsafe fn initialize(&self, _context: *mut FUnknown) -> tresult {
+            kResultOk
+        }
+        unsafe fn terminate(&self) -> tresult {
+            kResultOk
+        }
+    }
+
+    impl IComponentTrait for Switches {
+        unsafe fn getControllerClassId(&self, _class_id: *mut TUID) -> tresult {
+            kResultOk
+        }
+        unsafe fn setIoMode(&self, _mode: IoMode) -> tresult {
+            kResultOk
+        }
+        unsafe fn getBusCount(&self, _type: MediaType, _dir: BusDirection) -> int32 {
+            0
+        }
+        unsafe fn getBusInfo(
+            &self,
+            _type: MediaType,
+            _dir: BusDirection,
+            _index: int32,
+            _bus: *mut BusInfo,
+        ) -> tresult {
+            kResultOk
+        }
+        unsafe fn getRoutingInfo(&self, _in: *mut RoutingInfo, _out: *mut RoutingInfo) -> tresult {
+            kResultOk
+        }
+        unsafe fn activateBus(
+            &self,
+            media: MediaType,
+            dir: BusDirection,
+            index: int32,
+            state: TBool,
+        ) -> tresult {
+            self.calls.lock().unwrap().push((media, dir, index, state));
+            kResultOk
+        }
+        unsafe fn setActive(&self, _state: TBool) -> tresult {
+            kResultOk
+        }
+        unsafe fn setState(&self, _state: *mut IBStream) -> tresult {
+            kResultOk
+        }
+        unsafe fn getState(&self, _state: *mut IBStream) -> tresult {
+            kResultOk
+        }
+    }
+
+    #[test]
+    fn main_only_switches_the_aux_outputs_off_and_all_outputs_on_again() {
+        let switches = ComWrapper::new(Switches::default());
+        let component = switches.to_com_ptr::<IComponent>().unwrap();
+        // A drum machine's buses: the main one, then its slots.
+        let mut layout = Layout {
+            main_output: Some(0),
+            aux_outputs: vec![1, 2, 3],
+            ..Layout::default()
+        };
+        let audio_out = |index, state| (kAudio as MediaType, kOutput as BusDirection, index, state);
+        for (main_only, state) in [(true, 0), (false, 1)] {
+            layout.main_only = main_only;
+            // SAFETY: the component is a fake that records the calls.
+            unsafe { switch_aux_outputs(&component, &layout) };
+            let calls = std::mem::take(&mut *switches.calls.lock().unwrap());
+            assert_eq!(
+                calls,
+                [1, 2, 3].map(|index| audio_out(index, state)),
+                "main only {main_only}: every aux output, and never the main one"
+            );
+        }
+    }
 
     #[test]
     fn a_state_blob_splits_into_what_was_saved() {

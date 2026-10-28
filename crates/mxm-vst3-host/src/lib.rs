@@ -22,6 +22,7 @@
 //! | parameter modulation | added to the parameter's value before it reaches the processor |
 //! | `state` | the component's and the controller's state, in one blob |
 //! | `audio-ports` / `note-ports` | the main audio buses, then the other output buses (aux outputs), each port's id its bus index; the first event bus |
+//! | `audio-ports-config` | with aux outputs: "All outputs", then "Main only", the aux buses switched by `activateBus` |
 //! | `latency` / `tail` | `getLatencySamples` / `getTailSamples` |
 //! | `render` | the process mode, realtime or offline |
 //! | `gui` | `IPlugView`: embedded, or floating in a window of this crate's |
