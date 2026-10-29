@@ -35,7 +35,7 @@ fixes in its `PATCHES.md` — which every repository that builds a plugin patche
 ## The crates
 
 The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.md#the-crate-rules-in-full).
-**Twenty-one crate rules, deliberately different** — count the bullets before editing this number:
+**Twenty-two crate rules, deliberately different** — count the bullets before editing this number:
 
 - `crates/ui` is **shared from day one**: design system §13 exempts the shell, theme tokens,
   typography and basic parameter controls; anything *beyond* them waits for two instruments.
@@ -105,6 +105,11 @@ The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.
   owner-approved exception to evidence-first extraction (2026-10-16): the creative sampler's WSOLA
   made a whole-buffer stretch for newDAWn, its search, period track, onsets and sinc read
   relicensed MIT by their author. Zero dependencies, MSRV 1.87.
+- `crates/mxm-chords` is **chord theory for a tracker**, an owner-approved exception to
+  evidence-first extraction (2026-10-29): tutti's qualities, names typed and spelled, notes named,
+  voicing with voice leading, a key's chords and the ladders, so newDAWn and the web tracker (in
+  WebAssembly) read chords alike. Pitch classes and pitches only, never a host's types; `serde`
+  behind a feature, MSRV 1.87.
 
 # Local Contracts
 
@@ -167,6 +172,7 @@ cargo +1.87.0 build -p <crate>          # and `test`, which is the harder floor
 | `crates/mxm-rng` | **1.87** | Zero dependencies, so every DSP crate takes it without the GUI floor. **Verified on 1.87**, library and tests |
 | `crates/mxm-dsp` | **1.87** | Zero dependencies, so every DSP crate takes it without the GUI floor. **Verified on 1.87**, library and tests |
 | `crates/mxm-stretch` | **1.87** | Zero dependencies, so a DSP crate or a host takes it without the GUI floor. **Verified on 1.87**, library and tests |
+| `crates/mxm-chords` | **1.87** | No dependency but `serde`, behind a feature, so a host and the web tracker's WebAssembly take it without the GUI floor. **Verified on 1.87**, library and tests, with the feature |
 | `crates/mxm-fft` | **1.87** | `rustfft` 6.4.1 (MSRV 1.61) and `realfft` 3.5.0, pinned, so a DSP crate can take it. **Verified on 1.87**, library and tests |
 
 ## Licensing
@@ -247,4 +253,5 @@ their own shipped packages.
 | [`crates/mxm-rng/AGENTS.md`](crates/mxm-rng/AGENTS.md) | The five pseudo-random generators: bit-exact for ever, seeding and mappings left to the consumer, the zero-seed rule, the exact laws and the two kept inexact ones |
 | [`crates/mxm-dsp/AGENTS.md`](crates/mxm-dsp/AGENTS.md) | The shared DSP primitives: the byte-identical gate, bit-exact for ever, and which differing copies stay with their instruments |
 | [`crates/mxm-vst3-host/AGENTS.md`](crates/mxm-vst3-host/AGENTS.md) | VST3 plugins in a CLAP host: a module as an in-process CLAP entry, the CLAP-to-VST3 mapping, the ports (aux outputs included), their stable ids and configurations, threads and the fixed-size block lists, embedded and floating editors, Linux's run loop, a bundle's `moduleinfo.json`, and the checks against installed plugins |
+| [`crates/mxm-chords/AGENTS.md`](crates/mxm-chords/AGENTS.md) | Chord theory for a tracker: tutti's qualities, `parse` and `spell` and their round trip, `name`, the voicing's ranges and voice leading, `next_in_key` always ending, and the ladders |
 | [`docs/AGENTS.md`](docs/AGENTS.md) | The normative design system and control map, the plugin conventions, the measured `mxm-measure` page, and the filter, oscillator and modulation theory |

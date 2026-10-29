@@ -2132,6 +2132,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "mxm-chords"
+version = "0.4.1"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "mxm-control-map"
 version = "0.4.1"
 dependencies = [

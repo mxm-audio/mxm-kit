@@ -235,6 +235,15 @@ kit"). What a whole buffer allows is the crate's own: no head reads past the nex
 place, so an attack is read once, from its first frame. A release build stretched a stereo
 drum loop of 10 s at 44.1 kHz in 31 to 42 ms (2026-10-16).
 
+**`crates/mxm-chords`** is an owner-approved exception to evidence-first extraction (2026-10-29).
+newDAWn's chord patterns needed chord theory, and the web tracker, which is kept in step with
+newDAWn's tracker and runs in a phone's browser, needs the same; asked where it should live, the
+owner chose "A crate in mxm-kit", so the two read chords through one crate as they read keys
+through `mxm-keys`. It knows pitch classes and pitches only: a key is a tonic and a twelve-bit
+mask, and spelling takes whether to write flats, which each host decides by its own key's rule.
+FINE on a chord walks the key's chords and ← → go simpler and richer (the owner, the same day),
+which `next_in_key` and the ladders serve.
+
 **`crates/mxm-vst3-host`** is an owner-approved exception to evidence-first extraction
 (2026-10-09: "We need VST3 support ourselves in the player and daw"): a `.vst3` module offered as
 an in-process CLAP plugin entry, so MXM Player and newDAWn host VST3 through the CLAP code they
