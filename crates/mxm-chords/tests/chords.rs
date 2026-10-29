@@ -4,7 +4,7 @@
 
 use mxm_chords::{
     BASS_RANGE, Chord, Key, Quality, UPPER_VOICES, VOICING_RANGE, movement, name, next_in_key,
-    parse, richer, simpler, spell, transpose, upper_tones, voice,
+    parse, richer, simpler, spell, tonic_chord, transpose, upper_tones, voice,
 };
 
 fn chord(text: &str) -> Chord {
@@ -329,4 +329,14 @@ fn the_keys_notes() {
     let notes: Vec<u8> = (0..12).filter(|pc| a_minor.contains(*pc)).collect();
     assert_eq!(notes, [0, 2, 4, 5, 7, 9, 11]);
     assert!(Key::new(3, Key::CHROMATIC).is_chromatic());
+}
+
+#[test]
+fn a_keys_own_chord_is_its_tonic_triad() {
+    assert_eq!(spell(&tonic_chord(Key::new(0, Key::MAJOR)), false), "C");
+    assert_eq!(spell(&tonic_chord(Key::new(9, Key::MINOR)), false), "Am");
+    assert_eq!(spell(&tonic_chord(Key::new(10, Key::MAJOR)), true), "Bb");
+    assert_eq!(spell(&tonic_chord(Key::new(2, Key::CHROMATIC)), false), "D");
+    // A scale whose thirds on the tonic make no triad: C, C#, D.
+    assert_eq!(spell(&tonic_chord(Key::new(0, 0b111)), false), "C");
 }

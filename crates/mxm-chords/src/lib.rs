@@ -597,6 +597,15 @@ pub fn next_in_key(chord: &Chord, key: Key, up: bool) -> Option<Chord> {
     Some(semitone)
 }
 
+/// The key's own chord: the triad its thirds build on its tonic, as `next_in_key` builds one; a
+/// major triad when they make none this crate knows, or the key is chromatic.
+pub fn tonic_chord(key: Key) -> Chord {
+    if key.is_chromatic() {
+        return Chord::new(key.tonic, Quality::Maj);
+    }
+    built_on(&key.degrees(), 0, 3).unwrap_or_else(|| Chord::new(key.tonic, Quality::Maj))
+}
+
 /// The chord of `size` tones the key's thirds build on its degree `at`, if it's one this crate
 /// knows.
 fn built_on(degrees: &[PitchClass], at: usize, size: usize) -> Option<Chord> {
