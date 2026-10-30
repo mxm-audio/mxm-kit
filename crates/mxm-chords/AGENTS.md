@@ -17,8 +17,8 @@ extraction (the owner, 2026-10-29: "A crate in mxm-kit"). No dependency but `ser
 Owns `src/`, `tests/` and `Cargo.toml`.
 - `src/lib.rs`: `Quality`, `Chord`, `Key`; `parse`, `quality_of` (the typed spellings' table),
   `spell`, `pitch_class_name`; `name`; `upper_tones`, `voice`, `movement` and the ranges
-  (`BASS_RANGE`, `VOICING_RANGE`, `UPPER_VOICES`); `next_in_key`, `transpose`, `simpler`,
-  `richer`; the `serde` strings.
+  (`BASS_RANGE`, `VOICING_RANGE`, `UPPER_VOICES`); `tonic_chord`, `next_in_key`, `transpose`,
+  `simpler`, `richer`; the `serde` strings.
 - `tests/chords.rs`: the theory; `tests/serde.rs`: the strings, with the feature.
 
 **Not here:** a host's types (its notes, events, keys or settings), how a chord is shown or which
