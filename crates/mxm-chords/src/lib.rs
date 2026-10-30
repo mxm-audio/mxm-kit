@@ -13,7 +13,8 @@
 //! - [`Quality`]: tutti's twenty, each with its tones above the root ([`Quality::intervals`]), and
 //!   [`Quality::Other`] for one this crate doesn't know, kept as written and never voiced.
 //! - [`parse`] and [`spell`]: a chord as text, `Am7/C`, read in the format's spelling or a common
-//!   one (`m`, `-`, `M7`, `Δ7`, `ø`, `°`), and written in its short form; `parse(spell(c)) == c`.
+//!   one (`m`, `-`, `M7`, `Δ7`, `ø`, `°`), and written in its short form; `parse(spell(c)) == c`
+//!   for a chord of a known quality.
 //! - [`name`]: the chord notes played together make, if one does.
 //! - [`voice`]: the notes to play, the bass in [`BASS_RANGE`] and at most [`UPPER_VOICES`] upper
 //!   voices close within [`VOICING_RANGE`], moving least from the chord before ([`movement`]).
