@@ -833,7 +833,12 @@ widgets drawn in its layer** (an `Area`'s `Ui` has the layer's id), never those 
 screen: chosen by its rectangle, the rows newDAWn's tracks-list menu lay over were items too, and
 the first took OPEN in *Drum track*'s place (2026-10-22,
 `a_menus_items_are_its_own_never_the_rows_it_lies_over`). egui closes a popup only
-on a pointer click, so a press in a menu closes it unless another menu opened on top. Labels,
+on a pointer click, so a press in a menu closes it unless another menu opened on top. **A menu
+shown now that wasn't the last pass is the one on top**, though egui's layer order says so only
+once the pass is over: it moves such an area to the top at the pass's end, and `State::show`
+looks before then. A submenu shown a second time still sat under the menu it came from, and was
+taken for nothing opened: newDAWn's *Move into* closed the whole menu (2026-11-04,
+`a_submenu_opens_every_time_not_only_the_first`). Labels,
 containers, scroll bars and unlabelled painted areas (canvases with cursors of their own) are left
 out, but for a label or a disabled widget with a tip.
 

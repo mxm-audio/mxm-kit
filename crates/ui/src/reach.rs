@@ -80,6 +80,20 @@ fn menu_layer(ctx: &Context) -> Option<egui::LayerId> {
     ctx.memory(|memory| memory.areas().top_layer_id(Order::Foreground))
 }
 
+/// Whether a menu or list other than `layer` is shown this pass and wasn't the last: one opened
+/// now, which is on top once the pass is over. egui moves an area it didn't show the last pass to
+/// the top only at the pass's end, so until then a menu shown before sits where it was, under the
+/// one it was opened from, and [`menu_layer`] names that one (newDAWn's *Move into*, 2026-11-04:
+/// its second opening was taken for nothing opened, and closed the whole menu).
+fn opened_now(ctx: &Context, layer: egui::LayerId) -> bool {
+    ctx.memory(|memory| {
+        let areas = memory.areas();
+        areas.visible_layer_ids().into_iter().any(|shown| {
+            shown != layer && shown.order == Order::Foreground && !areas.visible_last_frame(&shown)
+        })
+    })
+}
+
 /// A hand-drawn value widget's keyboard edit, this frame.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Edited {
@@ -765,6 +779,7 @@ impl<K: Copy + Eq + Hash> State<K> {
         let ctx = &ctx;
         if let Some(layer) = self.pressed_in.take()
             && menu_layer(ctx) == Some(layer)
+            && !opened_now(ctx, layer)
         {
             egui::Popup::close_all(ctx);
         }
@@ -1148,6 +1163,80 @@ Hat: crashed"
         press.set(true);
         harness.run_steps(2);
         assert_eq!(*chosen.borrow(), ["Drum track"]);
+    }
+
+    /// A submenu OPEN opens stays open every time, not only the first: shown again, it is the top
+    /// menu only once the pass is over, after the cursor looked (newDAWn's track menu's *Move
+    /// into*, 2026-11-04, whose second opening closed the whole menu). Left with BACK or with one
+    /// of its items pressed, which closes them all.
+    #[test]
+    fn a_submenu_opens_every_time_not_only_the_first() {
+        use std::cell::{Cell, RefCell};
+        use std::rc::Rc;
+        #[derive(Clone, Copy)]
+        enum Do {
+            Nothing,
+            Menu,
+            Open(&'static str),
+            Back,
+        }
+        let state = Rc::new(RefCell::new(State::<u8>::default()));
+        let (todo, open, sub) = (
+            Rc::new(Cell::new(Do::Nothing)),
+            Rc::new(Cell::new(false)),
+            Rc::new(Cell::new(false)),
+        );
+        let (state_, todo_, open_, sub_) = (state.clone(), todo.clone(), open.clone(), sub.clone());
+        let mut harness = egui_kittest::Harness::builder()
+            .with_size(egui::vec2(300.0, 200.0))
+            .build_ui(move |ui| {
+                let mut state = state_.borrow_mut();
+                state.begin(ui.ctx());
+                let mut keys = false;
+                match todo_.replace(Do::Nothing) {
+                    Do::Nothing => {}
+                    Do::Menu => keys = true,
+                    Do::Open(label) => {
+                        let region = Region::Menu(state.menu().expect("the menu is open"));
+                        let item = State::<u8>::widgets(ui.ctx(), region)
+                            .into_iter()
+                            // A submenu's button reads "Move into ⏵".
+                            .find(|widget| widget.label.starts_with(label))
+                            .expect("the item is in the menu");
+                        state.put(0, region, item.id);
+                        assert!(state.key(0, region, Output::Action(KeyAction::Open)));
+                    }
+                    Do::Back => state.close_menus(),
+                }
+                sub_.set(false);
+                let track = ui.button("Bass");
+                context_menu(&track, keys.then_some(track.rect), |ui| {
+                    let _ = ui.button("Rename");
+                    ui.menu_button("Move into", |ui| {
+                        sub_.set(true);
+                        let _ = ui.button("Kit");
+                    });
+                });
+                state.show(0, Some(Region::Inside(ui.unique_id())));
+                open_.set(egui::Popup::is_any_open(ui.ctx()));
+            });
+        for round in 0..4 {
+            todo.set(Do::Menu);
+            harness.run_steps(3);
+            assert!(open.get(), "round {round}: the premise, the menu is open");
+            todo.set(Do::Open("Move into"));
+            harness.run_steps(1);
+            assert!(open.get() && sub.get(), "round {round}: the submenu opened");
+            harness.run_steps(2);
+            assert!(open.get() && sub.get(), "round {round}: the submenu stays");
+            todo.set(if round % 2 == 0 {
+                Do::Back
+            } else {
+                Do::Open("Kit")
+            });
+            harness.run_steps(2);
+            assert!(!open.get(), "round {round}: left, the menus are closed");
+        }
     }
 
     /// MENU closes an open menu even when nothing in it can be chosen, as BACK does.
