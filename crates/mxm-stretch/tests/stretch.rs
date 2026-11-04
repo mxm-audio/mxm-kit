@@ -1,7 +1,8 @@
 //! `stretch` as a host meets it: every case in the order its documentation gives, the lengths, the
-//! pitch, the attacks, the channels, and that it's repeatable and stops when asked.
+//! pitch, the attacks, the channels, and that it's repeatable and stops when asked; and
+//! `stretch_mapped`, through a map of points.
 
-use mxm_stretch::{Error, RATES, stretch, window_frames};
+use mxm_stretch::{Error, RATES, stretch, stretch_mapped, window_frames};
 use std::f64::consts::TAU;
 use std::sync::atomic::AtomicBool;
 
@@ -297,4 +298,79 @@ fn a_cancel_stops_it_at_the_first_splice() {
         stretch(&[&input], 60_000, RATE, &cancel),
         Err(Error::Cancelled)
     );
+}
+
+/// Two points are `stretch` itself, bit for bit, longer and shorter.
+#[test]
+fn a_two_point_map_is_stretch_bit_for_bit() {
+    let input = harmonics(110.0, 40_000);
+    for frames in [52_345, 30_001] {
+        assert_eq!(
+            stretch_mapped(&[&input], &[(0, 0), (input.len(), frames)], RATE, &go()),
+            stretch(&[&input], frames, RATE, &go()),
+            "to {frames}"
+        );
+    }
+}
+
+/// A map that isn't one is refused: no points, one, not from (0, 0), not to the input's length, or
+/// not increasing in both; a map as far into the output as the input at every point is a copy.
+#[test]
+fn a_map_runs_from_the_start_to_the_length_increasing_and_the_identity_is_a_copy() {
+    let input = sine(440.0, 20_000, 0.5);
+    let length = input.len();
+    for map in [
+        vec![],
+        vec![(0, 0)],
+        vec![(1, 0), (length, 30_000)],
+        vec![(0, 0), (length - 1, 30_000)],
+        vec![(0, 0), (9_000, 12_000), (9_000, 14_000), (length, 30_000)],
+        vec![(0, 0), (9_000, 12_000), (10_000, 12_000), (length, 30_000)],
+    ] {
+        assert!(
+            matches!(
+                stretch_mapped(&[&input], &map, RATE, &go()),
+                Err(Error::Refused(_))
+            ),
+            "{map:?}"
+        );
+    }
+    let same = stretch_mapped(&[&input], &[(0, 0), (7, 7), (length, length)], RATE, &go());
+    assert_eq!(same.unwrap()[0], input);
+}
+
+/// Each attack is laid where the map puts it, its runs at their own ratios: 0.8 for the first
+/// 0.75 s, 1.25 after, the output exactly as long as the map's last point.
+#[test]
+fn each_attack_is_laid_where_the_map_puts_it() {
+    let rate = f64::from(RATE);
+    let starts: Vec<usize> = (0..5)
+        .map(|k| ((0.150 + 0.300 * f64::from(k)) * rate) as usize)
+        .collect();
+    let input = clicks(&starts, (1.6 * rate) as usize);
+    let turn = (0.75 * rate) as usize;
+    let place = |frame: usize| {
+        if frame <= turn {
+            frame as f64 * 0.8
+        } else {
+            turn as f64 * 0.8 + (frame - turn) as f64 * 1.25
+        }
+    };
+    let map = [
+        (0, 0),
+        (turn, place(turn).round() as usize),
+        (input.len(), place(input.len()).round() as usize),
+    ];
+    let out = stretch_mapped(&[&input], &map, RATE, &go()).unwrap();
+    assert_eq!(out[0].len(), map[2].1);
+    let heard = starts_of(&out[0]);
+    assert_eq!(heard.len(), starts.len(), "{heard:?}");
+    let tolerance = (0.001 * rate) as i64;
+    for (&at, &start) in heard.iter().zip(&starts) {
+        let expected = place(start).round() as i64;
+        assert!(
+            (at as i64 - expected).abs() <= tolerance,
+            "an attack at {at} for {expected}"
+        );
+    }
 }

@@ -1,7 +1,9 @@
 //! A recording stretched to an exact length, its pitch kept: the MXM collection's WSOLA, made a
 //! whole-buffer stretch.
 //!
-//! [`stretch`] returns every channel of a recording exactly `frames` long. It is the creative
+//! [`stretch`] returns every channel of a recording exactly `frames` long, and [`stretch_mapped`]
+//! the same through a map of points the output passes through, the ratio constant between two (a
+//! host's tempo changes under a recording). It is the creative
 //! sampler's Stretch reader, offline: two overlap-add heads reading [`STRETCH_WINDOW_S`] Hann
 //! windows half a window apart, each laid where the material should be by then and moved by the
 //! splice search to where it best continues what the other head is still playing. That is
@@ -130,7 +132,64 @@ pub fn stretch(
     if frames == 0 || length == 0 || frames == length || length < 2 * window {
         return each(input, |channel| copied(channel, frames));
     }
-    Stretcher::new(input, frames, rate, window)?.run(cancel)
+    Stretcher::new(input, &[(0, 0), (length, frames)], rate, window)?.run(cancel)
+}
+
+/// Every channel of `input` stretched through `map`, its pitch kept, at `rate`: the output passes
+/// through each point `(input frame, output frame)`, the ratio constant between two, so a
+/// recording follows a tempo that changes under it. `cancel` is read at every splice.
+///
+/// The map starts at `(0, 0)` and ends at `(the input's length, the output's)`, strictly increasing
+/// in both; two points are [`stretch`], bit for bit. The cases, in the order they're decided, the
+/// first that applies winning:
+/// 1. refused: as [`stretch`] refuses, then a map that isn't one: fewer than two points, not
+///    starting at `(0, 0)`, not ending at the input's length, or not increasing in both;
+/// 2. a map whose every point is as far into the output as into the input: a copy, bit for bit;
+/// 3. material shorter than two windows isn't stretched, as [`stretch`]'s isn't: copied from its
+///    start to the map's last output frame, cut or followed by silence;
+/// 4. anything else is stretched, each attack laid where the map puts it.
+pub fn stretch_mapped(
+    input: &[&[f32]],
+    map: &[(usize, usize)],
+    rate: u32,
+    cancel: &AtomicBool,
+) -> Result<Vec<Vec<f32>>, Error> {
+    let Some(first) = input.first() else {
+        return Err(Error::Refused("there are no channels"));
+    };
+    let length = first.len();
+    if input.iter().any(|channel| channel.len() != length) {
+        return Err(Error::Refused("its channels are of different lengths"));
+    }
+    if !RATES.contains(&rate) {
+        return Err(Error::Refused("its rate isn't between 1 kHz and 768 kHz"));
+    }
+    if input
+        .iter()
+        .any(|channel| channel.iter().any(|v| !v.is_finite()))
+    {
+        return Err(Error::Refused("a sample isn't a finite number"));
+    }
+    let (Some(&start), Some(&end)) = (map.first(), map.last()) else {
+        return Err(Error::Refused("its map has no points"));
+    };
+    if map.len() < 2
+        || start != (0, 0)
+        || end.0 != length
+        || map
+            .windows(2)
+            .any(|pair| pair[1].0 <= pair[0].0 || pair[1].1 <= pair[0].1)
+    {
+        return Err(Error::Refused(
+            "its map doesn't run from (0, 0) to its length, increasing in both",
+        ));
+    }
+    let frames = end.1;
+    let window = window_frames(rate);
+    if map.iter().all(|&(at, to)| at == to) || length < 2 * window {
+        return each(input, |channel| copied(channel, frames));
+    }
+    Stretcher::new(input, map, rate, window)?.run(cancel)
 }
 
 /// `make` of every channel, the list of them reserved fallibly too.
@@ -183,6 +242,10 @@ impl Head {
 struct Stretcher<'a> {
     input: &'a [&'a [f32]],
     frames: usize,
+    /// The map's points, `(input frame, output frame)`, and each run's input frames per output
+    /// frame, from its point to the next: where the material should be at each output frame.
+    map: Vec<(usize, usize)>,
+    steps: Vec<f64>,
     rate: u32,
     window: usize,
     /// The channels as one, for the search, the onsets and the period track.
@@ -198,8 +261,22 @@ struct Stretcher<'a> {
 }
 
 impl<'a> Stretcher<'a> {
-    fn new(input: &'a [&'a [f32]], frames: usize, rate: u32, window: usize) -> Result<Self, Error> {
+    fn new(
+        input: &'a [&'a [f32]],
+        points: &[(usize, usize)],
+        rate: u32,
+        window: usize,
+    ) -> Result<Self, Error> {
         let length = input[0].len();
+        let frames = points[points.len() - 1].1;
+        let mut map = reserved(points.len())?;
+        map.extend_from_slice(points);
+        let mut steps = reserved(points.len() - 1)?;
+        steps.extend(
+            points
+                .windows(2)
+                .map(|pair| (pair[1].0 - pair[0].0) as f64 / (pair[1].1 - pair[0].1) as f64),
+        );
         let mono = mono(input)?;
         let onsets = onsets::detect(&mono, rate)?;
         let periods = period::track(&mono, rate)?;
@@ -209,7 +286,12 @@ impl<'a> Stretcher<'a> {
             if onset < last + window || length - onset < window {
                 continue;
             }
-            let at = (onset as f64 * frames as f64 / length as f64).round() as usize;
+            // Where the map puts it: in its run, at that run's ratio.
+            let run = map.partition_point(|&(at, _)| at <= onset) - 1;
+            let ((in0, out0), (in1, out1)) = (map[run], map[(run + 1).min(map.len() - 1)]);
+            let at = out0
+                + ((onset - in0) as f64 * (out1 - out0) as f64 / (in1 - in0).max(1) as f64).round()
+                    as usize;
             if at <= last_at || at >= frames {
                 continue;
             }
@@ -225,6 +307,8 @@ impl<'a> Stretcher<'a> {
         Ok(Self {
             input,
             frames,
+            map,
+            steps,
             rate,
             window,
             mono,
@@ -236,11 +320,10 @@ impl<'a> Stretcher<'a> {
     }
 
     fn run(&self, cancel: &AtomicBool) -> Result<Vec<Vec<f32>>, Error> {
-        let length = self.mono.len();
         let half = self.window / 2;
         let mut out = each(self.input, |_| reserved(self.frames))?;
-        // Input frames per output frame: where the material should be at each output frame.
-        let step = length as f64 / self.frames as f64;
+        // The map's run the output is in, by its point.
+        let mut run = 0;
         // Both heads start on the first frame, half a window apart in their windows: the output is
         // the input's own until the first splice.
         let mut heads = [
@@ -273,7 +356,12 @@ impl<'a> Stretcher<'a> {
                         return Err(Error::Cancelled);
                     }
                     let reference = heads[1 - index].read_at(n);
-                    heads[index] = self.splice(n, n as f64 * step, reference, next);
+                    while run + 2 < self.map.len() && self.map[run + 1].1 <= n {
+                        run += 1;
+                    }
+                    let (at, to) = self.map[run];
+                    let travel = at as f64 + (n - to) as f64 * self.steps[run];
+                    heads[index] = self.splice(n, travel, reference, next);
                 }
             }
             let (a, b) = (heads[0].read_at(n), heads[1].read_at(n));

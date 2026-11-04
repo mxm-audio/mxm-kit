@@ -101,7 +101,8 @@ The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.
   and O2; its AGENTS lists them). An item moves here when its copies are
   byte-identical, or on the owner's ruling for one that differs; a copy that differs stays with its
   instrument. Zero dependencies, MSRV 1.87.
-- `crates/mxm-stretch` is **a recording stretched to an exact length, its pitch kept**, an
+- `crates/mxm-stretch` is **a recording stretched to an exact length, or through a map of points,
+  its pitch kept**, an
   owner-approved exception to evidence-first extraction (2026-10-16): the creative sampler's WSOLA
   made a whole-buffer stretch for newDAWn, its search, period track, onsets and sinc read
   relicensed MIT by their author. Zero dependencies, MSRV 1.87.

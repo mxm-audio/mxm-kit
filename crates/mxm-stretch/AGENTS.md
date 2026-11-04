@@ -5,16 +5,18 @@ Parent: [`../../AGENTS.md`](../../AGENTS.md).
 # Purpose
 
 **A recording stretched to an exact length, its pitch kept**: the collection's WSOLA, made a
-whole-buffer stretch, for a host that stretches audio off its audio thread. newDAWn is the first
+whole-buffer stretch, for a host that stretches audio off its audio thread, to one length or
+through a map of points (a tempo that changes under the recording). newDAWn is the first
 consumer: a recording note follows the song's tempo with it (newDAWn's
-`plans/plan-audio-stretch.md`). An owner-approved exception to evidence-first extraction (the
+`plans/plan-audio-stretch.md`, and `plans/plan-tempo-map.md`'s T2 for the map). An owner-approved exception to evidence-first extraction (the
 owner, 2026-10-16: "Should it not be a shared crate?"); the creative sampler can move its Stretch
 reader onto it later, as a change of its own.
 
 # Ownership
 
 Owns `src/`, `tests/`, `examples/` and `Cargo.toml`.
-- `lib.rs`: `stretch`, its cases and `Error`, `window_frames`, the two heads and where they're laid.
+- `lib.rs`: `stretch` and `stretch_mapped`, their cases and `Error`, `window_frames`, the two heads
+  and where they're laid.
 - `search.rs`: the splice search. `period.rs`: the period track that narrows it. `onsets.rs`: the
   onset detector. `read.rs`: the sixteen-tap sinc read.
 - `examples/listen.rs`: writes a recording stretched by the ratios given, to listen to.
@@ -28,13 +30,18 @@ The sampler's own copies stay with it, under its licence, and are not owned here
 - **`stretch`'s cases are decided in the order its documentation lists**, the first that applies
   winning: the refusals, no frames, no input, the same length (a copy, bit for bit), material
   shorter than two windows (copied, cut or followed by silence), then the stretch. A new case gets a
-  place in that order and a test.
+  place in that order and a test. `stretch_mapped`'s likewise: `stretch`'s refusals, then a map
+  that doesn't run from `(0, 0)` to the input's length increasing in both, the identity map (a
+  copy), material shorter than two windows, then the stretch.
+- **`stretch` is `stretch_mapped` of two points, bit for bit**: one stretcher, whose material is
+  where the map's run puts it at that run's ratio, and each attack where the map puts it. A change
+  to one is a change to both.
 - **The method is the sampler's**, its constants named as they were: the window
   (`STRETCH_WINDOW_S`), the search (`ALIGN_*`), the period track (`PERIOD_*`, `PITCH_*`), the
   onsets (`TRANSIENT_*`). The measurements behind them are the sampler's `NOTES.md`; a change to
   one is measured here, by its tests and by ear, never copied back by assumption.
-- **Attacks are read once, from their first frame, where the ratio puts them**: no head reads past
-  the next onset before that onset's place, and both are laid on it there.
+- **Attacks are read once, from their first frame, where the ratio (or the map) puts them**: no head
+  reads past the next onset before that onset's place, and both are laid on it there.
 - **No ramps**: the output starts on the input's own frames, no head reads past either end, and the
   window sum is divided out. Stretched longer, the output ends on the input's own last frame.
 - **Every buffer sized by the input or the output is reserved fallibly** (`Error::NoMemory`), held
