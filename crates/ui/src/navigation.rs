@@ -428,7 +428,10 @@ fn bar_rect_id(key: u64) -> Id {
     registry_id().with(("bar", key))
 }
 
-/// Names the parameter whose control is about to be drawn.
+/// Names the parameter whose control is about to be drawn — **or an editor control that acts on
+/// parameters without being one**, keyed by what it acts on: a route slot's `‹ modulate ›`, which
+/// takes a free slot for its target (`"modulate <target>"` in the slot editors). It joins the
+/// cursor as a parameter's control does, and an editor's coverage list names it too.
 ///
 /// The plugin's binding opens this, because the permanent id is the plugin's to know. Without it a
 /// control paints exactly as before and simply does not join the registry — which is what keeps
@@ -1991,6 +1994,80 @@ mod tests {
         frame(&mut state, vec![event(key_of(MENU), false)]);
         frame(&mut state, Vec::new());
         assert!(opened.get(), "MENU opened it again");
+    }
+
+    /// **MENU on a caret selector opens its list, the chosen row taking the keyboard**: ↓ and Enter
+    /// then pick from it, as a click on the selector and one on the row would. A picker that acts at
+    /// once (a route slot's `‹ modulate ›`, under an `at` key of its own) is chosen this way by
+    /// name, not only stepped.
+    #[test]
+    fn menu_opens_a_selectors_list_and_the_keys_pick_from_it() {
+        const MENU: mxm_keys::Job = mxm_keys::Job::Action(mxm_keys::Action::Menu);
+        let ctx = egui::Context::default();
+        let mut state = State::default();
+        let opened = std::cell::Cell::new(false);
+        let picked = std::cell::Cell::new(None);
+        let event = |key, pressed| egui::Event::Key {
+            key,
+            physical_key: None,
+            pressed,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        };
+        let frame = |state: &mut State, events: Vec<egui::Event>| {
+            let input = egui::RawInput {
+                screen_rect: Some(Rect::from_min_size(Pos2::ZERO, egui::vec2(400.0, 300.0))),
+                events,
+                ..Default::default()
+            };
+            let mut output = ctx.run_ui(input, |ui| {
+                let cards = [(0, Rect::from_min_size(Pos2::ZERO, egui::vec2(400.0, 300.0)))];
+                let _ = run(ui.ctx(), state, &[0], &cards, false);
+                egui::CentralPanel::default().show(ui, |ui| {
+                    card(ui, 0, |ui| {
+                        at(ui, "modulate pitch", |ui| {
+                            let mut chosen = 0;
+                            if crate::control::selector_named(
+                                ui,
+                                &crate::theme::DARK,
+                                "Pitch",
+                                "Pitch",
+                                &["modulate", "LFO 1", "LFO 2"],
+                                &mut chosen,
+                                None,
+                                Some(0),
+                                "Adds a modulation source to Pitch.",
+                            ) {
+                                picked.set(Some(chosen));
+                            }
+                        });
+                    });
+                });
+                opened.set(egui::Popup::is_any_open(ui.ctx()));
+            });
+            output.textures_delta.clear();
+        };
+        let tap = |key| vec![event(key, true), event(key, false)];
+        for _ in 0..3 {
+            frame(&mut state, Vec::new());
+        }
+        assert_eq!(state.parameter(), Some("modulate pitch"), "the premise");
+
+        frame(&mut state, vec![event(key_of(MENU), true)]);
+        frame(&mut state, vec![event(key_of(MENU), false)]);
+        frame(&mut state, Vec::new());
+        assert!(opened.get(), "MENU opened the selector's list");
+        assert_eq!(picked.get(), None, "opening chose nothing");
+
+        frame(&mut state, tap(Key::ArrowDown));
+        frame(&mut state, tap(Key::Enter));
+        frame(&mut state, Vec::new());
+        assert_eq!(
+            picked.get(),
+            Some(1),
+            "↓ and Enter picked the row after the chosen one"
+        );
+        assert!(!opened.get(), "and the list closed");
     }
 
     /// MENU closes an open menu in an editor, through the cursor's own path, though the cursor is

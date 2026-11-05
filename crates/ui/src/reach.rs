@@ -197,19 +197,7 @@ pub fn edit(
 pub fn context_menu(response: &egui::Response, keys: Option<Rect>, add: impl FnOnce(&mut Ui)) {
     let ctx = &response.ctx;
     let id = response.id.with("menu from the keys");
-    let node = response.id.accesskit_id();
-    let now = ctx.cumulative_pass_nr();
-    let asked = ctx.data_mut(|data| {
-        let key = Id::new(MENU_FOR);
-        let Some((asked_for, pass)) = data.get_temp::<(NodeId, u64)>(key) else {
-            return false;
-        };
-        let current = pass + 1 >= now;
-        if !current || asked_for == node {
-            data.remove::<(NodeId, u64)>(key);
-        }
-        current && asked_for == node
-    });
+    let asked = menu_asked(response);
     let anchor = keys.or(asked.then_some(response.rect));
     if anchor.is_some() {
         egui::Popup::open_id(ctx, id);
@@ -226,6 +214,26 @@ pub fn context_menu(response: &egui::Response, keys: Option<Rect>, add: impl FnO
     } else {
         response.context_menu(add);
     }
+}
+
+/// **Whether the keys asked for this widget's menu** (MENU on the cursor's control), taking the
+/// request: [`context_menu`]'s, and a caret selector's own list (`control::selector`), which opens
+/// it as a click would. A request lasts the pass it was made in and the next; a stale one is
+/// dropped by whichever widget looks first.
+pub(crate) fn menu_asked(response: &egui::Response) -> bool {
+    let node = response.id.accesskit_id();
+    let now = response.ctx.cumulative_pass_nr();
+    response.ctx.data_mut(|data| {
+        let key = Id::new(MENU_FOR);
+        let Some((asked_for, pass)) = data.get_temp::<(NodeId, u64)>(key) else {
+            return false;
+        };
+        let current = pass + 1 >= now;
+        if !current || asked_for == node {
+            data.remove::<(NodeId, u64)>(key);
+        }
+        current && asked_for == node
+    })
 }
 
 const MENU_FOR: &str = "newdawn reach: the widget whose menu the keys asked for";

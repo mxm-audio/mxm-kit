@@ -169,7 +169,9 @@ Does **not** own labels, parameter bindings, or data. Plugins and the player sup
   reading never writes, and a file that doesn't read gives the shipped keymap of its name, or the
   default.
 - **The map is drawn, not declared**: `navigation::mark` inside the `card` and `at` scopes;
-  `navigation::aside` for an editor-only control. Editors drive it with `navigation::paged` (never
+  `navigation::aside` for an editor-only control. **An `at` key names a parameter, or an editor
+  control that acts on them without being one** (a route slot's `‹ modulate ›`, keyed by its
+  target; the owner, 2026-11-05): a stop like any other, which the editor's coverage list names. Editors drive it with `navigation::paged` (never
   a second card order), or `paged_with_bar` + `navigation::bar_card` for an app-bar parameter.
 - The cursor target is the keyboard authority, not egui focus. The pointer moves it
   (`Spot::pointed`, before `run`'s `inert` return); `remove_mark` never claims; unhanded focus is
@@ -189,7 +191,10 @@ Does **not** own labels, parameter bindings, or data. Plugins and the player sup
 
 - **The caret form `‹ Off ›` is canonical for every bounded parameter enum** (§7.4): one
   `MIN_TARGET` row, accessible as *name: value*, with a stepped control's marks and reset; key a
-  routing scope by its permanent target. `selector_grouped` headings never become cells.
+  routing scope by its permanent target. `selector_grouped` headings never become cells. **MENU
+  on the cursor's selector opens its list** (`reach::menu_asked`, the request a right-click menu
+  answers), the chosen row taking the keyboard, ↑ ↓ and Enter picking; a long list's search field
+  takes it, as on a click.
   `selector_sublabel` and `slider_with_source` have no consumer; one that returns owes the coverage.
 - **`selector_menu` stays inside the window**: capped `ScrollArea`, scroll target set only inside
   it, search above `control::SEARCH_ABOVE` options, popup id kept.

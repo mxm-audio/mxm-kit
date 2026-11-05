@@ -2046,6 +2046,9 @@ struct SelectorMenu {
     query: String,
     /// Frames drawn since the current opening, saturating.
     frames: u8,
+    /// This opening was MENU's, not a click's: the chosen row takes the keyboard, so ↑ ↓ walk the
+    /// list and Enter picks (a long list's search field takes it instead, as on a click).
+    from_keys: bool,
 }
 
 /// The open list of a caret selector. Returns the option chosen this frame, if any.
@@ -2186,6 +2189,9 @@ fn selector_menu(
                 // has ended is taken by whichever encloses the selector, and scrolls the page.
                 if opening && index == selected {
                     row.scroll_to_me(Some(egui::Align::Center));
+                    if memory.from_keys && options.len() <= SEARCH_ABOVE {
+                        row.request_focus();
+                    }
                 }
                 if first {
                     if enter && !needle.is_empty() {
@@ -2253,6 +2259,17 @@ fn selector_caret(
         let config = egui::containers::menu::MenuConfig::find(ui);
         let anchor = response.rect;
         let menu_memory = response.id.with("mxm-selector-menu");
+        // **MENU on the cursor's selector opens its list**, as a click does, so a list is chosen
+        // from the keyboard by name and not only stepped through: a picker that acts at once (a
+        // route slot's `‹ modulate ›`) has no other way to choose but the first.
+        if crate::reach::menu_asked(&response) {
+            egui::Popup::open_id(ui.ctx(), egui::Popup::default_response_id(&response));
+            ui.data_mut(|d| {
+                let mut memory = d.get_temp::<SelectorMenu>(menu_memory).unwrap_or_default();
+                memory.from_keys = true;
+                d.insert_temp(menu_memory, memory);
+            });
+        }
         let open = egui::Popup::menu(&response)
             // Rows close explicitly. Keeping inside clicks open lets the search field and its
             // clear action behave like one editor rather than treating Clear as a selection.
@@ -2285,6 +2302,7 @@ fn selector_caret(
             None => ui.data_mut(|d| {
                 let mut memory = d.get_temp::<SelectorMenu>(menu_memory).unwrap_or_default();
                 memory.frames = 0;
+                memory.from_keys = false;
                 d.insert_temp(menu_memory, memory);
             }),
         }

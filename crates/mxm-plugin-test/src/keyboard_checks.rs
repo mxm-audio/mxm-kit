@@ -132,6 +132,8 @@ pub const COARSE: Job = Job::Step(mxm_keys::Step::Coarse);
 pub const MICRO: Job = Job::Step(mxm_keys::Step::Micro);
 pub const OUT: Job = Job::Out;
 pub const VIEW: Job = Job::View;
+/// A control's menu: a caret selector's list, or a value's right-click menu.
+pub const MENU: Job = Job::Action(mxm_keys::Action::Menu);
 
 /// The key the default keymap gives a job. Tests press jobs, not keys, so a remap of the default
 /// keymap changes no plugin's test.
