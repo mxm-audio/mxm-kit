@@ -33,7 +33,7 @@ plugin's own repository.
 | Windows takes the audio device away from the player | **Understood**; the player names it and reconnects |
 | Four examples shared the name `render_demo`, so `cargo test --workspace` raced | **Fixed** — every example name is now unique across the workspace |
 | Two crates declared MSRV 1.87 and could not build on it | **Fixed** — both raised to 1.88; a recurrence in `mxm-mono-00-dsp` and vendored nice-plug fixed by nesting (2026-09-16), every 1.87 crate compiled against |
-| clap-validator refuses every Windows preset folder as not absolute | **Fixed in a patched validator**, built and installed locally |
+| clap-validator refuses every Windows preset folder as not absolute | **Fixed in a patched validator**; the fix is upstream's [PR #43](https://github.com/free-audio/clap-validator/pull/43), open |
 
 ## nice-plug: no `params.rescan(VALUES)` after the host loads state
 
@@ -736,8 +736,9 @@ its closeout ran the floor, and nothing else would have caught it.
 
 ## clap-validator refuses every Windows preset folder as not absolute
 
-**Status:** upstream bug in clap-validator 0.4.1, on its `main` as of 2026-11-05 (`b2f1d9b7`).
-**Fixed locally** by a patched build, below.
+**Status:** upstream bug in clap-validator 0.4.1, on its `master` as of 2026-11-05 (`b2f1d9b7`).
+**Fixed locally** by a patched build, below, sent upstream as
+[PR #43](https://github.com/free-audio/clap-validator/pull/43) (open, 2026-11-05).
 **Impact, before the patch:** on Windows, three failures for every plugin with its factory presets
 installed: `preset-discovery-crawl`, `preset-discovery-descriptor-consistency` and
 `preset-discovery-load`, each saying `clap_preset_discovery_provider::init()` returned false.
@@ -757,19 +758,17 @@ not start with `/`, which on Windows is every absolute path, so its indexer retu
 ```diff
 -                if !path_str.starts_with('/') {
 -                    anyhow::bail!("'{path_str}' should be an absolute path, i.e. '/{path_str}'.");
-+                if !std::path::Path::new(&path_str).is_absolute() {
++                if !Path::new(&path_str).is_absolute() {
 +                    anyhow::bail!("'{path_str}' should be an absolute path.");
                  }
 ```
 
-Nothing changes on Linux and macOS, where an absolute path is one that starts with `/`. On Windows,
-install the patched build in place of upstream's:
+Nothing changes on Linux and macOS, where an absolute path is one that starts with `/`. The PR adds
+a unit test, `file_locations_must_be_absolute`, which fails on the old check on Windows. Until it is
+merged, install its branch on Windows in place of upstream's; once merged, upstream's again:
 
 ```bash
-git clone https://github.com/free-audio/clap-validator.git && cd clap-validator
-git checkout b2f1d9b79b1d264a5747f46707d72b1aa40a02ef
-# edit src/plugin/preset_discovery/indexer.rs as above
-cargo install --path . --locked --force
+cargo install --git https://github.com/maxmcorp/clap-validator.git --branch fix-windows-preset-locations --locked --force
 ```
 
 ### Verification
