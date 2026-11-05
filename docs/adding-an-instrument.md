@@ -395,6 +395,11 @@ clap-validator validate "target/bundled/<plugin>.clap"
 cargo install --git https://github.com/free-audio/clap-validator.git --locked
 ```
 
+On Windows, install the patched build instead
+([`known-issues.md`](known-issues.md#clap-validator-refuses-every-windows-preset-folder-as-not-absolute)):
+upstream's refuses every Windows preset folder, and fails three preset-discovery tests for any
+plugin with its factory presets installed.
+
 Its absence is silent — the command is simply not found — and a verification block that "passed"
 without it skipped the gate that matters most. **Zero failures, in both debug and release,** is the
 expectation; instruments and effects exercise different subsets, so the passed count is not a fixed

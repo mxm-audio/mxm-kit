@@ -33,6 +33,7 @@ plugin's own repository.
 | Windows takes the audio device away from the player | **Understood**; the player names it and reconnects |
 | Four examples shared the name `render_demo`, so `cargo test --workspace` raced | **Fixed** — every example name is now unique across the workspace |
 | Two crates declared MSRV 1.87 and could not build on it | **Fixed** — both raised to 1.88; a recurrence in `mxm-mono-00-dsp` and vendored nice-plug fixed by nesting (2026-09-16), every 1.87 crate compiled against |
+| clap-validator refuses every Windows preset folder as not absolute | **Fixed in a patched validator**, built and installed locally |
 
 ## nice-plug: no `params.rescan(VALUES)` after the host loads state
 
@@ -732,3 +733,48 @@ CARGO_TARGET_DIR=target/msrv-1.87 cargo +1.87.0 check --locked --all-targets --k
 
 The check has to cover the whole set, and it has to compile: neither the conversion's review nor
 its closeout ran the floor, and nothing else would have caught it.
+
+## clap-validator refuses every Windows preset folder as not absolute
+
+**Status:** upstream bug in clap-validator 0.4.1, on its `main` as of 2026-11-05 (`b2f1d9b7`).
+**Fixed locally** by a patched build, below.
+**Impact, before the patch:** on Windows, three failures for every plugin with its factory presets
+installed: `preset-discovery-crawl`, `preset-discovery-descriptor-consistency` and
+`preset-discovery-load`, each saying `clap_preset_discovery_provider::init()` returned false.
+**Fixable from plugin code:** no. CLAP makes a file location "a path which works with the OS file
+system functions" (`clap/factory/preset-discovery.h`), so the provider declares
+`C:\Users\…\factory\<version>`. The `/C:\…` the validator asks for is a path no Windows host opens.
+
+### Diagnosis
+
+nice-plug's provider (the fork's `src/wrapper/clap/presets.rs`, `init`) declares the factory folder
+through the indexer's `declare_location` and returns what that returns. The validator's
+`LocationValue::new` (`src/plugin/preset_discovery/indexer.rs`) refuses a file location that does
+not start with `/`, which on Windows is every absolute path, so its indexer returns false.
+
+### The fix
+
+```diff
+-                if !path_str.starts_with('/') {
+-                    anyhow::bail!("'{path_str}' should be an absolute path, i.e. '/{path_str}'.");
++                if !std::path::Path::new(&path_str).is_absolute() {
++                    anyhow::bail!("'{path_str}' should be an absolute path.");
+                 }
+```
+
+Nothing changes on Linux and macOS, where an absolute path is one that starts with `/`. On Windows,
+install the patched build in place of upstream's:
+
+```bash
+git clone https://github.com/free-audio/clap-validator.git && cd clap-validator
+git checkout b2f1d9b79b1d264a5747f46707d72b1aa40a02ef
+# edit src/plugin/preset_discovery/indexer.rs as above
+cargo install --path . --locked --force
+```
+
+### Verification
+
+With the patched build (2026-11-05), the three tests pass for mxm-model-drums, mxm-drum-machine,
+mxm-chaos-drums and mxm-fx-eq-n as installed. `clap-validator list presets` indexes every factory
+preset of each (50, 59, 50 and 15), named, flagged factory content and carrying its plugin's id;
+the browser's `order.txt` beside them is no preset and is not indexed.
