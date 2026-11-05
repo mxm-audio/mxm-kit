@@ -104,7 +104,9 @@ move, and the two were identical.
 Near-copies whose arithmetic differs stay in their plugins until an exhaustive comparison over
 each parameter's range proves them equal: two tenth-of-a-millisecond times compute their unit
 switch as `s × 10000` and `s × 1000 × 10`, different f32 roundings, and three frequency parsers
-accept different suffixes.
+accept different suffixes. The `s × 1000 × 10` one, `tenths_of_milliseconds_then_seconds`, moved
+on 2026-11-05 (the owner: "go"), its three copies the same code to the character (mxm-mono-pr1's
+`v2s_time`, MXM Thanks EG's and MXM Modal Synth's `time_text`); mxm-mono-00's `s × 10000` stays.
 
 D6, the defect a raw-value unit switch causes, was fixed in twelve plugins one copy at a time
 before `text` existed. The shared walk that now holds every plugin found three more on joining:

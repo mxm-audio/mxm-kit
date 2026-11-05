@@ -95,6 +95,23 @@ pub fn milliseconds_then_seconds() -> ValueToString {
     })
 }
 
+/// Seconds as tenths of a millisecond, `{:.1} ms`, below the second the reading rounds to, and as
+/// hundredths of a second, `{:.2} s`, from it, for a time that reaches down to half a millisecond.
+/// **The unit is chosen from the rounded tenths**, as in [`milliseconds_then_seconds`]: chosen from
+/// the raw value, 0.99995 s would print `1000.0 ms`. Three plugins carried it (mxm-mono-pr1, MXM
+/// Thanks EG, MXM Modal Synth). Reads back through [`parse_time`].
+#[must_use]
+pub fn tenths_of_milliseconds_then_seconds() -> ValueToString {
+    Arc::new(|seconds| {
+        let ms = seconds * 1_000.0;
+        if (ms * 10.0).round() >= 10_000.0 {
+            format!("{seconds:.2} s")
+        } else {
+            format!("{ms:.1} ms")
+        }
+    })
+}
+
 /// Seconds as whole milliseconds, `{:.0} ms`, however long — for a time that never reaches a second
 /// worth reading in seconds. Two plugins carried it.
 #[must_use]
@@ -278,6 +295,11 @@ mod tests {
         assert_eq!(parse("250"), Some(0.25));
         assert_eq!(parse("abc"), None);
         assert_eq!(whole_milliseconds()(1.5), "1500 ms");
+        let tenths = tenths_of_milliseconds_then_seconds();
+        assert_eq!(tenths(0.0005), "0.5 ms");
+        assert_eq!(tenths(0.99994), "999.9 ms");
+        assert_eq!(tenths(0.99995), "1.00 s");
+        assert_eq!(parse(&tenths(0.0125)), Some(0.0125));
     }
 
     #[test]
