@@ -17,7 +17,7 @@ resizable, one design system — and that work fully in newDAWn.
 | [`mxm-keys`](crates/mxm-keys) | The keyboard language: keys in, gestures out, and the keymap |
 | [`mxm-part-routing`](crates/mxm-part-routing) | Part routing, note arbitration and ownership, and click-free destinations |
 | [`mxm-drum-engine`](crates/mxm-drum-engine) | What the sixteen-slot drum engines share: the kit LFO, the frames, the trigger group |
-| [`mxm-dsp`](crates/mxm-dsp) | Shared DSP primitives: the guards, saturators, PolyBLEP, the ADSR and the line read by age |
+| [`mxm-dsp`](crates/mxm-dsp) | Shared DSP primitives: the guards, saturators, PolyBLEP, the ADSR, the line read by age and the rate converter |
 | [`mxm-rng`](crates/mxm-rng) | The pseudo-random generators, each bit-exact to the copies it replaced |
 | [`mxm-fft`](crates/mxm-fft) | The collection's one FFT |
 | [`mxm-stretch`](crates/mxm-stretch) | A recording stretched to an exact length, its pitch kept |

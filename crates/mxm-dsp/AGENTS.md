@@ -11,7 +11,11 @@ The collection's shared DSP primitives (the architecture audit's O1 and O2, owne
 and `delay::AgeLine`, **not** a verbatim copy but the storage and age read fifteen lines had in common,
 proved bit-identical per consumer while each keeps its own age origin, interpolation, clamps and
 write flush — the line read by age that the
-effects' and synths' delays store their samples in.
+effects' and synths' delays store their samples in. And `rate_converter::RateConverter`, MXM Thanks
+EG's and MXM Modal Synth's copies, which differed only in their source rate and passband, now its
+arguments (the owner, 2026-11-05: "move it into the kit"; "Rate converter is more correct", the
+drum machines' Resample being another thing): each consumer's output compared bit for bit with its
+copy's, at eleven host rates, when it moved.
 
 # Ownership
 
@@ -33,8 +37,8 @@ takes the raw buffer).
 - **Bit-exact, for ever**: every instrument's golden digests were recorded through these bodies.
   Changing an expression here changes several instruments' sound at once; it needs a plan and the
   goldens of every consumer.
-- **Plain values in and out**: no framework types, no allocation after construction (`AgeLine::new`
-  and `try_new` alone allocate); `#[inline]` as the copies had it (`#[inline(always)]` for `flush`).
+- **Plain values in and out**: no framework types, no allocation after construction (`AgeLine::new`,
+  `try_new` and `RateConverter::new` alone allocate); `#[inline]` as the copies had it (`#[inline(always)]` for `flush`).
   `#![forbid(unsafe_code)]`.
 - **The line keeps each consumer's exact length**, so its memory and history are what they were; it
   never flushes or clamps (a consumer's write flush, its clamp of a requested age and its interpolation

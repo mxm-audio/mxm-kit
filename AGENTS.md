@@ -98,7 +98,8 @@ The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.
   defect (which remain, and when a sixth family arrives: NOTES). Zero dependencies, MSRV 1.87.
 - `crates/mxm-dsp` is **the collection's shared DSP primitives**: verbatim from byte-identical copies,
   but for the delay line, the copies' common part proved bit-identical per consumer (the audit's O1
-  and O2; its AGENTS lists them). An item moves here when its copies are
+  and O2; its AGENTS lists them), and the rate converter, two copies differing in their rates made
+  arguments on the owner's ruling (2026-11-05). An item moves here when its copies are
   byte-identical, or on the owner's ruling for one that differs; a copy that differs stays with its
   instrument. Zero dependencies, MSRV 1.87.
 - `crates/mxm-stretch` is **a recording stretched to an exact length, or through a map of points,

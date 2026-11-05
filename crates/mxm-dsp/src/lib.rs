@@ -10,6 +10,8 @@
 //! - [`shape`]: the saturators and the prewarp the filters share.
 //! - [`blep`]: the PolyBLEP residual and the pulse-width clamp it needs.
 //! - [`envelope`]: the analog-style ADSR.
+//! - [`rate_converter`]: a fixed source rate to the host's, for voices that run at a module's own
+//!   rate (moved parametrised from two copies that differed in their rates, on the owner's ruling).
 //!
 //! Plain values in, plain values out: no framework types, no allocation after construction (a
 //! [`delay::AgeLine`] allocates in `new` alone), and no panic on any input a function's own
@@ -21,4 +23,5 @@ pub mod blep;
 pub mod delay;
 pub mod envelope;
 pub mod guard;
+pub mod rate_converter;
 pub mod shape;

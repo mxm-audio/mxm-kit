@@ -1,6 +1,6 @@
 [package]
 name = "mxm-dsp"
-description = "The MXM collection's shared DSP primitives, each moved from byte-identical copies in the instruments"
+description = "The MXM collection's shared DSP primitives, each moved from the instruments' copies"
 version.workspace = true
 edition.workspace = true
 # Zero dependencies, so every DSP crate takes it without the GUI floor.
