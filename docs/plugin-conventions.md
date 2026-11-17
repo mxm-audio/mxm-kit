@@ -18,7 +18,7 @@ plugin's own repository (`https://github.com/mxm-audio/<plugin>`), `apps/mxm-pla
 The plugins the collection ships, each a CLAP and a VST3. Each is a thin nice-plug shell over a framework-free DSP
 crate: parameter definitions, host contract, event handling, and an editor.
 
-Twenty-two plugins — eleven instruments and eleven effects:
+Twenty-five plugins — fourteen instruments and eleven effects:
 
 | | |
 |---|---|
@@ -44,6 +44,9 @@ Twenty-two plugins — eleven instruments and eleven effects:
 | [`mxm-creative-sampler/`](https://github.com/mxm-audio/mxm-creative-sampler/blob/main/plugins/mxm-creative-sampler/AGENTS.md) | Original small-sample instrument with Repitch, Stretch and Grain readers and embedded asset state |
 | [`mxm-drum-machine/`](https://github.com/mxm-audio/mxm-drum-machine/blob/main/plugins/mxm-drum-machine/AGENTS.md) | Original sixteen-slot drum instrument over an append-only pool of machine-specific circuits; all 94 admitted models owner listening-approved, Kit or chromatic MIDI per slot, twenty general controls and four routes a slot like mxm-model-drums (651 parameters since 2026-10-07, from 3,227), stereo main plus sixteen mono outputs, nine source-family audition presets on one canonical role map |
 | [`mxm-model-drums/`](https://github.com/mxm-audio/mxm-model-drums/blob/main/plugins/mxm-model-drums/AGENTS.md) | Sixteen slots of realistic synthesized drums that reach far past the real ones; twenty general controls and four routes a slot (650 parameters); the Ringing kick its first model; built and bundled, clap-validator clean. *Private and unreleased since 2026-10-06, so the link works only for the maintainer* |
+| [`mxm-thanks-eg/`](https://github.com/mxm-audio/mxm-thanks-eg/blob/main/plugins/mxm-thanks-eg/AGENTS.md) | Polyphonic macro-oscillator instrument: twenty-four engines ported bit for bit from Mutable Instruments Plaits (MIT, through `mxm-macro-osc`), envelopes that are function generators too, LFOs and sixteen route slots. *Private and unreleased, so the link works only for the maintainer* |
+| [`mxm-modal-synth/`](https://github.com/mxm-audio/mxm-modal-synth/blob/main/plugins/mxm-modal-synth/AGENTS.md) | Polyphonic modal synthesizer: Mutable Instruments Elements' voice ported bit for bit (MIT, through `mxm-modal-voice`), struck, bowed and blown, with Thanks EG's envelopes, LFOs and route slots |
+| [`mxm-chaos-drums/`](https://github.com/mxm-audio/mxm-chaos-drums/blob/main/plugins/mxm-chaos-drums/AGENTS.md) | Original sixteen-cell drum instrument that runs on charge: a note supplies energy, the cells feed each other on a 4×4 grid and share one supply, reproducible render for render. *Private and unreleased, so the link works only for the maintainer* |
 
 
 **This doc holds shared conventions.** Permanent identifiers, machine-specific behavior and active
