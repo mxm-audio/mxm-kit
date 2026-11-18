@@ -8,7 +8,9 @@ writes each VST3's `moduleinfo.json` (`module_info`), stages each plugin's contr
 bundle (`control_maps`) and its presets (`presets`), and installs the CLAP, its map and the VST3
 in the standard plugin folders and the presets in their version's folder (`install`). `cargo xtask
 fetch` builds the plugins of *other* MXM repositories that this repository's tests load, at the tags
-its `test-bundles.txt` pins (`fetch`). A repository's own `xtask` passes its workspace root and adds
+its `test-bundles.txt` pins (`fetch`), into the run's build folder: `CARGO_TARGET_DIR` where it is
+set (Linux's cargo wrapper sets it below `MXM_BUILD_ROOT`), or else the checkout's `target/` (placed
+in the checkout's on Linux, its builds replaced Windows' there, 2026-11-18). A repository's own `xtask` passes its workspace root and adds
 only the commands that repository alone needs.
 
 It was the root `xtask`'s `main.rs` and `control_maps.rs` until the collection's split into one

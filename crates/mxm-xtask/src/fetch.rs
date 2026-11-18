@@ -11,6 +11,12 @@
 //! mxm-mono-01   v0.1.0  debug     # -> target/debug/<library>, nice-plug's allocation guard on
 //! ```
 //!
+//! `target/` is the build folder the run uses: `CARGO_TARGET_DIR` where it is set, as Linux's cargo
+//! wrapper sets it below `MXM_BUILD_ROOT` for a checkout on the drive Windows shares, or else the
+//! workspace's `target/`. Placed in the checkout's, Linux's builds replaced Windows' there and each
+//! system's tests loaded the other's (MXM Player's, 2026-11-18); tests read them from the same
+//! build folder.
+//!
 //! Each repository is cloned shallowly at its tag into [`fetch_dir`]`/<repository>-<tag>` and built
 //! there with its own `cargo xtask bundle` (release) or `cargo build` (debug), so it builds exactly
 //! as its own repository does. A clone already present is reused: a tag does not move.
@@ -67,12 +73,15 @@ pub fn parse(text: &str) -> Result<Vec<Wanted>> {
     Ok(out)
 }
 
-/// Builds every plugin [`LIST`] names into `workspace_root`'s `target/`. Returns what it placed.
+/// Builds every plugin [`LIST`] names into the build folder: `CARGO_TARGET_DIR`, or
+/// `workspace_root`'s `target/`. Returns what it placed.
 pub fn fetch(workspace_root: &Path) -> Result<Vec<PathBuf>> {
     let list = workspace_root.join(LIST);
     let text = std::fs::read_to_string(&list)
         .with_context(|| format!("Could not read {}", list.display()))?;
-    let target = workspace_root.join("target");
+    let target = std::env::var_os("CARGO_TARGET_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| workspace_root.join("target"));
     let clones = fetch_dir()?;
     let mut placed = Vec::new();
     for wanted in parse(&text)? {
