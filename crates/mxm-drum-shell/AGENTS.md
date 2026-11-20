@@ -17,6 +17,11 @@ Owns `src/` and `Cargo.toml`:
 
 - `src/slot_names.rs`: the names' rules, the persistent field (`slot-names`), `filter`, `announce`,
   `HostNames`; a plugin's parameters implement `DrumSlots`.
+- `src/outputs.rs`: which outputs the slots are routed to, and their names, for the host
+  (`HostOutputs`, the MXM CLAP extension `dk.mxm.outputs-in-use/1` and VST3 interface
+  `IOutputsInUse`; the kit's `docs/plugin-conventions.md`, *Outputs in use*); a plugin's
+  parameters implement `DrumOutputs`, and it returns the same `HostOutputs` for both formats.
+  Back to main (`to_main`) is every slot on the output set to `L+R`, playing or not.
 - `src/bank.rs`: `CaptureBank<K>`, the lock-free handover of a kit.
 - `src/capture.rs`: the capture thread (`CaptureWorker`, `Gate`, `Heard`) and `Resample`, the
   state machine `activate` and `process` run; a plugin implements `Capturer`.
@@ -25,10 +30,12 @@ Owns `src/` and `Cargo.toml`:
 - `src/editor.rs`: the app bar's pair, its `…` menu rows and status, the name box.
 
 **Does not own** a capture, a frozen reader, a model, a parameter or its ID, a preset, or an
-editor's layout: those stay with each instrument, and enter through the three traits.
+editor's layout: those stay with each instrument, and enter through the four traits.
 
 # Local Contracts
 
+- **The outputs in use were written here, not moved**: the three drum plugins took them at once
+  (2026-11-19), so no copy came first.
 - **A body moves here when both plugins' copies are the same**; what differs enters through a trait
   method or a field the plugin passes. A trait carries only what the two already decide, never a
   method for a consumer that does not exist (a sample-drums voice is not one yet).

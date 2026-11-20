@@ -2420,7 +2420,7 @@ dependencies = [
 [[package]]
 name = "nice-plug"
 version = "0.4.2"
-source = "git+https://github.com/mxm-audio/nice-plug?branch=main#987806f54158ee21f910cf59578f5f35b831651c"
+source = "git+https://github.com/mxm-audio/nice-plug?branch=main#8b4fd6ac48386de0f5755d45029edd0e7810dc92"
 dependencies = [
  "anyhow",
  "anymap3",
@@ -2484,7 +2484,7 @@ dependencies = [
 [[package]]
 name = "nice-plug-egui"
 version = "0.5.1"
-source = "git+https://github.com/mxm-audio/nice-plug-egui?branch=main#9f9118da5dbb6d50f0b25a2ef453cd291c83debf"
+source = "git+https://github.com/mxm-audio/nice-plug-egui?branch=main#d1d792fb8670a5a8f6f15f630522e4e8a5a6e8a6"
 dependencies = [
  "crossbeam",
  "egui",

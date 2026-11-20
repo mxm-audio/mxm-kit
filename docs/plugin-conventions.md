@@ -874,6 +874,95 @@ A plugin that plays a drum per key names each one through the nice-plug fork's n
 (`ClapPlugin::note_names`; the fork's `PATCHES.md`, *Note names*), so a host's drum lanes are titled
 as the plugin's slots are. MXM Drum Machine names each Kit key with its slot's name (2026-10-14).
 
+## Outputs in use
+
+A plugin that routes its parts to outputs of their own says which outputs it sends to, so a host
+can give each its own track as the user routes it (the owner, 2026-11-19: "if the drum machine
+opens an individual out, then it makes a group in the daw"; 2026-11-20: "yes, add the VST3 version
+too"). CLAP and VST3 let a host tell a plugin which outputs it listens to
+(`audio-ports-activation`, `IComponent::activateBus`), never the other way round, so this is an MXM
+CLAP extension and an MXM pair of VST3 interfaces, both served through the nice-plug fork's
+`ClapPlugin::outputs_in_use` and `Vst3Plugin::outputs_in_use`, one source for both (its
+`PATCHES.md`, *Outputs in use*). The sixteen-slot drum plugins take it from `mxm-drum-shell`'s
+`outputs` (`HostOutputs`, through their parameters' `DrumOutputs`). `mxm-vst3-host` turns the VST3
+interfaces into the CLAP extension, so a CLAP host that reads one reads the other.
+
+**The extension, `dk.mxm.outputs-in-use/1`**, as C:
+
+```c
+typedef struct dk_mxm_plugin_outputs_in_use {
+   // [main-thread] How many output ports after the main one something in the plugin sends to
+   // now, whatever audio configuration is active.
+   uint32_t(CLAP_ABI *count)(const clap_plugin_t *plugin);
+   // [main-thread] One of them: its port id, as the configuration that has the port gives it, and
+   // a name for what plays there, NUL-terminated UTF-8 within CLAP_NAME_SIZE bytes, cut at a
+   // character boundary. False for an index past the count.
+   bool(CLAP_ABI *get)(const clap_plugin_t *plugin, uint32_t index, clap_id *port_id,
+                       char name[CLAP_NAME_SIZE]);
+   // [main-thread] What sends whatever plays on port port_id back to the main output: one
+   // parameter value, its id and value as `params` gives them (a stepped one's step), for the
+   // host to set as it sets any. False past the last, or for a port nothing is routed to.
+   bool(CLAP_ABI *to_main)(const clap_plugin_t *plugin, clap_id port_id, uint32_t index,
+                           clap_id *param_id, double *value);
+} dk_mxm_plugin_outputs_in_use_t;
+
+typedef struct dk_mxm_host_outputs_in_use {
+   // [main-thread] The outputs in use, or their names, may have changed: read them again.
+   void(CLAP_ABI *changed)(const clap_host_t *host);
+} dk_mxm_host_outputs_in_use_t;
+```
+
+**The VST3 interfaces**, as C++:
+
+```cpp
+namespace MXM {
+// On the component (or its edit controller): the output buses something in the plugin sends to.
+class IOutputsInUse : public Steinberg::FUnknown {
+public:
+    // [UI-thread] How many output buses after the main one something in the plugin sends to now,
+    // whatever arrangement is active: kResultOk, or kNotImplemented from a plugin that doesn't say.
+    virtual tresult PLUGIN_API getOutputCount (int32* count) = 0;
+    // [UI-thread] One of them: its output bus index, and a name for what plays there,
+    // NUL-terminated UTF-16 within the String128, never cut inside a surrogate pair.
+    virtual tresult PLUGIN_API getOutputInUse (int32 index, int32* busIndex, String128 name) = 0;
+    // [UI-thread] What sends whatever plays on output bus busIndex back to the main output: one
+    // parameter value for the host to set as it sets any. kResultFalse past the last.
+    virtual tresult PLUGIN_API getToMain (int32 busIndex, int32 index, ParamID* id,
+                                          ParamValue* valueNormalized) = 0;
+    static const FUID iid;
+};
+DECLARE_CLASS_IID (IOutputsInUse, 0x19786A5F, 0xE141689D, 0x5D908823, 0xCE588BF6)
+
+// On the host's IComponentHandler.
+class IOutputsInUseHandler : public Steinberg::FUnknown {
+public:
+    // [UI-thread] The outputs in use, or their names, may have changed: read them again.
+    virtual tresult PLUGIN_API outputsInUseChanged () = 0;
+    static const FUID iid;
+};
+DECLARE_CLASS_IID (IOutputsInUseHandler, 0x30EA7F50, 0x4E3D0C7E, 0x498B4086, 0xC95A6C81)
+}
+```
+
+- **An output is named by its place among the plugin's outputs**, the main one first: CLAP's port
+  id (the inputs counted before the outputs), VST3's output bus index. A plugin with no input
+  numbers an output the same in both.
+- **A VST3 plugin that offers the interface without saying** (nice-plug offers it on every
+  plugin, a COM interface list being fixed) answers `getOutputCount` with `kNotImplemented`, and a
+  host takes it as one without.
+- **The answer is the routing**, never the active configuration: a host on a stereo configuration,
+  where the plugin folds every part to main, still learns where each part would go.
+- **An output is in use** while a part that plays is routed to it; a part with nothing to play
+  doesn't count. Two parts on one output are named together, joined with " / ".
+- **The plugin tells the host** when the answer changes: after a parameter it follows changes, a
+  state load, or a GUI transaction, as the note names are told.
+- **Back to main is the host's to set**: the plugin never changes itself when asked, it says which
+  parameter values would, so a host sets them as it sets any value, in its own undo step. A
+  drum plugin sends every slot on the output back to `L+R`, playing or not (the owner,
+  2026-11-20: a deleted track's drum should "go to the stereo mix", and "the drum machines should
+  set their output back to stereo out").
+- newDAWn is the host that reads it (its `plans/plan-track-groups.md`, *G8*).
+
 ## Realtime rules for `process()`
 
 Non-negotiable, and the source of most "fine in tests, crackles in the DAW" bugs:

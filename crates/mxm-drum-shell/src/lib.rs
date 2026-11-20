@@ -7,6 +7,8 @@
 //!
 //! - [`slot_names`]: each slot's name, typed or made up from its model's kind, and the host's note
 //!   names;
+//! - [`outputs`]: which of the sixteen outputs the slots are routed to, and their names, for the
+//!   host;
 //! - [`bank`]: the lock-free handover of a captured kit to the audio thread;
 //! - [`capture`]: the plugin's own capture thread, the kit each engage heard, and Resample's state
 //!   machine;
@@ -17,13 +19,15 @@
 //!
 //! **What stays with each plugin** is everything its engine decides: the capture itself and the
 //! frozen reader that plays it (each DSP crate's `capture`), its parameters and their IDs, its
-//! presets and its editor's layout. A plugin plugs in through three traits:
-//! [`slot_names::DrumSlots`] (its slots), [`capture::Capturer`] (its capture, and what its engine
-//! and its kit must do) and [`pack::OneShots`] (its one-shots).
+//! presets and its editor's layout. A plugin plugs in through four traits:
+//! [`slot_names::DrumSlots`] (its slots), [`outputs::DrumOutputs`] (its slots' Output parameters),
+//! [`capture::Capturer`] (its capture, and what its engine and its kit must do) and
+//! [`pack::OneShots`] (its one-shots).
 
 pub mod bank;
 pub mod capture;
 pub mod editor;
+pub mod outputs;
 pub mod pack;
 pub mod signals;
 pub mod slot_names;

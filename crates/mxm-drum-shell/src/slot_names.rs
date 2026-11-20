@@ -226,6 +226,8 @@ pub(crate) mod tests {
         pub made_up: [Option<String>; SLOT_COUNT],
         pub plays: [bool; SLOT_COUNT],
         pub channels: [i32; SLOT_COUNT],
+        /// Each slot's Output, for `outputs`' tests.
+        pub outputs: [i32; SLOT_COUNT],
     }
 
     impl Slots {
@@ -245,6 +247,7 @@ pub(crate) mod tests {
                 made_up,
                 plays: [true; SLOT_COUNT],
                 channels: [0; SLOT_COUNT],
+                outputs: [0; SLOT_COUNT],
             }
         }
     }

@@ -16,6 +16,9 @@ use crate::events::{EventList, note_off, note_on, poly_pressure};
 use crate::gui::Editor;
 use crate::handler::{Edit, HandlerState};
 use crate::module::{ClassInfo, Module};
+use crate::outputs_in_use::{
+    HostOutputsInUse, IOutputsInUse, PluginOutputsInUse, PluginOutputsInUseImpl,
+};
 use crate::params::{ParamInfo, ParameterChanges, read_params, to_clap, to_normalized};
 use crate::strings::{from_utf16, to_string128};
 use clack_extensions::audio_ports::{
@@ -54,7 +57,6 @@ use std::fmt::Write as _;
 use std::io::{Read, Write};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-use vst3::ComWrapper;
 use vst3::Steinberg::Vst::ControllerNumbers_::{kAfterTouch, kPitchBend};
 use vst3::Steinberg::Vst::ProcessContext_::StatesAndFlags_::{
     kBarPositionValid, kContTimeValid, kCycleActive, kCycleValid, kPlaying, kProjectTimeMusicValid,
@@ -72,6 +74,7 @@ use vst3::Steinberg::Vst::{
     ProcessSetup,
 };
 use vst3::Steinberg::kResultOk;
+use vst3::{ComPtr, ComWrapper};
 
 /// How many host and editor values may wait for the controller between main-thread turns.
 const CONTROLLER_QUEUE: usize = 8192;
@@ -97,6 +100,10 @@ impl Plugin for Vst3Plugin {
         // always has, with a static layout.
         if shared.is_some_and(|shared| shared.configurable.load(Ordering::Acquire)) {
             builder.register::<PluginAudioPortsConfig>();
+        }
+        // Only a plugin that says which outputs it sends to (`outputs_in_use.rs`).
+        if shared.is_some_and(|shared| shared.reports_outputs) {
+            builder.register::<PluginOutputsInUse>();
         }
         builder
             .register::<PluginAudioPorts>()
@@ -124,6 +131,9 @@ pub(crate) struct Shared<'a> {
     /// Whether `audio-ports-config` is offered (`Layout::has_configurations`), kept with the
     /// layout for `declare_extensions`, which sees only this part.
     configurable: AtomicBool,
+    /// Whether the plugin offers the MXM `IOutputsInUse` and answers it, so the CLAP extension is
+    /// offered.
+    reports_outputs: bool,
     /// The processor's tail, read on the main thread at activation, for `tail.get` on the audio
     /// thread, which VST3 does not allow to ask.
     tail: AtomicU32,
@@ -146,6 +156,13 @@ fn offered(mut layout: Layout, instrument: bool) -> Layout {
         layout.main_input = None;
     }
     layout
+}
+
+/// The plugin's MXM `IOutputsInUse`, on its component or else its controller.
+fn outputs_interface(vst: &Component) -> Option<ComPtr<IOutputsInUse>> {
+    vst.component
+        .cast::<IOutputsInUse>()
+        .or_else(|| vst.controller.as_ref()?.cast::<IOutputsInUse>())
 }
 
 /// The CLAP id of the port output bus `bus` is offered as, `main` being the main output bus.
@@ -194,8 +211,12 @@ pub(crate) fn create<'a>(
         Some(controller) => unsafe { read_params(controller) },
         None => Vec::new(),
     };
+    // SAFETY: on the main thread.
+    let reports_outputs = outputs_interface(&vst)
+        .is_some_and(|plugin| unsafe { crate::outputs_in_use::read(&plugin) }.is_some());
     let shared = Shared {
         _host: host.shared(),
+        reports_outputs,
         vst,
         handler,
         name: class.name.clone(),
@@ -239,6 +260,9 @@ pub(crate) struct MainThread<'a> {
     offline: bool,
     /// Restart flags that need the plugin inactive, kept until it is.
     deferred_restart: i32,
+    /// The outputs in use `outputs-in-use.count` last read, which its `get` serves: each port id
+    /// and name.
+    outputs_served: Vec<(u32, String)>,
     pub(crate) editor: Option<Editor>,
 }
 
@@ -261,6 +285,7 @@ impl<'a> MainThread<'a> {
             carry: Vec::new(),
             offline: false,
             deferred_restart: 0,
+            outputs_served: Vec::new(),
             editor: None,
         };
         this.set_params(parts.params);
@@ -399,6 +424,15 @@ impl<'a> PluginMainThread<'a, Shared<'a>> for MainThread<'a> {
         {
             state.mark_dirty(&self.host);
         }
+        if self
+            .shared
+            .handler
+            .outputs_changed
+            .swap(false, Ordering::AcqRel)
+            && let Some(outputs) = self.host.shared().get_extension::<HostOutputsInUse>()
+        {
+            outputs.changed(&mut self.host);
+        }
         self.service_editor();
     }
 }
@@ -509,6 +543,37 @@ fn describe(layout: &Layout, configuration: &Configuration) -> AudioPortsConfigu
         output_port_count: layout.output_ports_in(configuration.main_only).count() as u32,
         main_input: main(&layout.inputs, layout.main_input),
         main_output: main(&layout.outputs, layout.main_output),
+    }
+}
+
+impl PluginOutputsInUseImpl for MainThread<'_> {
+    fn count(&mut self) -> u32 {
+        let main = self.layout.main_output;
+        let buses = self.layout.outputs.len();
+        self.outputs_served = outputs_interface(&self.shared.vst)
+            // SAFETY: on the main thread, as CLAP calls this.
+            .and_then(|plugin| unsafe { crate::outputs_in_use::read(&plugin) })
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|&(bus, _)| (bus as usize) < buses)
+            .map(|(bus, name)| (output_port_id(bus as usize, main), name))
+            .collect();
+        self.outputs_served.len() as u32
+    }
+
+    fn get(&mut self, index: u32) -> Option<(u32, String)> {
+        self.outputs_served.get(index as usize).cloned()
+    }
+
+    fn to_main(&mut self, port: u32, index: u32) -> Option<(u32, f64)> {
+        let main = self.layout.main_output;
+        let bus = (0..self.layout.outputs.len()).find(|&bus| output_port_id(bus, main) == port)?;
+        let plugin = outputs_interface(&self.shared.vst)?;
+        // SAFETY: on the main thread, as CLAP calls this.
+        let (id, normalized) =
+            unsafe { crate::outputs_in_use::to_main(&plugin, bus as u32, index) }?;
+        // As `params` gives the value: a stepped parameter's step.
+        Some((id, self.param(id)?.to_clap(normalized)))
     }
 }
 

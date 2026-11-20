@@ -65,7 +65,8 @@ The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.
   O4): the kit LFO, the modulation and output frames, the trigger group, the seeds. An engine, a voice
   or anything one instrument alone uses stays with it. MSRV 1.87; its dependencies have none.
 - `crates/mxm-drum-shell` is **what the sixteen-slot drum plugins share on the plugin side**, moved
-  from their copies (2026-10-26): slot names, Resample's capture thread, handover and state machine,
+  from their copies (2026-10-26): slot names, the outputs in use (written here for all three at once,
+  2026-11-19), Resample's capture thread, handover and state machine,
   the sample pack, and the editor's Resample, Export and name box. A capture, a frozen reader, a
   parameter or an editor's layout stays with its instrument and enters through a trait. MSRV 1.95.
 - `crates/mxm-audio-file` and `crates/mxm-audio-file-decode` own bytes ↔ samples and nothing a
@@ -236,7 +237,7 @@ their own shipped packages.
 | [`crates/mxm-tempo/AGENTS.md`](crates/mxm-tempo/AGENTS.md) | Tempo sync: the one sixteen-step division ladder, a control's span and direction, position → division, the clamp-never-rescale reach law, and the tempo in force |
 | [`crates/mxm-keys/AGENTS.md`](crates/mxm-keys/AGENTS.md) | The shared keyboard language's engine: physical keys, the jobs, the plain-text keymap and its refusals, held and tapped gestures and their rules, and why no keymap can take a standard shortcut |
 | [`crates/mxm-part-routing/AGENTS.md`](crates/mxm-part-routing/AGENTS.md) | Shared part assignments, claimed-channel matching, fixed-capacity arbitration, note ownership across parts, CLAP-style note-owner matching and bounded destination transfer |
-| [`crates/mxm-drum-shell/AGENTS.md`](crates/mxm-drum-shell/AGENTS.md) | What the sixteen-slot drum plugins share on the plugin side: slot names and the host's note names, Resample's capture thread, bank and state machine, the sample pack, the signals, the editor's Resample, Export and name box; the three traits a plugin implements, and what stays with each |
+| [`crates/mxm-drum-shell/AGENTS.md`](crates/mxm-drum-shell/AGENTS.md) | What the sixteen-slot drum plugins share on the plugin side: slot names and the host's note names, the outputs in use, Resample's capture thread, bank and state machine, the sample pack, the signals, the editor's Resample, Export and name box; the four traits a plugin implements, and what stays with each |
 | [`crates/mxm-drum-engine/AGENTS.md`](crates/mxm-drum-engine/AGENTS.md) | What the sixteen-slot drum engines share: the kit LFO, the frames, the trigger group, the seeds; and what stays with each engine |
 | [`crates/mxm-modulation-params/AGENTS.md`](crates/mxm-modulation-params/AGENTS.md) | The routing's parameter and interface half: why it is a second crate rather than a feature, removal as one parameter write with the amount left alone, rows derived from values rather than editor state, and the source as a label because a row *is* its source |
 | [`crates/mxm-measure/AGENTS.md`](crates/mxm-measure/AGENTS.md) | The measurement rulers every test and harness shares: a named computation and never a verdict, the dev-dependency-only rule and its check, the result forms, the extraction gate (its **declined register** in that folder's `NOTES.md`), and the closed-form controls that keep a shared ruler honest |
@@ -254,6 +255,6 @@ their own shipped packages.
 | [`crates/mxm-fft/AGENTS.md`](crates/mxm-fft/AGENTS.md) | The one FFT: its conventions, planning ahead and allocation-free execution, the scoped hardware flush of subnormals, determinism, and the finding that planning cannot fail cleanly |
 | [`crates/mxm-rng/AGENTS.md`](crates/mxm-rng/AGENTS.md) | The five pseudo-random generators: bit-exact for ever, seeding and mappings left to the consumer, the zero-seed rule, the exact laws and the two kept inexact ones |
 | [`crates/mxm-dsp/AGENTS.md`](crates/mxm-dsp/AGENTS.md) | The shared DSP primitives: the byte-identical gate, bit-exact for ever, and which differing copies stay with their instruments |
-| [`crates/mxm-vst3-host/AGENTS.md`](crates/mxm-vst3-host/AGENTS.md) | VST3 plugins in a CLAP host: a module as an in-process CLAP entry, the CLAP-to-VST3 mapping, the ports (aux outputs included), their stable ids and configurations, threads and the fixed-size block lists, embedded and floating editors, Linux's run loop, a bundle's `moduleinfo.json`, and the checks against installed plugins |
+| [`crates/mxm-vst3-host/AGENTS.md`](crates/mxm-vst3-host/AGENTS.md) | VST3 plugins in a CLAP host: a module as an in-process CLAP entry, the CLAP-to-VST3 mapping, the ports (aux outputs included), their stable ids and configurations, the MXM outputs in use, threads and the fixed-size block lists, embedded and floating editors, Linux's run loop, a bundle's `moduleinfo.json`, and the checks against installed plugins |
 | [`crates/mxm-chords/AGENTS.md`](crates/mxm-chords/AGENTS.md) | Chord theory for a tracker: tutti's qualities, `parse` and `spell` and their round trip, `name`, the voicing's ranges and voice leading, `next_in_key` always ending, and the ladders |
 | [`docs/AGENTS.md`](docs/AGENTS.md) | The normative design system and control map, the plugin conventions, the measured `mxm-measure` page, and the filter, oscillator and modulation theory |

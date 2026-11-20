@@ -26,6 +26,7 @@
 //! | `latency` / `tail` | `getLatencySamples` / `getTailSamples` |
 //! | `render` | the process mode, realtime or offline |
 //! | `gui` | `IPlugView`: embedded, or floating in a window of this crate's |
+//! | MXM `dk.mxm.outputs-in-use/1` | MXM `IOutputsInUse` on the component, `IOutputsInUseHandler` on the handler (`outputs_in_use.rs`) |
 //!
 //! # Threads
 //!
@@ -66,6 +67,7 @@ mod handler;
 mod host_objects;
 mod module;
 mod module_info;
+mod outputs_in_use;
 mod params;
 mod plugin;
 #[cfg(target_os = "linux")]

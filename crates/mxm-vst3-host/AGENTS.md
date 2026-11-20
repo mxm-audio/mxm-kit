@@ -24,6 +24,9 @@ CLAP to VST3, is the table in `src/lib.rs`.
   render mode. `params.rs`, `events.rs`: the fixed-size change and event lists of a block.
 - `handler.rs`: `IComponentHandler`, the editor's edits and restart requests. `host_objects.rs`:
   the host application, messages, attribute lists, memory streams.
+- `outputs_in_use.rs`: the MXM outputs in use, VST3 to CLAP: its own copy of the interfaces
+  `IOutputsInUse` and `IOutputsInUseHandler`, and of the CLAP extension `dk.mxm.outputs-in-use/1`
+  (the kit's `docs/plugin-conventions.md`, *Outputs in use*).
 - `gui.rs`: CLAP `gui` on `IPlugView`, embedded or floating; `window.rs` (+ `window_macos.rs`,
   `window_x11.rs`): a floating editor's window; `run_loop.rs`: Linux's `IRunLoop`.
 - `module_info.rs`: a bundle's `moduleinfo.json`, the factory's own answers in the keys and order
@@ -69,6 +72,13 @@ CLAP to VST3, is the table in `src/lib.rs`.
   on (`activateBus`, inactive). Any other plugin has no such extension, as before. **"Main only"
   only stops listening**: a plugin may ignore `activateBus` (nice-plug's VST3 does), so a voice it
   sends to an aux output is silent there, not folded into the main one.
+- **The outputs in use cross as the ports do**: a plugin whose component (or controller) offers
+  `IOutputsInUse` and answers `getOutputCount` with `kResultOk` at creation is offered the CLAP
+  extension, each bus it names as that bus's port (`output_port_id`), a bus it doesn't have left
+  out; one answering `kNotImplemented` (nice-plug's without a source) is not. `to_main` asks
+  `getToMain` of the bus the port is, each value given as `params` gives it. The handler's
+  `outputsInUseChanged` reaches the host's `changed` on the next main-thread callback, as a restart
+  does.
 - **A tail of 0 is "unknown"**, CLAP's infinite: VST3 hosts process regardless, and plugins report 0
   while ringing (ValhallaSupermassive).
 - **A floating editor is a window of this crate's**, the view attached inside; closing it hides it

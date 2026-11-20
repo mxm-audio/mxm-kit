@@ -5,8 +5,10 @@
 //! when the host passes it on, and a restart request is the host's to carry out. Here an edit goes
 //! onto a queue the audio thread drains at the start of the next block (or `params.flush` while the
 //! plugin is inactive), where it becomes the CLAP gesture and value events a host records, and is
-//! handed to the processor. Restart requests and the dirty flag are kept for the main thread.
+//! handed to the processor. Restart requests, the dirty flag and a change to the outputs in use
+//! (the MXM `IOutputsInUseHandler`, `outputs_in_use.rs`) are kept for the main thread.
 
+use crate::outputs_in_use::{IOutputsInUseHandler, IOutputsInUseHandlerTrait};
 use clack_extensions::params::HostParams;
 use clack_plugin::host::HostSharedHandle;
 use std::sync::Arc;
@@ -41,6 +43,8 @@ pub(crate) struct HandlerState {
     pub restart: AtomicI32,
     /// Whether the plugin said its state changed.
     pub dirty: AtomicBool,
+    /// Whether the plugin said its outputs in use may have changed.
+    pub outputs_changed: AtomicBool,
     /// Edits the full queue turned away.
     pub lost_edits: AtomicU32,
 }
@@ -63,6 +67,7 @@ impl HandlerState {
             edits: Mutex::new(producer),
             restart: AtomicI32::new(0),
             dirty: AtomicBool::new(false),
+            outputs_changed: AtomicBool::new(false),
             lost_edits: AtomicU32::new(0),
         };
         (Arc::new(state), consumer)
@@ -85,7 +90,8 @@ impl HandlerState {
         if pushed { kResultOk } else { kResultFalse }
     }
 
-    /// Asks the host for a main-thread callback, where restarts and the dirty flag are acted on.
+    /// Asks the host for a main-thread callback, where restarts, the dirty flag and the outputs in
+    /// use are acted on.
     fn call_back(&self) {
         self.host.request_callback();
     }
@@ -103,7 +109,7 @@ impl ComponentHandler {
 }
 
 impl Class for ComponentHandler {
-    type Interfaces = (IComponentHandler, IComponentHandler2);
+    type Interfaces = (IComponentHandler, IComponentHandler2, IOutputsInUseHandler);
 }
 
 impl IComponentHandlerTrait for ComponentHandler {
@@ -146,6 +152,15 @@ impl IComponentHandler2Trait for ComponentHandler {
     }
 
     unsafe fn finishGroupEdit(&self) -> tresult {
+        kResultOk
+    }
+}
+
+impl IOutputsInUseHandlerTrait for ComponentHandler {
+    unsafe fn outputsInUseChanged(&self) -> tresult {
+        // Kept for the main thread, where the host is told.
+        self.state.outputs_changed.store(true, Ordering::Release);
+        self.state.call_back();
         kResultOk
     }
 }
