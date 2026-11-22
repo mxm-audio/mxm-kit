@@ -825,7 +825,13 @@ when they convert to the keyboard language. Rather than a registry each control 
 `navigation`'s cards and marks are, it reads the AccessKit tree egui builds every frame (enabled by
 `State::begin`), through a plugin's `output_hook`: every widget's bounds, role, label and the
 actions it takes. The arrows go to the nearest widget that way (one overlapping the cursor across
-the way counts as in line, however wide), OPEN asks for `Click` (or `Focus`, from the next frame's
+the way counts as in line, however wide), **← → staying on the cursor's row while it has a widget
+that way**, as `navigation`'s arrows do (newDAWn's owner, 2026-11-22: "fix the reach to prefer the
+same row"). Weighed by distance alone, a button just above beat the next value along the row: in
+newDAWn's pitch view → from *Pitch* went up to *View*, and from *Vibrato* to the modes over the
+note's values (`left_and_right_stay_on_the_row_while_it_has_a_widget_that_way`). Past the row's
+end ← → go to the nearest widget that way, and between two as near the arrows take the one more in
+line with the cursor's centre. OPEN asks for `Click` (or `Focus`, from the next frame's
 input, for a text field), VALUE asks for `Increment`/`Decrement`, ten for COARSE, unless the widget
 reads its own steps with `reach::edit`. A host names its views with any key and gives each the
 `Ui::unique_id` its widgets are drawn in; an open popup takes the keys first, **its items the

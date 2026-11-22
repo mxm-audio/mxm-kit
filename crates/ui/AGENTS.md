@@ -124,7 +124,8 @@ Does **not** own labels, parameter bindings, or data. Plugins and the player sup
 
 - **`reach` walks every widget egui describes to screen readers** (the owner, 2026-10-07; the editors
   convert to it, keys first in newDAWn and the collection): nothing registers; a painted control
-  names itself or stays out; a value in its own units reads `reach::edit`, DELETE putting one with a
+  names itself or stays out; **← → stay on the cursor's row** while it has a widget that way
+  (2026-11-22); a value in its own units reads `reach::edit`, DELETE putting one with a
   default back to it, and **is typed** with `reach::typed` (newDAWn's keyboard-reach plan, S12):
   OPEN, or its menu's `reach::type_item`, opens a field over it, its text all selected; Enter hands
   the text to the widget to read, Escape cancels; a step key alone is VALUE on every value, a `DragValue` too

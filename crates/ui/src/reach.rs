@@ -847,24 +847,38 @@ fn inside(parents: &HashMap<NodeId, NodeId>, node: NodeId, ui: NodeId) -> bool {
 }
 
 /// The widget nearest the cursor that way, preferring one in line with it: one that overlaps it
-/// across the way is in line, however wide each is.
+/// across the way is in line, however wide each is. **← → stay on the cursor's row** while it has
+/// a widget that way, as `navigation`'s arrows do (newDAWn's owner, 2026-11-22): weighed by
+/// distance alone, a button just above beat the next value along the row. Past the row's end they
+/// go to the nearest widget that way, as ↑ ↓ always do. Between two as near, the one more in line
+/// with the cursor's centre.
 fn nearest<'a>(from: &Widget, widgets: &'a [Widget], direction: Direction) -> Option<&'a Widget> {
     let centre = from.rect.center();
     let gap = |a: egui::Rangef, b: egui::Rangef| (b.min - a.max).max(a.min - b.max).max(0.0);
+    let horizontal = matches!(direction, Direction::Left | Direction::Right);
+    // Overlapping by more than a rounding: rows that only touch are two rows.
+    let row =
+        |rect: Rect| from.rect.bottom() > rect.top() + 0.5 && rect.bottom() > from.rect.top() + 0.5;
     widgets
         .iter()
         .filter(|widget| widget.id != from.id)
         .filter_map(|widget| {
             let delta = widget.rect.center() - centre;
-            let (along, across) = match direction {
-                Direction::Left => (-delta.x, gap(from.rect.y_range(), widget.rect.y_range())),
-                Direction::Right => (delta.x, gap(from.rect.y_range(), widget.rect.y_range())),
-                Direction::Up => (-delta.y, gap(from.rect.x_range(), widget.rect.x_range())),
-                Direction::Down => (delta.y, gap(from.rect.x_range(), widget.rect.x_range())),
+            let (ys, xs) = (widget.rect.y_range(), widget.rect.x_range());
+            let (along, across, offset) = match direction {
+                Direction::Left => (-delta.x, gap(from.rect.y_range(), ys), delta.y.abs()),
+                Direction::Right => (delta.x, gap(from.rect.y_range(), ys), delta.y.abs()),
+                Direction::Up => (-delta.y, gap(from.rect.x_range(), xs), delta.x.abs()),
+                Direction::Down => (delta.y, gap(from.rect.x_range(), xs), delta.x.abs()),
             };
-            (along > 1.0).then_some((along + 3.0 * across, widget))
+            let off_row = horizontal && !row(widget.rect);
+            (along > 1.0).then_some(((off_row, along + 3.0 * across, offset), widget))
         })
-        .min_by(|a, b| a.0.total_cmp(&b.0))
+        .min_by(|(a, _), (b, _)| {
+            a.0.cmp(&b.0)
+                .then(a.1.total_cmp(&b.1))
+                .then(a.2.total_cmp(&b.2))
+        })
         .map(|(_, widget)| widget)
 }
 
@@ -910,6 +924,55 @@ mod tests {
         assert_eq!(next(2, Direction::Right), None);
         assert_eq!(next(0, Direction::Down), Some(4));
         assert_eq!(next(3, Direction::Up), Some(2));
+    }
+
+    fn sized(id: u64, x: f32, y: f32, width: f32) -> Widget {
+        Widget {
+            rect: Rect::from_min_size(Pos2::new(x, y), egui::vec2(width, 20.0)),
+            ..at(id, 0.0, 0.0)
+        }
+    }
+
+    /// newDAWn's pitch view (2026-11-22): its modes a row just above a note's values. → from
+    /// Vibrato went up to a mode, nearer by its centre, rather than on to Drift.
+    #[test]
+    fn left_and_right_stay_on_the_row_while_it_has_a_widget_that_way() {
+        let widgets = [
+            // The modes, and a close button far to the right.
+            sized(1, 100.0, 0.0, 25.0),
+            sized(2, 130.0, 0.0, 25.0),
+            sized(3, 160.0, 0.0, 25.0),
+            sized(4, 400.0, 0.0, 25.0),
+            // Pitch, Vibrato and Drift, the row below, 4 points down.
+            sized(5, 0.0, 24.0, 80.0),
+            sized(6, 90.0, 24.0, 60.0),
+            sized(7, 160.0, 24.0, 60.0),
+        ];
+        let next =
+            |from: usize, direction| nearest(&widgets[from], &widgets, direction).map(|w| w.id.0);
+        assert_eq!(next(5, Direction::Right), Some(7));
+        assert_eq!(next(6, Direction::Left), Some(6));
+        assert_eq!(next(2, Direction::Left), Some(2));
+        // Past the row's end, the nearest widget that way.
+        assert_eq!(next(6, Direction::Right), Some(4));
+        assert_eq!(next(3, Direction::Left), Some(3));
+        assert_eq!(next(4, Direction::Left), None);
+    }
+
+    /// Between two as near that way, the one more in line with the cursor's centre: ↓ from a wide
+    /// widget goes to the one under its middle, not the first drawn.
+    #[test]
+    fn between_two_as_near_the_one_more_in_line_wins() {
+        let widgets = [
+            sized(1, 0.0, 0.0, 120.0),
+            sized(2, 0.0, 40.0, 30.0),
+            sized(3, 45.0, 40.0, 30.0),
+            sized(4, 90.0, 40.0, 30.0),
+        ];
+        assert_eq!(
+            nearest(&widgets[0], &widgets, Direction::Down).map(|w| w.id.0),
+            Some(3)
+        );
     }
 
     /// A request for a menu lasts its pass and the next. A widget that had none then, and draws
