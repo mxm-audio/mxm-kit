@@ -7,6 +7,7 @@
 //! `bundleEntry(CFBundleRef)`/`bundleExit`; on Linux `Contents/x86_64-linux/<name>.so` with
 //! `ModuleEntry(handle)`/`ModuleExit`. All three export `GetPluginFactory`.
 
+use crate::ara::{ARA_MAIN_FACTORY_CLASS, AraClass};
 use crate::strings::{from_char8, from_utf16};
 use std::ffi::{c_char, c_void};
 use std::path::{Path, PathBuf};
@@ -77,6 +78,8 @@ pub(crate) struct Module {
     pub records: Vec<ClassRecord>,
     /// Its audio classes, the plugins it offers.
     pub classes: Vec<ClassInfo>,
+    /// Its ARA main factory classes (`ara.rs`).
+    pub ara: Vec<AraClass>,
     factory: Option<ComPtr<IPluginFactory>>,
     host_context_set: AtomicBool,
     /// Last, so it is dropped after the factory is released.
@@ -157,11 +160,20 @@ impl Module {
                 sub_categories: record.sub_categories.clone(),
             })
             .collect();
+        let ara = records
+            .iter()
+            .filter(|record| record.category == ARA_MAIN_FACTORY_CLASS)
+            .map(|record| AraClass {
+                cid: record.cid,
+                name: record.name.clone(),
+            })
+            .collect();
 
         Ok(Module {
             about,
             records,
             classes,
+            ara,
             factory: Some(factory),
             host_context_set: AtomicBool::new(false),
             _binary: binary,

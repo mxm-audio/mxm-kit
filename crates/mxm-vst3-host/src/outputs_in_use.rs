@@ -37,7 +37,7 @@ const NAME_SIZE: usize = 256;
 const MOST: int32 = 256;
 
 /// A [`TUID`] as the [`Guid`] an [`Interface`] declares.
-const fn guid(tuid: TUID) -> Guid {
+pub(crate) const fn guid(tuid: TUID) -> Guid {
     let mut guid = [0; 16];
     let mut i = 0;
     while i < 16 {
@@ -134,6 +134,9 @@ macro_rules! interface {
         unsafe impl Inherits<FUnknown> for $interface {}
     };
 }
+
+/// Also for ARA's interfaces (`ara.rs`).
+pub(crate) use interface;
 
 interface!(
     IOutputsInUse,

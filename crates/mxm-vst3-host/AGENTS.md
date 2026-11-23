@@ -27,6 +27,9 @@ CLAP to VST3, is the table in `src/lib.rs`.
 - `outputs_in_use.rs`: the MXM outputs in use, VST3 to CLAP: its own copy of the interfaces
   `IOutputsInUse` and `IOutputsInUseHandler`, and of the CLAP extension `dk.mxm.outputs-in-use/1`
   (the kit's `docs/plugin-conventions.md`, *Outputs in use*).
+- `ara.rs`: ARA (Celemony's Audio Random Access, SDK 2.3), VST3 to CLAP: its own copy of
+  `ARAVST3.h`'s `IMainFactory`, `IPlugInEntryPoint` and `IPlugInEntryPoint2`, and of `ARACLAP.h`'s
+  factory and plugin extension; ARA's own types opaque pointers, so no ARA crate.
 - `gui.rs`: CLAP `gui` on `IPlugView`, embedded or floating; `window.rs` (+ `window_macos.rs`,
   `window_x11.rs`): a floating editor's window; `run_loop.rs`: Linux's `IRunLoop`.
 - `module_info.rs`: a bundle's `moduleinfo.json`, the factory's own answers in the keys and order
@@ -79,6 +82,22 @@ CLAP to VST3, is the table in `src/lib.rs`.
   `getToMain` of the bus the port is, each value given as `params` gives it. The handler's
   `outputsInUseChanged` reaches the host's `changed` on the next main-thread callback, as a restart
   does.
+- **ARA crosses as CLAP's companion API** (`ARACLAP.h`), for newDAWn's ARA hosting
+  (`newdawn/plans/plan-ara-host.md`):
+  - **The factory:** a module's "ARA Main Factory Class" classes are offered as
+    `org.ara-audio.ara.factory/2` (and its draft id), each with its `ARAFactory` and the plugin id
+    of its audio class. **Pairing:** the audio class of the same name, or the only one when the module
+    has one of each, as the SDK's `VST3Loader.cpp` pairs them. A paired audio class has the feature
+    `ara:supported`.
+  - **The scan:** the probe prints `ara\t<cid>\t<name>` lines, so a scan still runs no plugin code.
+  - **The `IMainFactory` object** is made when its `ARAFactory` is first asked for, and lives as
+    long as the entry, as ARACLAP.h asks.
+  - **The extension:** a component answering `IPlugInEntryPoint2` is offered
+    `org.ara-audio.ara.pluginextension/2`. Its `bind_to_document_controller` is
+    `bindToDocumentControllerWithRoles`, refused while active or with a null document controller;
+    its `get_factory` is `IPlugInEntryPoint::getFactory`, the same `ARAFactory` as the factory's.
+  - **ARA 1's `bindToDocumentController`**, binding every role, isn't offered.
+  - A module without ARA classes and a component without the entry points are as they were.
 - **A tail of 0 is "unknown"**, CLAP's infinite: VST3 hosts process regardless, and plugins report 0
   while ringing (ValhallaSupermassive).
 - **A floating editor is a window of this crate's**, the view attached inside; closing it hides it
@@ -105,6 +124,8 @@ cargo test -p mxm-vst3-host
 cargo clippy -p mxm-vst3-host --all-targets -- -D warnings
 cargo clippy -p mxm-vst3-host --lib --target x86_64-unknown-linux-gnu -- -D warnings
 cargo clippy -p mxm-vst3-host --lib --target aarch64-apple-darwin -- -D warnings
+# ARA through the bridge, with the ARA SDK built at $MXM_BUILD_ROOT/ara-sdk (skips without it):
+cargo test -p mxm-vst3-host --lib -- ara --ignored
 # Installed plugins (Windows): configurations, parameters, a sine or a note through it, every
 # output port's level, state round trip; and the editor.
 cargo run -p mxm-vst3-host --example vst3_probe -- "<path.vst3>" [--config <id>]... [--note <key>] [--set <param id>=<value>]

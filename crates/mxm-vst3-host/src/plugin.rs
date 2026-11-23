@@ -105,6 +105,10 @@ impl Plugin for Vst3Plugin {
         if shared.is_some_and(|shared| shared.reports_outputs) {
             builder.register::<PluginOutputsInUse>();
         }
+        // Only a plugin whose component offers ARA's binding (`ara.rs`).
+        if shared.is_some_and(|shared| shared.ara.is_some()) {
+            builder.register::<crate::ara::PluginAra>();
+        }
         builder
             .register::<PluginAudioPorts>()
             .register::<PluginNotePorts>()
@@ -134,6 +138,8 @@ pub(crate) struct Shared<'a> {
     /// Whether the plugin offers the MXM `IOutputsInUse` and answers it, so the CLAP extension is
     /// offered.
     reports_outputs: bool,
+    /// The component's ARA entry points, so ARA's CLAP extension is offered (`ara.rs`).
+    pub(crate) ara: Option<crate::ara::EntryPoints>,
     /// The processor's tail, read on the main thread at activation, for `tail.get` on the audio
     /// thread, which VST3 does not allow to ask.
     tail: AtomicU32,
@@ -214,9 +220,11 @@ pub(crate) fn create<'a>(
     // SAFETY: on the main thread.
     let reports_outputs = outputs_interface(&vst)
         .is_some_and(|plugin| unsafe { crate::outputs_in_use::read(&plugin) }.is_some());
+    let ara = crate::ara::entry_points(&vst.component);
     let shared = Shared {
         _host: host.shared(),
         reports_outputs,
+        ara,
         vst,
         handler,
         name: class.name.clone(),

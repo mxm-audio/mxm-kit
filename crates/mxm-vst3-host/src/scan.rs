@@ -12,6 +12,7 @@
 //! test binary, a tool) is noticed by its answer lacking the [`HEADER`], and the module is loaded
 //! in-process instead, as it would have been.
 
+use crate::ara::AraClass;
 use crate::module::{ClassInfo, Module};
 use std::ffi::OsStr;
 use std::io::Read;
@@ -28,10 +29,11 @@ pub const PROBE_TIMEOUT: Duration = Duration::from_secs(60);
 /// The probe's first line, by which a host knows the child understood it.
 const HEADER: &str = "MXM-VST3-PROBE 1";
 
-/// What a module offers: its vendor and its audio classes.
+/// What a module offers: its vendor, its audio classes and its ARA main factory classes.
 pub(crate) struct ModuleClasses {
     pub vendor: String,
     pub classes: Vec<ClassInfo>,
+    pub ara: Vec<AraClass>,
 }
 
 /// When this process was started as a probe, probes the module named after [`PROBE_ARG`], prints
@@ -50,11 +52,7 @@ pub fn serve_probe() {
         Ok(module) => {
             println!("vendor\t{}", clean(&module.about.vendor));
             for class in &module.classes {
-                let cid: String = class
-                    .cid
-                    .iter()
-                    .map(|&b| format!("{:02X}", b as u8))
-                    .collect();
+                let cid = cid_text(&class.cid);
                 println!(
                     "class\t{cid}\t{}\t{}\t{}\t{}",
                     clean(&class.name),
@@ -63,6 +61,9 @@ pub fn serve_probe() {
                     clean(&class.sub_categories)
                 );
             }
+            for class in &module.ara {
+                println!("ara\t{}\t{}", cid_text(&class.cid), clean(&class.name));
+            }
         }
         Err(reason) => println!("error\t{}", clean(&reason)),
     }
@@ -70,6 +71,11 @@ pub fn serve_probe() {
     let _ = std::io::stdout().flush();
     // The module is never unloaded: its exit code is no business of the host's.
     std::process::exit(0);
+}
+
+/// A class ID as the probe prints it: 32 hex digits, in its bytes' order.
+fn cid_text(cid: &vst3::Steinberg::TUID) -> String {
+    cid.iter().map(|&b| format!("{:02X}", b as u8)).collect()
 }
 
 /// A field without the tabs and line breaks that separate fields.
@@ -127,6 +133,7 @@ pub(crate) fn probe(bundle: &Path) -> Option<Result<ModuleClasses, String>> {
     }
     let mut vendor = String::new();
     let mut classes = Vec::new();
+    let mut ara = Vec::new();
     for line in lines {
         let fields: Vec<&str> = line.split('\t').collect();
         match fields.as_slice() {
@@ -143,6 +150,14 @@ pub(crate) fn probe(bundle: &Path) -> Option<Result<ModuleClasses, String>> {
                     sub_categories: (*sub_categories).to_owned(),
                 });
             }
+            ["ara", cid, name] => {
+                if let Some(cid) = parse_cid(cid) {
+                    ara.push(AraClass {
+                        cid,
+                        name: (*name).to_owned(),
+                    });
+                }
+            }
             ["error", reason] => return Some(Err((*reason).to_owned())),
             _ => {}
         }
@@ -154,7 +169,11 @@ pub(crate) fn probe(bundle: &Path) -> Option<Result<ModuleClasses, String>> {
             bundle.display()
         )));
     }
-    Some(Ok(ModuleClasses { vendor, classes }))
+    Some(Ok(ModuleClasses {
+        vendor,
+        classes,
+        ara,
+    }))
 }
 
 fn parse_cid(text: &str) -> Option<vst3::Steinberg::TUID> {
@@ -175,8 +194,7 @@ mod tests {
     #[test]
     fn a_class_id_reads_back_from_its_hex() {
         let cid = vst3::uid(0x0123_4567, 0x89AB_CDEF, 0xFEDC_BA98, 0x7654_3210);
-        let text: String = cid.iter().map(|&b| format!("{:02X}", b as u8)).collect();
-        assert_eq!(parse_cid(&text), Some(cid));
+        assert_eq!(parse_cid(&cid_text(&cid)), Some(cid));
         assert_eq!(parse_cid("12"), None);
     }
 

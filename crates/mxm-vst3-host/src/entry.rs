@@ -1,5 +1,6 @@
 //! The CLAP entry a VST3 module is offered as, and its plugin factory.
 
+use crate::ara::{ARA_SUPPORTED, AraFactoryWrapper};
 use crate::module::{ClassInfo, Module};
 use crate::plugin::{self, MainThread, Shared, Vst3Plugin};
 use crate::scan::{self, ModuleClasses};
@@ -41,6 +42,7 @@ pub(crate) fn read_classes(bundle: &Path) -> Result<(ModuleClasses, Option<Arc<M
             let classes = ModuleClasses {
                 vendor: module.about.vendor.clone(),
                 classes: module.classes.clone(),
+                ara: module.ara.clone(),
             };
             Ok((classes, Some(module)))
         }
@@ -63,8 +65,11 @@ pub(crate) fn plugin_id(cid: &TUID) -> String {
 /// module has, as [`crate::ID_PREFIX`] and the class ID. The classes are read out of process when
 /// the host serves probes ([`crate::serve_probe`]), and the module itself is loaded into the host
 /// only when a plugin of it is created. Why an entry failed is [`crate::load_error`].
+///
+/// A module with ARA main factory classes also offers ARA's CLAP factory (`ara.rs`).
 pub struct Vst3Entry {
     factory: PluginFactoryWrapper<Vst3Factory>,
+    ara: Option<AraFactoryWrapper>,
 }
 
 impl Entry for Vst3Entry {
@@ -83,36 +88,74 @@ impl Entry for Vst3Entry {
                 return Err(EntryLoadError);
             }
         };
+        let paired: Vec<usize> = crate::ara::pairs(&found.classes, &found.ara)
+            .into_iter()
+            .map(|(audio, _)| audio)
+            .collect();
         let descriptors = found
             .classes
             .iter()
-            .map(|class| descriptor(class, &found.vendor))
+            .enumerate()
+            .map(|(index, class)| descriptor(class, &found.vendor, paired.contains(&index)))
             .collect();
-        let module = OnceLock::new();
+        let ids: Vec<String> = found
+            .classes
+            .iter()
+            .map(|class| plugin_id(&class.cid))
+            .collect();
+        let module = Arc::new(ModuleSlot {
+            bundle: path,
+            module: OnceLock::new(),
+        });
         if let Some(loaded) = loaded {
-            let _ = module.set(Ok(loaded));
+            let _ = module.module.set(Ok(loaded));
         }
+        let ara = AraFactoryWrapper::new(module.clone(), &found.classes, &ids, &found.ara);
         Ok(Self {
             factory: PluginFactoryWrapper::new(Vst3Factory {
-                bundle: path,
                 classes: found.classes,
                 descriptors,
                 module,
             }),
+            ara,
         })
     }
 
     fn declare_factories<'a>(&'a self, builder: &mut EntryFactories<'a>) {
         builder.register_factory(&self.factory);
+        if let Some(ara) = &self.ara {
+            builder.register_factory(ara);
+        }
+    }
+}
+
+/// A bundle's module, loaded when something first needs it: a plugin created, or an
+/// `ARAFactory` asked for. One per entry, shared by its factories.
+pub(crate) struct ModuleSlot {
+    bundle: PathBuf,
+    module: OnceLock<Result<Arc<Module>, String>>,
+}
+
+impl ModuleSlot {
+    /// The module, loaded now if it isn't yet; `None` if it doesn't load, the reason kept for
+    /// [`crate::load_error`].
+    pub(crate) fn get(&self) -> Option<Arc<Module>> {
+        self.module
+            // SAFETY: loading the module is what the host asked for, by creating one of its
+            // plugins or asking for its ARA factory.
+            .get_or_init(|| unsafe { Module::load(&self.bundle) })
+            .as_ref()
+            .map_err(|reason| remember_error(&self.bundle, Some(reason.clone())))
+            .ok()
+            .cloned()
     }
 }
 
 pub(crate) struct Vst3Factory {
-    bundle: PathBuf,
     classes: Vec<ClassInfo>,
     descriptors: Vec<PluginDescriptor>,
     /// The module, loaded when the first plugin is created.
-    module: OnceLock<Result<Arc<Module>, String>>,
+    module: Arc<ModuleSlot>,
 }
 
 impl PluginFactoryImpl for Vst3Factory {
@@ -133,14 +176,7 @@ impl PluginFactoryImpl for Vst3Factory {
             .descriptors
             .iter()
             .position(|descriptor| descriptor.id() == Some(plugin_id))?;
-        let module = self
-            .module
-            // SAFETY: creating a plugin is what the host asked for.
-            .get_or_init(|| unsafe { Module::load(&self.bundle) })
-            .as_ref()
-            .map_err(|reason| remember_error(&self.bundle, Some(reason.clone())))
-            .ok()?
-            .clone();
+        let module = self.module.get()?;
         let class = &self.classes[index];
         Some(PluginInstance::new_with_initializer::<Vst3Plugin, _>(
             host_info,
@@ -155,8 +191,9 @@ impl PluginFactoryImpl for Vst3Factory {
     }
 }
 
-/// A class's CLAP descriptor: its name, vendor and version, and features from its subcategories.
-fn descriptor(class: &ClassInfo, module_vendor: &str) -> PluginDescriptor {
+/// A class's CLAP descriptor: its name, vendor and version, and features from its subcategories,
+/// with `ara:supported` when an ARA class pairs with it.
+fn descriptor(class: &ClassInfo, module_vendor: &str, ara: bool) -> PluginDescriptor {
     let vendor = if class.vendor.is_empty() {
         module_vendor
     } else {
@@ -204,6 +241,9 @@ fn descriptor(class: &ClassInfo, module_vendor: &str) -> PluginDescriptor {
         if has(part) {
             found.push(feature);
         }
+    }
+    if ara {
+        found.push(ARA_SUPPORTED);
     }
     PluginDescriptor::new(&plugin_id(&class.cid), &class.name)
         .with_vendor(vendor)

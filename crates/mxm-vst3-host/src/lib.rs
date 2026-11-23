@@ -27,6 +27,8 @@
 //! | `render` | the process mode, realtime or offline |
 //! | `gui` | `IPlugView`: embedded, or floating in a window of this crate's |
 //! | MXM `dk.mxm.outputs-in-use/1` | MXM `IOutputsInUse` on the component, `IOutputsInUseHandler` on the handler (`outputs_in_use.rs`) |
+//! | ARA's factory `org.ara-audio.ara.factory/2`, each plugin's `ARAFactory` and id | the "ARA Main Factory Class" classes (`IMainFactory`), each paired with the audio class of its name (`ara.rs`) |
+//! | ARA's plugin extension `org.ara-audio.ara.pluginextension/2`; the feature `ara:supported` | the component's `IPlugInEntryPoint2` (binding with roles) and `IPlugInEntryPoint` (its factory) |
 //!
 //! # Threads
 //!
@@ -59,6 +61,7 @@
 // is a no-op on one platform is needed on the other.
 #![allow(clippy::unnecessary_cast)]
 
+mod ara;
 mod component;
 mod entry;
 mod events;
