@@ -20,7 +20,7 @@ use std::time::Duration;
 
 use crate::content::{BarSignature, HostContent, KeySignature, TempoEntry};
 use crate::sys;
-use crate::util::{implemented_size, opt_string, read_field};
+use crate::util::{implemented_size, opt_string};
 
 /// How the host presents itself.
 #[derive(Clone, Debug)]
@@ -712,23 +712,8 @@ unsafe extern "C" fn record_assert(
 
 // ---- the host ----------------------------------------------------------------------------------
 
-/// The factory's fields, as a host reads them.
-#[derive(Clone, Debug, PartialEq)]
-pub struct FactoryInfo {
-    pub struct_size: usize,
-    pub lowest_api_generation: i32,
-    pub highest_api_generation: i32,
-    pub factory_id: String,
-    pub plug_in_name: String,
-    pub manufacturer_name: String,
-    pub information_url: String,
-    pub version: String,
-    pub document_archive_id: String,
-    pub compatible_document_archive_ids: Vec<String>,
-    pub analyzeable_content_types: Vec<i32>,
-    pub supported_playback_transformation_flags: i32,
-    pub supports_storing_audio_file_chunks: Option<bool>,
-}
+/// The factory's fields, as a host reads them: the host's half's (`hosting`).
+pub use crate::hosting::FactoryInfo;
 
 /// The test host. Its `HostState` lives in a box whose address is every controller host ref.
 pub struct TestHost {
@@ -879,54 +864,8 @@ impl TestHost {
     }
 
     pub fn factory_info(&self) -> FactoryInfo {
-        let f = self.factory;
-        type F = sys::ARAFactory;
-        // SAFETY: the plug-in's factory, valid while the host lives (`new`'s contract); every field
-        // read is size-checked.
-        unsafe {
-            let s = |p: Option<*const c_char>| p.and_then(|p| opt_string(p)).unwrap_or_default();
-            let compatible = read_field!(f, F, compatibleDocumentArchiveIDsCount)
-                .zip(read_field!(f, F, compatibleDocumentArchiveIDs))
-                .filter(|(n, p)| *n > 0 && !p.is_null())
-                .map(|(n, p)| {
-                    std::slice::from_raw_parts(p, n)
-                        .iter()
-                        .map(|id| opt_string(*id).unwrap_or_default())
-                        .collect()
-                })
-                .unwrap_or_default();
-            let types = read_field!(f, F, analyzeableContentTypesCount)
-                .zip(read_field!(f, F, analyzeableContentTypes))
-                .filter(|(n, p)| *n > 0 && !p.is_null())
-                .map(|(n, p)| std::slice::from_raw_parts(p, n).to_vec())
-                .unwrap_or_default();
-            FactoryInfo {
-                struct_size: crate::util::struct_size(f),
-                lowest_api_generation: read_field!(f, F, lowestSupportedApiGeneration).unwrap_or(0),
-                highest_api_generation: read_field!(f, F, highestSupportedApiGeneration)
-                    .unwrap_or(0),
-                factory_id: s(read_field!(f, F, factoryID)),
-                plug_in_name: s(read_field!(f, F, plugInName)),
-                manufacturer_name: s(read_field!(f, F, manufacturerName)),
-                information_url: s(read_field!(f, F, informationURL)),
-                version: s(read_field!(f, F, version)),
-                document_archive_id: s(read_field!(f, F, documentArchiveID)),
-                compatible_document_archive_ids: compatible,
-                analyzeable_content_types: types,
-                supported_playback_transformation_flags: read_field!(
-                    f,
-                    F,
-                    supportedPlaybackTransformationFlags
-                )
-                .unwrap_or(0),
-                supports_storing_audio_file_chunks: read_field!(
-                    f,
-                    F,
-                    supportsStoringAudioFileChunks
-                )
-                .map(|b| b != sys::kARAFalse),
-            }
-        }
+        // SAFETY: the plug-in's factory, valid while the host lives (`new`'s contract).
+        unsafe { crate::hosting::read_info(self.factory) }
     }
 
     /// `initializeARAWithConfiguration` with the host's assert function.

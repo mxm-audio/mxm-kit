@@ -16,6 +16,10 @@
 //! The `test-host` feature adds [`test_host`], a Rust ARA host that drives a factory through
 //! ARA's C function tables, as a real host does.
 //!
+//! [`hosting`] is the host's half, for a DAW that hosts ARA plug-ins: a factory initialized and
+//! counted, the host's interfaces behind one trait, a document controller's whole interface, and a
+//! bound instance's renderers and view.
+//!
 //! The C API itself is [`sys`], generated from the vendored `ara_api/ARAInterface.h`.
 
 pub mod sys;
@@ -29,6 +33,7 @@ mod factory;
 mod graph;
 mod guard;
 mod host;
+pub mod hosting;
 mod notify;
 mod util;
 mod validate;

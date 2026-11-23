@@ -23,6 +23,9 @@ half as `mxm_ara::hosting`: **one set of ARA bindings for the collection**.
   instances, roles, the render access), `host` (the host's interfaces: audio readers, content,
   archives, playback), `archive` (the container), `notify`, `guard`, `content`, `validate`.
 - `src/test_host.rs` — the test host, behind the `test-host` feature.
+- `src/hosting.rs` — the host's half, for newDAWn's ARA host (`plans/plan-ara-host.md`): a
+  factory initialized and counted, the host's interfaces behind the `Host` trait, a document
+  controller's whole interface, a bound instance's renderers and view.
 - `tests/` — the integration tests, through the test host; `tests/common` is their controller.
 - In mxm-kit since 2026-11-23, MIT (the owner: "yes, move mxm-ara to mxm-kit under MIT"), the
   vendored header and the generated bindings under Celemony's Apache 2.0 (`NOTICE.md`).
@@ -63,6 +66,17 @@ half as `mxm_ara::hosting`: **one set of ARA bindings for the collection**.
 - **API generations 2.0 final to 2.3** (`LOWEST_API_GENERATION`, `HIGHEST_API_GENERATION`). No
   ARA 1: the extension's ARA 1 interface is null; the deprecated restore and store calls map to
   their successors, as ARA_Library maps them.
+- **The host's half keeps the same boundary** (`hosting`):
+  - **Sizes:** the host's tables advertise the host's own size; a plug-in's are read as far as
+    their `structSize` goes, zero past it, and refused below their `…MinSize`.
+  - **Generations:** 2.3 when the factory offers it, else the highest from 2.0 final up
+    (`LOWEST_HOSTED_GENERATION`, `HIGHEST_HOSTED_GENERATION`).
+  - **Initialization:** once per factory per process, however many hold it; the last
+    `Initialized` dropped uninitializes.
+  - **Threads:** a document controller's calls are refused off the thread that made it; a call
+    the plug-in lacks is `None`. Archives are bytes handed in and out per call.
+  - **Never wait in a read:** a `Host`'s reads never wait on the controller's thread or a render
+    thread.
 - **Either teardown order.** A `PlugInExtension` may be dropped before or after the controller is
   destroyed; after it, `render_access()` and `with_controller` give `None`.
 
@@ -103,6 +117,7 @@ sh tools/gen-bindings.sh && git diff --exit-code src/sys   # the bindings regene
 | `tests/renderer_guard.rs` | Refused at once during an edit; an edit waits for a renderer; never half an edit |
 | `tests/render_path_allocations.rs` | The render path neither allocates nor frees |
 | `tests/struct_sizes.rs` | An older host's smaller structs read and called only as far as they go |
+| `tests/hosting.rs` | The host's half driving the plug-in side: a document built, read on the plug-in's worker, stored and restored into another; a bound instance's regions and selection in either teardown order; calls off the controller's thread refused; one initialization however many hold it; a plug-in's tables read only as far as they go, generations negotiated; no assert and no violation |
 
 # Child DOX Index
 
