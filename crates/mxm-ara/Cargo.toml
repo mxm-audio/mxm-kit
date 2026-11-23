@@ -1,0 +1,20 @@
+[package]
+name = "mxm-ara"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "The plug-in side of ARA 2 (Celemony's Audio Random Access, SDK 2.3) in Rust, and a Rust test host for it"
+publish = false
+
+[features]
+# The Rust ARA test host (`mxm_ara::test_host`): drives a factory and its document controller
+# through ARA's C function tables, as a real host does. The crate's own tests turn it on.
+test-host = []
+
+[dependencies]
+
+[dev-dependencies]
+mxm-ara = { path = ".", features = ["test-host"] }

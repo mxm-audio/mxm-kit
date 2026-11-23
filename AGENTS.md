@@ -93,6 +93,11 @@ The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.
 - `crates/mxm-fft` is **the collection's one FFT** (the owner, 2026-10-12): it wraps `rustfft` and
   `realfft`, pinned, and owns the conventions (its `AGENTS.md`). An FFT written anywhere else is a
   defect; the remaining copies move to it one consumer at a time. MSRV 1.87.
+- `crates/mxm-ara` is **the collection's one set of ARA 2 bindings** (Celemony's Audio Random Access,
+  SDK 2.3; moved from mxm-fx-pitch, the owner, 2026-11-23: "yes, move mxm-ara to mxm-kit under
+  MIT"): the plug-in side (a `Controller`, the document controller and its model graph, the
+  host's readers, bound instances, the renderer guard) for mxm-fx-pitch's Studio, a Rust test host,
+  and the host's half (`mxm_ara::hosting`) for newDAWn's ARA host. Zero dependencies.
 - `crates/mxm-rng` is **the collection's pseudo-random generators**: five families, each bit-exact
   to the copies it replaced (the audit's O3, owner-approved 2026-10-13). A consumer keeps its seeds,
   its seeding rule and its own mappings, and never changes family; a copy written elsewhere is a
@@ -176,6 +181,7 @@ cargo +1.87.0 build -p <crate>          # and `test`, which is the harder floor
 | `crates/mxm-dsp` | **1.87** | Zero dependencies, so every DSP crate takes it without the GUI floor. **Verified on 1.87**, library and tests |
 | `crates/mxm-stretch` | **1.87** | Zero dependencies, so a DSP crate or a host takes it without the GUI floor. **Verified on 1.87**, library and tests |
 | `crates/mxm-chords` | **1.87** | No dependency but `serde`, behind a feature, so a host and the web tracker's WebAssembly take it without the GUI floor. **Verified on 1.87**, library and tests, with the feature |
+| `crates/mxm-ara` | **1.95** | Zero dependencies; the workspace's, not verified lower |
 | `crates/mxm-fft` | **1.87** | `rustfft` 6.4.1 (MSRV 1.61) and `realfft` 3.5.0, pinned, so a DSP crate can take it. **Verified on 1.87**, library and tests |
 
 ## Licensing
@@ -188,6 +194,8 @@ cargo +1.87.0 build -p <crate>          # and `test`, which is the harder floor
 - The Inter fonts in `crates/ui/assets/inter/` are under the SIL Open Font License
   (`LICENSE.txt` beside them).
 - nice-plug is ISC; its fork carries the upstream licence.
+- The ARA API header vendored in `crates/mxm-ara/ara_api/` and the bindings generated from it are
+  Celemony's, Apache 2.0, their licence and notice beside them (`crates/mxm-ara/NOTICE.md`).
 - Check the licence before porting any algorithm, and record source and licence in a comment at
   the top of the file. Cite techniques (TPT/ZDF, PolyBLEP) even when the implementation is original.
 - The MIT licence covers code, not the MXM name (see the products' `TRADEMARKS.md`).
@@ -255,6 +263,7 @@ their own shipped packages.
 | [`crates/mxm-fft/AGENTS.md`](crates/mxm-fft/AGENTS.md) | The one FFT: its conventions, planning ahead and allocation-free execution, the scoped hardware flush of subnormals, determinism, and the finding that planning cannot fail cleanly |
 | [`crates/mxm-rng/AGENTS.md`](crates/mxm-rng/AGENTS.md) | The five pseudo-random generators: bit-exact for ever, seeding and mappings left to the consumer, the zero-seed rule, the exact laws and the two kept inexact ones |
 | [`crates/mxm-dsp/AGENTS.md`](crates/mxm-dsp/AGENTS.md) | The shared DSP primitives: the byte-identical gate, bit-exact for ever, and which differing copies stay with their instruments |
+| [`crates/mxm-ara/AGENTS.md`](crates/mxm-ara/AGENTS.md) | ARA 2's one set of bindings: the plug-in side (the factory, the document controller and its model graph, the host's readers, the bound instances, the renderer guard), the test host, the host's half |
 | [`crates/mxm-vst3-host/AGENTS.md`](crates/mxm-vst3-host/AGENTS.md) | VST3 plugins in a CLAP host: a module as an in-process CLAP entry, the CLAP-to-VST3 mapping, the ports (aux outputs included), their stable ids and configurations, the MXM outputs in use, threads and the fixed-size block lists, embedded and floating editors, Linux's run loop, a bundle's `moduleinfo.json`, and the checks against installed plugins |
 | [`crates/mxm-chords/AGENTS.md`](crates/mxm-chords/AGENTS.md) | Chord theory for a tracker: tutti's qualities, `parse` and `spell` and their round trip, `name`, the voicing's ranges and voice leading, `next_in_key` always ending, and the ladders |
 | [`docs/AGENTS.md`](docs/AGENTS.md) | The normative design system and control map, the plugin conventions, the measured `mxm-measure` page, and the filter, oscillator and modulation theory |
