@@ -46,6 +46,7 @@ panel.tracker = 3
 panel.mixer = 4
 panel.plugins = 5
 panel.parameters = 6
+panel.automation = 7
 # Note entry's piano, MXM Player's layout: the semitones up from C, then the octave.
 note.keys = A, W, S, E, D, F, T, G, Y, H, U, J, K, O, L, P, Semicolon, Quote
 note.octave-down = Z

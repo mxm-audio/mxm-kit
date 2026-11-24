@@ -580,6 +580,7 @@ open = Enter
                 ("mixer", Key::Digit4),
                 ("plugins", Key::Digit5),
                 ("parameters", Key::Digit6),
+                ("automation", Key::Digit7),
             ]
         );
         assert_eq!(
@@ -630,7 +631,8 @@ open = Enter
                     "tracker",
                     "mixer",
                     "plugins",
-                    "parameters"
+                    "parameters",
+                    "automation"
                 ],
                 "{stem}'s panels"
             );
