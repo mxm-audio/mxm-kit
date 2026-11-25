@@ -102,6 +102,10 @@ The evidence each was extracted on: [NOTES.md § The crate rules in full](NOTES.
   to the copies it replaced (the audit's O3, owner-approved 2026-10-13). A consumer keeps its seeds,
   its seeding rule and its own mappings, and never changes family; a copy written elsewhere is a
   defect (which remain, and when a sixth family arrives: NOTES). Zero dependencies, MSRV 1.87.
+- `crates/mxm-lfo` is **the collection's standard LFO**, for every LFO that copies no machine: MXM
+  Modal Synth's general LFO, relicensed MIT and lifted (the owner, 2026-11-25); its shape's stored
+  ids are `mxm-modulation-params`' `lfo::LfoShapeChoice`. A machine's LFO stays with its
+  instrument. No dependency but `mxm-rng`, MSRV 1.87.
 - `crates/mxm-dsp` is **the collection's shared DSP primitives**: verbatim from byte-identical copies,
   but for the delay line, the copies' common part proved bit-identical per consumer (the audit's O1
   and O2; its AGENTS lists them), and the rate converter, two copies differing in their rates made
@@ -178,6 +182,7 @@ cargo +1.87.0 build -p <crate>          # and `test`, which is the harder floor
 | `crates/mxm-telemetry` | **1.87** | Zero dependencies, atomics only, so a plugin's audio half takes it without the GUI floor. **Verified on 1.87**, library and tests |
 | `crates/mxm-vst3-host` | **1.95** | Inherited, not lowered: its two consumers, MXM Player and newDAWn, are at the GUI floor |
 | `crates/mxm-rng` | **1.87** | Zero dependencies, so every DSP crate takes it without the GUI floor. **Verified on 1.87**, library and tests |
+| `crates/mxm-lfo` | **1.87** | No dependency but the zero-dependency `mxm-rng`, so every DSP crate takes it without the GUI floor. **Verified on 1.87**, library and tests |
 | `crates/mxm-dsp` | **1.87** | Zero dependencies, so every DSP crate takes it without the GUI floor. **Verified on 1.87**, library and tests |
 | `crates/mxm-stretch` | **1.87** | Zero dependencies, so a DSP crate or a host takes it without the GUI floor. **Verified on 1.87**, library and tests |
 | `crates/mxm-chords` | **1.87** | No dependency but `serde`, behind a feature, so a host and the web tracker's WebAssembly take it without the GUI floor. **Verified on 1.87**, library and tests, with the feature |
@@ -262,6 +267,7 @@ their own shipped packages.
 | [`crates/mxm-telemetry/AGENTS.md`](crates/mxm-telemetry/AGENTS.md) | The plugin's DSP→editor channel: the peak meter and its one policy, and the developer channel's request slots |
 | [`crates/mxm-fft/AGENTS.md`](crates/mxm-fft/AGENTS.md) | The one FFT: its conventions, planning ahead and allocation-free execution, the scoped hardware flush of subnormals, determinism, and the finding that planning cannot fail cleanly |
 | [`crates/mxm-rng/AGENTS.md`](crates/mxm-rng/AGENTS.md) | The five pseudo-random generators: bit-exact for ever, seeding and mappings left to the consumer, the zero-seed rule, the exact laws and the two kept inexact ones |
+| [`crates/mxm-lfo/AGENTS.md`](crates/mxm-lfo/AGENTS.md) | The standard LFO: for an LFO that copies no machine, its relicensing, the caller's contract, the stored shapes, draws bit-exact to Modal Synth's |
 | [`crates/mxm-dsp/AGENTS.md`](crates/mxm-dsp/AGENTS.md) | The shared DSP primitives: the byte-identical gate, bit-exact for ever, and which differing copies stay with their instruments |
 | [`crates/mxm-ara/AGENTS.md`](crates/mxm-ara/AGENTS.md) | ARA 2's one set of bindings: the plug-in side (the factory, the document controller and its model graph, the host's readers, the bound instances, the renderer guard), the test host, the host's half |
 | [`crates/mxm-vst3-host/AGENTS.md`](crates/mxm-vst3-host/AGENTS.md) | VST3 plugins in a CLAP host: a module as an in-process CLAP entry, the CLAP-to-VST3 mapping, the ports (aux outputs included), their stable ids and configurations, the MXM outputs in use, threads and the fixed-size block lists, embedded and floating editors, Linux's run loop, a bundle's `moduleinfo.json`, and the checks against installed plugins |

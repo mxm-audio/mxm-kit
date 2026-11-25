@@ -26,6 +26,13 @@ list is its own, so a generated one is not on offer — `mxm-mono-08` already bu
 routing ids from two small reusable structs and one `#[nested(id_prefix = …)]` per destination, and
 that is the shape. **What is shared is everything around those fields**, which is what this crate is.
 
+## The standard LFO's shape
+
+`lfo::LfoShapeChoice` is the parameter half of `mxm-lfo`, the kit's standard LFO: its seven shapes as
+a nice-plug enum with MXM Modal Synth's ids and names, permanent, in `mxm_lfo::LfoShape::ALL`'s order
+(`the_ids_are_permanent_and_in_the_dsps_order`). A plugin's LFO rate, sync and shape parameters are
+its own, under its own ids; the shape's options are what is shared.
+
 # Local Contracts
 
 ## Removing a source from a target is one parameter write

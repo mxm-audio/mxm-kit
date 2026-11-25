@@ -304,6 +304,12 @@ routing*). **A source is chosen on the card it moves, never at the source** (the
 destination it reached. Where a conversion keeps a switch that no route can express, the
 instrument's own AGENTS.md says why: `mxm-mono-01`'s `vcasource`.
 
+**An LFO that copies no machine is the kit's** ([`crates/mxm-lfo`](../crates/mxm-lfo/AGENTS.md),
+its shape stored as `mxm_modulation_params::lfo::LfoShapeChoice`); **a machine's LFO stays with its
+instrument** (the owner, 2026-11-25: "Some of the LFOs are based on specific machins and so should
+not be in a library.; but yes make a standard one in the library"). A plugin declares its own LFO's
+rate, sync and shape parameters under its own ids; only the shape's options are shared.
+
 ### Declaring the target list — what `mxm-mono-00` had to discover twice
 
 The owner's rulings of 2026-09-22, found on `mxm-mono-00` after its conversion had shipped. Each is

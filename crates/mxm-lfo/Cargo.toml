@@ -1,0 +1,13 @@
+[package]
+name = "mxm-lfo"
+description = "The MXM collection's standard LFO: a free-running phase, seven shapes and random draws, for every LFO that copies no machine"
+version.workspace = true
+edition.workspace = true
+# No dependency but the zero-dependency `mxm-rng`, so every DSP crate takes it without the GUI floor.
+rust-version = "1.87"
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+mxm-rng.workspace = true

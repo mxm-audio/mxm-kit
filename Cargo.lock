@@ -2206,6 +2206,13 @@ name = "mxm-keys"
 version = "0.4.1"
 
 [[package]]
+name = "mxm-lfo"
+version = "0.4.1"
+dependencies = [
+ "mxm-rng",
+]
+
+[[package]]
 name = "mxm-measure"
 version = "0.4.1"
 dependencies = [
@@ -2221,6 +2228,7 @@ name = "mxm-modulation-params"
 version = "0.4.1"
 dependencies = [
  "egui",
+ "mxm-lfo",
  "mxm-modulation",
  "mxm-params",
  "mxm-ui",

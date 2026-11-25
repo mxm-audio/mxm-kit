@@ -16,3 +16,5 @@ egui.workspace = true
 mxm-ui.workspace = true
 mxm-params.workspace = true
 mxm-modulation.workspace = true
+# The standard LFO, whose shape's stored ids `lfo` shares.
+mxm-lfo.workspace = true
