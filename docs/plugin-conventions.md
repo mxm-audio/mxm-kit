@@ -18,7 +18,8 @@ plugin's own repository (`https://github.com/mxm-audio/<plugin>`), `apps/mxm-pla
 The plugins the collection ships, each a CLAP and a VST3. Each is a thin nice-plug shell over a framework-free DSP
 crate: parameter definitions, host contract, event handling, and an editor.
 
-Twenty-five plugins — fourteen instruments and eleven effects:
+Twenty-five plugins — fourteen instruments and eleven effects — and, in development after version
+1.0, mxm-fx-bucket-verb:
 
 | | |
 |---|---|
@@ -47,6 +48,7 @@ Twenty-five plugins — fourteen instruments and eleven effects:
 | [`mxm-thanks-eg/`](https://github.com/mxm-audio/mxm-thanks-eg/blob/main/plugins/mxm-thanks-eg/AGENTS.md) | Polyphonic macro-oscillator instrument: twenty-four engines ported bit for bit from Mutable Instruments Plaits (MIT, through `mxm-macro-osc`), envelopes that are function generators too, LFOs and sixteen route slots. *Private and unreleased, so the link works only for the maintainer* |
 | [`mxm-modal-synth/`](https://github.com/mxm-audio/mxm-modal-synth/blob/main/plugins/mxm-modal-synth/AGENTS.md) | Polyphonic modal synthesizer: Mutable Instruments Elements' voice ported bit for bit (MIT, through `mxm-modal-voice`), struck, bowed and blown, with Thanks EG's envelopes, LFOs and route slots |
 | [`mxm-chaos-drums/`](https://github.com/mxm-audio/mxm-chaos-drums/blob/main/plugins/mxm-chaos-drums/AGENTS.md) | Original sixteen-cell drum instrument that runs on charge: a note supplies energy, the cells feed each other on a 4×4 grid and share one supply, reproducible render for render. *Private and unreleased, so the link works only for the maintainer* |
+| [`mxm-fx-bucket-verb/`](https://github.com/mxm-audio/mxm-fx-bucket-verb/blob/main/plugins/mxm-fx-bucket-verb/AGENTS.md) | Original experimental reverb made of two of mxm-bucket-delay's chips at a locked clock ratio, their twelve taps individual delays, joined through a rotation from two corridors to one room, with chip allpasses for diffusion. *In development, after version 1.0; not out to the beta testers* |
 
 
 **This doc holds shared conventions.** Permanent identifiers, machine-specific behavior and active
